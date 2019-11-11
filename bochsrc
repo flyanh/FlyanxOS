@@ -1,0 +1,12 @@
+# BIOS image file and VGA BIOS image file
+romimage:file=/usr/local/share/bochs/BIOS-bochs-latest
+vgaromimage:file=/usr/local/share/bochs/VGABIOS-lgpl-latest
+
+# select your boot started floppy disk
+floppya:1_44=Flyanx.img,status=inserted
+
+# sure your boot type
+boot:floppy
+
+# enable GUI debugger
+display_library: x, options=gui_debug
