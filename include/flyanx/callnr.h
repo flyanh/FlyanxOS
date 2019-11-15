@@ -8,8 +8,8 @@
  * 本文件包含Flyanx的所有的系统调用号
  */
 
-#ifndef FLYANX_CALLNR_H
-#define FLYANX_CALLNR_H
+#ifndef _FLYANX_CALLNR_H
+#define _FLYANX_CALLNR_H
 
 #define NCALLS		  78	/* 允许的系统调用数量 */
 
@@ -81,4 +81,4 @@
 #define REBOOT		  76
 #define SVRCTL		  77
 
-#endif //FLYANX_CALLNR_H
+#endif //_FLYANX_CALLNR_H

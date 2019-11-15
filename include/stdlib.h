@@ -9,7 +9,7 @@
  * 这个头文件在内核源码中很少被引用，但它却是编译用户程序时使用的最频繁的头文件之一，就像stdio.h一样。
  */
 
-#ifndef FLYANX_STDLIB_H
-#define FLYANX_STDLIB_H
+#ifndef _STDLIB_H
+#define _STDLIB_H
 
-#endif //FLYANX_STDLIB_H
+#endif //_STDLIB_H

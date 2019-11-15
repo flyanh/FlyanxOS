@@ -9,8 +9,8 @@
  * 它也包含了许多C函数的原型，其中包括所有用于进行系统调用的C函数原型。
  */
 
-#ifndef FLYANX_UNISTD_H
-#define FLYANX_UNISTD_H
+#ifndef _UNISTD_H
+#define _UNISTD_H
 
 #ifndef FLYANX_TYPES_H
 #include <sys/types.h>

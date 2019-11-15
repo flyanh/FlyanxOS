@@ -62,7 +62,7 @@ int eflags;             /* eflags，同上 */
             "#MF x87 FPU Floating-Point Error (Math Fault)", SIGKILL,
             "#AC Alignment Check", SIGKILL,
             "#MC Machine Check", SIGKILL,
-            "#XF SIMD Floating-Point Exception", SIGKILL
+            "#XF SIMD Floating-Point Exception", SIGKILL,
     };
     register Exception *ep;
     Process *saved_proc;
@@ -72,25 +72,32 @@ int eflags;             /* eflags，同上 */
 
     ep = &ex_data[vec_nr];
 
-    // 显示异常信息
-    disp_color_str("Exception! --> ", text_color);
-    disp_color_str(ep->msg, text_color);
-    disp_str("\n");
-
-    // 显示当前标志寄存器信息
-    disp_color_str("EFLAGS: ", text_color);
-    disp_inum(eflags, 16);
-    // 显示当前CS寄存器信息
-    disp_color_str("CS: ", text_color);
-    disp_inum(cs, 16);
-    // 显示当前EIP寄存器信息
-    disp_color_str("EIP: ", text_color);
-    disp_inum(eip, 16);
-    // 如果有错误码，将错误码也输出
-    if(errno != 0xFFFFFFFF){
-        disp_color_str("Error code: ", text_color);
-        disp_inum(errno, 16);
+    /* 一些机器上的不可屏蔽中断会产生2号伪中断异常 */
+    if(vec_nr == 2){
+        printf("got spurious NMI!\n");
+        return;
     }
+
+    /* 如果没发生中断重入，且当前运行的进程是用户进程，我们发一个信号给它@TODO */
+    if(kernel_reenter == 0 && is_user_proc(saved_proc)){
+//        interrupt_unlock(); /* 这个调用是受保护的就像sys_call() */
+        return;
+    }
+
+    /* 如果上面两个条件都没有满足，说明这是内核代码的的异常，它不应该发生的...
+     * 但没办法，我们打印这些异常信息，最后使用panic结束内核的运行。
+     */
+    if(ep->msg == NIL_PTR){
+        printf("\nException %d no exist...\n", vec_nr);
+    } else printf("\n%s\n", ep->msg);
+    printf("Process number %d, pc = 0x%04x:0x%08x\n",
+           saved_proc->nr,
+           cs,
+           eip);
+    if(errno != 0xFFFFFFFF){
+        printf("ERROR CODE: %d\n", errno);
+    }
+    panic("Exception in system code...", NO_NUM);
 
 }
 

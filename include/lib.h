@@ -8,8 +8,8 @@
  * 本头文件是库使用的主标头。 lib子目录中的所有C文件都包括它。
  */
 
-#ifndef FLYANX_LIB_H
-#define FLYANX_LIB_H
+#ifndef _LIB_H
+#define _LIB_H
 
 /*
  * _POSIX_SOURCE是POSIX标准自行定义的一个特征检测宏。
@@ -39,4 +39,4 @@ _PROTOTYPE( void panic, (const char *_message, int _errnum)		);
 
 
 
-#endif //FLYANX_LIB_H
+#endif //_LIB_H

@@ -1,0 +1,4 @@
+
+lib下包含库例程代码（如open，read），其中两个目录比较重要：syscall和syslib，其分别是系统调用库和系统库。
+lib contains library routine code (such as open, read), two of which are more important: syscall and syslib,
+which are the system call library and system library.

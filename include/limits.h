@@ -9,8 +9,21 @@
  * 也有操作系统的限制，如文件名的长度。
  */
 
-#ifndef FLYANX_LIMITS_H
-#define FLYANX_LIMITS_H
+#ifndef _LIMITS_H
+#define _LIMITS_H
+
+/* 机器字大小（以字节为单位），等于sizeof(int）的常量 */
+#if __ACK__     /* 确定是不是Amsterdam Comiler Kit (ACK)编译器 */
+#define _WORD_SIZE	_EM_WSIZE
+#endif  //__ACK__
+
+#if __GNUC__    /* 确定是不是GNU/GCC编译器 */
+#if __i386__    /* 32位机器 */
+#define _WORD_SIZE	4
+#elif __x86_64__
+#define _WORD_SIZE	8   /* 64位机器 */
+#endif  // __i386__
+#endif  // __GNUC__
 
 /* Definitions about chars (8 bits in MINIX, and signed). */
 #define CHAR_BIT           8	/* # bits in a char */
@@ -26,20 +39,20 @@
 #define SHRT_MAX       32767	/* maximum value of a short */
 #define USHRT_MAX     0xFFFF	/* maximum value of unsigned short */
 
-/* _EM_WSIZE is a compiler-generated symbol giving the word size in bytes. */
-#if _EM_WSIZE == 2
+/* 确定INT和UINT的限制 */
+#if _WORD_SIZE == 2
 #define INT_MIN   (-32767-1)	/* minimum value of a 16-bit int */
 #define INT_MAX        32767	/* maximum value of a 16-bit int */
 #define UINT_MAX      0xFFFF	/* maximum value of an unsigned 16-bit int */
 #endif
 
-#if _EM_WSIZE == 4
+#if _WORD_SIZE == 4
 #define INT_MIN (-2147483647-1)	/* minimum value of a 32-bit int */
 #define INT_MAX   2147483647	/* maximum value of a 32-bit int */
 #define UINT_MAX  0xFFFFFFFF	/* maximum value of an unsigned 32-bit int */
 #endif
 
-/*Definitions about longs (32 bits in MINIX). */
+/* 确定long的限制信息(32位flyanx). */
 #define LONG_MIN (-2147483647L-1)/* minimum value of a long */
 #define LONG_MAX  2147483647L	/* maximum value of a long */
 #define ULONG_MAX 0xFFFFFFFFL	/* maximum value of an unsigned long */
@@ -65,7 +78,7 @@
 #define _NO_LIMIT        100	/* arbitrary number; limit not enforced */
 
 #define NGROUPS_MAX        0	/* supplemental group IDs not available */
-#if _EM_WSIZE > 2
+#if _WORD_SIZE > 2
 #define ARG_MAX        16384	/* # bytes of args + environ for exec() */
 #else
 #define ARG_MAX         4096	/* args + environ on small machines ：参数 + 小型计算机上的环境 */
@@ -84,4 +97,4 @@
 
 #endif /* _POSIX_SOURCE */
 
-#endif //FLYANX_LIMITS_H
+#endif //_LIMITS_H

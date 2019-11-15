@@ -8,11 +8,10 @@
  * 内核所需要的全局变量
  */
 
-#ifndef FLYANX_GLOAL_H
-#define FLYANX_GLOAL_H
+#ifndef FLYANX_GLOBAL_H
+#define FLYANX_GLOBAL_H
 
 /* 当该文件被包含在定义了宏_TABLE的 table.c中时，宏EXTERN的定义被取消。 */
-
 #ifdef _TABLE
 #undef EXTERN
 #define EXTERN
@@ -31,10 +30,16 @@ EXTERN u8_t idt_ptr[6];             /* IDT指针，同上 */
 EXTERN unsigned char kernel_reenter;	/* 记录内核中断重入的次数 */
 
 extern struct tss_s tss;                            /* 任务状态段 */
-EXTERN struct process_t *curr_proc;	                /* 当前运行进程的指针 */
+EXTERN struct process_s *curr_proc;	                /* 当前运行进程的指针 */
 
 /* 在别处初始化的变量在这里只是extern。 */
 extern SegDescriptor gdt[];     /* 全局描述符表 */
+
+extern char *task_stack[];		/* 系统任务栈task_stack，每个任务在task_stack中都有其自己的堆栈 */
+
+/* 其他 */
+extern TaskTab tasktab[];   /* 系统任务表 */
+EXTERN unsigned lost_ticks;	/* 时钟滴答在时钟任务之外的计数 */
 
 /* 机器状态 */
 EXTERN int pc_at;		/* PC-AT兼容硬件接口 */
@@ -50,4 +55,7 @@ EXTERN int protected_mode;	/* 如果以Intel保护模式运行，则为非零 */
 EXTERN irq_handler_t  int_request_table[NR_IRQ_VECTORS];    /* 中断请求处理程序表 */
 EXTERN int int_request_used;                                /* 中断请求处理启用位图 */
 
-#endif //FLYANX_GLOAL_H
+EXTERN flyanx_syscall_t level0_func;            /* 提权函数：系统任务提权调用将会把提权的函数地址放在这 */
+
+
+#endif // FLYANX_GLOBAL_H

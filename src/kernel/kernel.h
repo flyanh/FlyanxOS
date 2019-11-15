@@ -38,5 +38,5 @@
 #include "const.h"
 #include "type.h"
 #include "prototype.h"
-#include "gloal.h"
+#include "global.h"
 

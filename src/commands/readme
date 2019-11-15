@@ -1,0 +1,4 @@
+
+commands包含公用程序（如cat，cp，date，ls等等）的源代码。
+The source code for the utilities (such as cat, cp, date, ls, etc.).
+

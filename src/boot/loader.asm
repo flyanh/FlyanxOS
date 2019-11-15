@@ -20,9 +20,9 @@ org 0100h
 ; GDT全局描述符表--------------------------------------------------------------------------------------------
 ;                                   段基址           段界限           属性
 LABEL_GDT:          Descriptor      0,              0,              0                               ; <- 空描述符，必要的!没有这个CPU无法识别GDT
-LABEL_DESC_FLAT_C:  Descriptor      0,              0FFFFFh,        DA_CR | DA_32 | DA_LIMIT_4K     ; 0~4G，32位可读代码段       
+LABEL_DESC_FLAT_C:  Descriptor      0,              0FFFFFh,        DA_CR | DA_32 | DA_LIMIT_4K     ; 0~4G，32位可读代码段
 LABEL_DESC_FLAT_RW: Descriptor      0,              0FFFFFh,        DA_DRW | DA_32 | DA_LIMIT_4K    ; 0~4G，32位可读写数据段
-LABEL_DESC_VIDEO:   Descriptor      0B8000h,        0FFFFFh,        DA_DRW | DA_DPL3              	; 显存首地址，特权级3
+LABEL_DESC_VIDEO:   Descriptor      0b8000h,        0FFFFFh,        DA_DRW | DA_DPL3              	; 显存首地址，特权级3
 ; GDT全局描述符表--------------------------------------------------------------------------------------------
 GDTLen      equ $ - LABEL_GDT                       ; GDT长度
 GDTPtr      dw  GDTLen - 1                          ; 段界限

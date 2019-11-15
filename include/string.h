@@ -8,8 +8,8 @@
  * 本头文件包含字符串处理函数的原型。
  */
 
-#ifndef FLYANX_STRING_H
-#define FLYANX_STRING_H
+#ifndef _STRING_H
+#define _STRING_H
 
 #define NULL    ((void *)0)
 
@@ -51,4 +51,4 @@ _PROTOTYPE( size_t strxfrm, (char *_s1, const char *_s2, size_t _n)	);
 
 #endif
 
-#endif //FLYANX_STRING_H
+#endif //_STRING_H
