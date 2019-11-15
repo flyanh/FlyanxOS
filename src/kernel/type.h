@@ -11,35 +11,42 @@
 #ifndef FLYANX_TYPE_H
 #define FLYANX_TYPE_H
 
+typedef _PROTOTYPE( void task_t, (void) );
+
+/* 任务表项定义
+ * 一个表项可以存放一个系统任务，在这里我们和用户进程表项分开定义了
+ * 因为他们特权级不同，待遇也不同，就这个理解就应该让我们区别对待。
+ */
+typedef struct tasktab_s {
+    task_t *initial_pc;         /* 系统任务的处理句柄 */
+    int     stack_size;         /* 系统任务的栈大小 */
+    char    name[16];           /* 任务名称 */
+} TaskTab;
+
 #if (CHIP == INTEL)
-/*
- * 端口数据类型，用于访问I/O端口
- */
+/* 端口数据类型，用于访问I/O端口 */
 typedef unsigned port_t;
-/*
- * 寄存器数据类型，用于访问存储器段和CPU寄存器
- */
-typedef unsigned reg_t;		/* machine register */
+
+/* 寄存器数据类型，用于访问存储器段和CPU寄存器 */
+typedef unsigned reg_t;
 
 /* stackframe_s定义了如何将寄存器值保存到堆栈上的数据结构。
  * 这个结构非常重要-在进程被投入运行状态或被脱开运行状态时,它被用来保
  * 存和恢复CPU的内部状态。将其定义成可以用汇编语言高速读写的格式,这将减少进程上下文切换的时间。
  */
 typedef struct stackframe_s {           /* proc_ptr points here */
-#if _WORD_SIZE == 4
-    u16_t gs;                     /* last item pushed by save */
-  u16_t fs;                     /*  ^ */
-#endif
-    u16_t es;                     /*  | */
-    u16_t ds;                     /*  | */
+    reg_t gs;                     /* last item pushed by save */
+    reg_t fs;                     /*  ^ */
+    reg_t es;                     /*  | */
+    reg_t ds;                     /*  | */
     reg_t di;			/* di through cx are not accessed in C */
     reg_t si;			/* order is to match pusha/popa */
-    reg_t fp;			/* bp */
+    reg_t bp;			/* bp */
     reg_t st;			/* hole for another copy of sp */
     reg_t bx;                     /*  | */
     reg_t dx;                     /*  | */
     reg_t cx;                     /*  | */
-    reg_t retreg;			/* ax and above are all pushed by save ：返回地址所在的段 */
+    reg_t ax;			/* ax and above are all pushed by save ：返回地址所在的段，放在ax中 */
     reg_t retadr;			/* return address for assembly code save() */
     reg_t pc;			/*  ^  last item pushed by interrupt ：由中断推送的最后一个项目 */
     reg_t cs;                     /*  | */
@@ -66,7 +73,7 @@ typedef _PROTOTYPE( void (*int_handler_t), (void) );
 typedef _PROTOTYPE( int (*irq_handler_t), (int irq) );
 
 /* 系统调用函数原型 */
-typedef _PROTOTYPE( void* flyanx_syscall_t,  );
+typedef _PROTOTYPE( void (*flyanx_syscall_t),  (void) );
 
 #endif /* (CHIP == INTEL) */
 

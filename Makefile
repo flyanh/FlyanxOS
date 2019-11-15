@@ -36,15 +36,15 @@ DASM 			= ndisasm
 CC 				= gcc
 LD				= ld
 ASMFlagsOfBoot	= -I src/boot/include/
-ASMFlagsOfKernel= -f elf -I include/
-CFlags			= -o2 -I include/ -c -fno-builtin
+ASMFlagsOfKernel= -f elf -I src/kernel/
+CFlags			= -o2 -I$i -c -fno-builtin
 LDFlags			= -s -Ttext $(ENTRYPOINT)
 DASMFlags		= -u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 
 # 依赖关系
 a = src/kernel/kernel.h $h/config.h $h/const.h $h/type.h $h/syslib.h \
     $s/types.h $i/string.h $i/limits.h $i/errno.h \
-    src/kernel/const.h src/kernel/type.h src/kernel/prototype.h src/kernel/gloal.h
+    src/kernel/const.h src/kernel/type.h src/kernel/prototype.h src/kernel/global.h
 
 lib = $i/lib.h $h/common.h $h/syslib.h
 
@@ -55,12 +55,14 @@ lib = $i/lib.h $h/common.h $h/syslib.h
 FlyanxBoot		= target/boot/boot.bin target/boot/loader.bin
 FlyanxKernel	= target/kernel/kernel.bin
 FlyanxKernelHead = target/kernel/kernel.o
-KernelObjs      = target/kernel/start.o target/kernel/i8259.o \
-                  target/kernel/main.o target/kernel/protect.o target/kernel/exception.o \
-                  target/kernel/system.o target/kernel/table.o
-LibObjs         = target/lib/syslib/kernel_lib.o target/lib/syslib/string.o \
-                  target/lib/syslib/kernel_debug.o
-Objs			= $(FlyanxKernelHead) $(LibObjs) $(KernelObjs)
+
+KernelObjs      = target/kernel/start.o target/kernel/protect.o target/kernel/kernel_386_lib.o \
+                  target/kernel/table.o target/kernel/main.o target/kernel/exception.o \
+                  target/kernel/system.o  target/kernel/i8259.o target/kernel/clock.o \
+                  target/kernel/console.o target/kernel/message.o target/kernel/process.o
+
+LibObjs         = target/lib/syslib/string.o target/lib/syslib/kernel_debug.o target/lib/syslib/kprintf.o
+Objs			= $(FlyanxKernelHead) $(KernelObjs) $(LibObjs)
 
 DASMOutPut		= kernel.bin.asm
 
@@ -121,7 +123,6 @@ target/boot/loader.bin : src/boot/loader.asm src/boot/include/load.inc src/boot/
 $(FlyanxKernel): $(Objs)
 	$(LD) $(LDFlags) -o $(FlyanxKernel) $(Objs)
 
-target/kernel/kernel.o: include/kernelConst.inc
 target/kernel/kernel.o: src/kernel/kernel.asm
 	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
 
@@ -140,6 +141,7 @@ target/kernel/main.o: $i/signal.h
 target/kernel/main.o: $i/a.out.h
 target/kernel/main.o: $h/callnr.h
 target/kernel/main.o: $h/common.h
+target/kernel/main.o: src/kernel/process.h
 target/kernel/main.o: src/kernel/main.c
 	$(CC) $(CFlags) -o $@ $<
 
@@ -149,8 +151,7 @@ target/kernel/protect.o: src/kernel/protect.h
 target/kernel/protect.o: src/kernel/protect.c
 	$(CC) $(CFlags) -o $@ $<
 
-target/lib/syslib/kernel_lib.o: include/kernelConst.inc
-target/lib/syslib/kernel_lib.o: src/lib/syslib/kernel_lib.asm
+target/kernel/kernel_386_lib.o: src/kernel/kernel_386_lib.asm
 	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
 
 target/lib/syslib/string.o: src/lib/syslib/string.asm
@@ -191,6 +192,42 @@ target/kernel/table.o:	$b/int86.h
 target/kernel/table.o: src/kernel/table.c
 	$(CC) $(CFlags) -o $@ $<
 
+target/kernel/clock.o: $a
+target/kernel/clock.o: $i/signal.h
+target/kernel/clock.o: $h/callnr.h
+target/kernel/clock.o: $h/common.h
+target/kernel/clock.o: src/kernel/clock.c
+	$(CC) $(CFlags) -o $@ $<
+
+target/kernel/process.o: $a
+target/kernel/process.o: $h/callnr.h
+target/kernel/process.o: $h/common.h
+target/kernel/process.o: src/kernel/process.h
+target/kernel/process.o: src/kernel/process.c
+	$(CC) $(CFlags) -o $@ $<
+
+target/kernel/process.o: $a
+target/kernel/process.o: $h/callnr.h
+target/kernel/process.o: $h/common.h
+target/kernel/process.o: src/kernel/process.h
+target/kernel/message.o: src/kernel/message.c
+	$(CC) $(CFlags) -o $@ $<
+
+target/kernelconsole.o:	$a
+# target/kernelconsole.o:	$i/termios.h
+target/kernelconsole.o:	$h/callnr.h
+target/kernelconsole.o:	$h/com.h
+target/kernelconsole.o:	protect.h
+# target/kernelconsole.o:	tty.h
+target/kernel/process.o: src/kernel/process.h
+target/kernel/console.o: src/kernel/console.c
+	$(CC) $(CFlags) -o $@ $<
+
+target/lib/syslib/kprintf.o: $i/stdarg.h
+target/lib/syslib/kprintf.o: $i/stddef.h
+target/lib/syslib/kprintf.o: $i/limits.h
+target/lib/syslib/kprintf.o: src/lib/syslib/kprintf.c
+	$(CC) $(CFlags) -o $@ $<
 
 # ===============================================
 

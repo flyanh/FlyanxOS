@@ -1,0 +1,3 @@
+
+kernel下包含微内核代码，即内核第1层（CPU权限0）和第2层（CPU权限1）的代码。
+The kernel contains the microkernel code, which is the kernel layer 1 (CPU privilege 0) and layer 2 (CPU privilege 1) code.

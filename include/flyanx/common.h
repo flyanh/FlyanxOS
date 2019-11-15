@@ -13,20 +13,46 @@
  * SET_TIME(设置一天中的当前时间)、 REAL_TIME 的值就是对GET_TIME请求所返回的消息类型。
  */
 
-#ifndef FLYANX_COMMON_H
-#define FLYANX_COMMON_H
+#ifndef _FLYANX_COMMON_H
+#define _FLYANX_COMMON_H
 
 /* System calls. */
 #define SEND		   1	/* function code for sending messages */
 #define RECEIVE		   2	/* function code for receiving messages */
 #define BOTH		   3	/* function code for SEND + RECEIVE */
-#define ANY		0x7ace	/* a magic, invalid process number.
-				 * receive(ANY, buf) accepts from any source
-				 */
+#define ANY		0x7fac	/* a magic, invalid process number.
+                         * receive(ANY, buf) accepts from any source
+                         */
 
 /* 任务号，函数索引号(消息类型)和回复代码，将在下面开始定义 */
 
-/* 用作中断生成消息的源 */
-#define HARDWARE          -1	/* used as source on interrupt generated msgs */
+#define TTY_TASK            -17  /* 终端I/O任务 */
+#	define CANCEL           0	/* general req to force a task to cancel */
+#	define HARD_INT         2	/* fcn code for all hardware interrupts */
+#	define DEV_READ	        3	/* fcn code for reading from tty */
+#	define DEV_WRITE        4	/* fcn code for writing to tty */
+#	define DEV_IOCTL        5	/* fcn code for ioctl */
+#	define DEV_OPEN         6	/* fcn code for opening tty */
+#	define DEV_CLOSE        7	/* fcn code for closing tty */
+#	define DEV_SCATTER      8	/* fcn code for writing from a vector */
+#	define DEV_GATHER       9	/* fcn code for reading into a vector */
+#	define TTY_SETPGRP      10	/* fcn code for setpgroup */
+#	define TTY_EXIT	        11	/* a process group leader has exited */
+#	define SUSPEND	        -998/* used in interrupts when tty has no data */
 
-#endif //FLYANX_COMMON_H
+//#define IDLE_TASK           -6  /* 闲置任务的进程插槽号 */
+#define IDLE_TASK           -3  /* 闲置任务的进程插槽号 */
+
+
+#define CLOCK_TASK          -2  /* 时钟任务 */
+#	define SET_ALARM        1	/* 时钟功能索引号，设置闹钟 */
+#	define GET_TIME	        3	/* 时钟功能索引号，获得真实时间（秒） */
+#	define SET_TIME	        4	/* 时钟功能索引号，设置真实时间（秒） */
+#	define GET_UPTIME       5	/* 时钟功能索引号，获取时钟的运行时间（滴答） */
+#	define SET_SYNC_ALARM   6	/* 时钟功能索引号，设置同步闹钟 */
+#	define REAL_TIME        1	/* 时钟任务的回复代码，用于告诉请求者：这是一个真实时间 */
+#	define CLOCK_INT   HARD_INT /* 此代码仅由同步闹钟任务发送，用来请求一个同步闹钟 */
+
+#define HARDWARE            -1	    /* 用作中断生成消息的源 */
+
+#endif //_FLYANX_COMMON_H

@@ -30,12 +30,11 @@ int mine;           /* 中断初始化的模式 */
      * 其自己的初始化代码时,这些表项逐个地被重填,以指向相应的中断处理例程。最后,每个系统任务复位中断控制
      * 器芯片中的一个二进制位以激活其自己的中断信号输入。
      */
-    disp_str("interrupt_init ---\n");
 
     interrupt_lock();
     if(protected_mode){
         /* 对第一个端口写数据，以适应不同型号的计算机。 */
-        out_byte(INT_CTL, ps_mca ? ICW1_PS : ICW1_AT);
+//        out_byte(INT_M_CTL, ps_mca ? ICW1_PS : ICW1_AT);
 
         /* 对参数mine进行测试，并将对Flyanx在BIOS ROM合适的数值写入该端口
          * 当退出内核时，可调用interrupt_init来恢复BIOS向量，这样便可以平滑的
@@ -43,26 +42,33 @@ int mine;           /* 中断初始化的模式 */
          * @TODO 未保存BIOS的中断向量，被自定义的中断向量覆盖了，暂实现不了该功能
          */
         // Master and Slave 8259, ICW1
-        out_byte(INT_CTLMASK, 0x11);
-        out_byte(INT2_CTLMASK, 0x11);
+        out_byte(INT_M_CTL, 0x11);
+        out_byte(INT_S_CTL, 0x11);
         // Master 8259, ICW2. 设置 '主8259'　的中断入口地址为 0x20.
-        out_byte(INT_CTLMASK, INT_VECTOR_IRQ0);
+        out_byte(INT_M_CTLMASK, INT_VECTOR_IRQ0);
         // Slave 8259, ICW2. 设置 '从8259'　的中断入口地址为 0x28.
-        out_byte(INT2_CTLMASK, INT_VECTOR_IRQ8);
+        out_byte(INT_S_CTLMASK, INT_VECTOR_IRQ8);
         // Master 8259, ICW3. IR2 对应 '从8259'.
-        out_byte(INT_CTLMASK,	0x4);
+        out_byte(INT_M_CTLMASK,	0x4);
         // Slave  8259, ICW3. 对应 '主8259' 的 IR2.
-        out_byte(INT2_CTLMASK,	0x2);
+        out_byte(INT_S_CTLMASK,	0x2);
         // Master and Slave 8259, ICW4.
-        out_byte(INT_CTLMASK,	0x1);
-        out_byte(INT2_CTLMASK,	0x1);
+        out_byte(INT_M_CTLMASK,	0x1);
+        out_byte(INT_S_CTLMASK,	0x1);
 
-        /* 在这里，我们初始化所有的中断请求处理程序到中断请求处理程序表中 */
-        int i;
-        for(i = 0; i < NR_IRQ_VECTORS; i++){
-            int_request_table[i] = spurious_irq;	// 默认的
-        }
+        // Master 8259, OCW1.  将所有中断关闭
+        out_byte(INT_M_CTLMASK,	0xFF);
+        // Slave  8259, OCW1.  将所有中断关闭
+        out_byte(INT_S_CTLMASK,	0xFF);
     }
+
+    /* 在这里，我们初始化所有的中断请求处理程序到中断请求处理程序表中 */
+    int i;
+    for(i = 0; i < NR_IRQ_VECTORS; i++){
+        int_request_table[i] = spurious_irq;	// 默认的
+    }
+
+    printf("Open interrupt mechanism                               [ OK ]\n");
 }
 
 /*=========================================================================*
@@ -108,30 +114,9 @@ PUBLIC int spurious_irq(irq)
 int irq;
 {
 /* 默认的中断处理例程，，可能从未被调用。 */
+
     // 简单的显示一下即可
-    disp_str("spurious_irq --- ");
-    disp_inum(irq, 10);
-    disp_str("\n");
+    printf("I am interrupt %d, i have appeared!\n", irq);
     return 0;	/* Leave interrupt masked */
 }
 
-#if _WORD_SIZE == 2     /* 实模式下 */
-/*===========================================================================*
- *                                   set_vec                                 *
- *===========================================================================*/
-PRIVATE void set_vec(vec_nr, addr)
-int vec_nr;			    /* which vector */
-vecaddr_t addr;			/* where to start */
-{
-/* Set up a real mode interrupt vector. */
-
-  u16_t vec[2];
-
-  /* Build the vector in the array 'vec'. */
-  vec[0] = (u16_t) addr;
-  vec[1] = (u16_t) physb_to_hclick(code_base);
-
-  /* Copy the vector into place. */
-  phys_copy(vir2phys(vec), vec_nr * 4L, 4L);
-}
-#endif /* _WORD_SIZE == 2 */

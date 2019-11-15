@@ -9,8 +9,8 @@
  * 操作系统向外提供的系统调用，也是通过调用这些库函数去实现的。
  */
 
-#ifndef FLYANX_SYSLIB_H
-#define FLYANX_SYSLIB_H
+#ifndef _FLYANX_SYSLIB_H
+#define _FLYANX_SYSLIB_H
 
 #ifndef FLYANX_TYPES_H
 #include <sys/types.h>
@@ -23,10 +23,10 @@
 
 /* Flyanx 用户和系统双用库 */
 _PROTOTYPE( int printf, (const char *_fmt, ...)				);
-_PROTOTYPE( void putk, (int _c)						);
+_PROTOTYPE( void putk, (int c)						);
 _PROTOTYPE(void disp_str, (char* string));   /* 显示一个字符串 */
 _PROTOTYPE(void disp_color_str, (char *string, int color));   /* 显示一个带颜色的字符串 */
 
 
 
-#endif //FLYANX_SYSLIB_H
+#endif //_FLYANX_SYSLIB_H

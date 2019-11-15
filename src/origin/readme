@@ -1,0 +1,4 @@
+
+origin下包含origin程序源代码用于启动Flyanx，同时origin程序是整个系统进程的起源，所有新进程的祖先（fork链的最上层）。
+origin contains the source code of the origin program to start Flyanx, and the origin program is the origin of
+the entire system process, the ancestor of all new processes (the top layer of the fork chain).

@@ -9,7 +9,7 @@
  * 体系结构的细节相关。
  *
  * 处理器的保护模式提供了四种特权级，0~4，0特权最大。
- * Flyanx使用了全部特权级，而Linux和Windows则只使用了两种（0、3）。
+ * Flyanx使用了三个特权级(0、1和3)，和Minix一样，而Linux和Windows则只使用了两种（0、3）。
  */
 
 #ifndef FLYANX_PROTECT_H
@@ -74,7 +74,7 @@ typedef struct tss_s
     reg_t	ldt;
 #if _WORD_SIZE == 4
     u16_t trap;
-  u16_t iobase;     /* I/O位图基址大于或等于TSS段界限，就表示没有I/O许可位图 */
+    u16_t iobase;     /* I/O位图基址大于或等于TSS段界限，就表示没有I/O许可位图 */
 /* u8_t iomap[0]; */
 #endif
 } Tss;
@@ -93,16 +93,17 @@ typedef struct tss_s
 #define FLAT_C_INDEX        1   /* 0~4G，32位可读代码段 */
 #define FLAT_RW_INDEX       2   /* 0~4G，32位可读写数据段 */
 #define VIDEO_INDEX         3   /* 显存首地址，特权级3 */
+
 #define TSS_INDEX           4   /* 任务状态段 */
 #define LDT_FIRST_INDEX     5   /* 本地描述符 */
-
 /*================================================================================================*/
 /* 接下来是选择子，选择子 = (描述符索引 * 描述符大小) */
 /*================================================================================================*/
 #define SELECTOR_DUMMY      DUMMY_INDEX * DESCRIPTOR_SIZE
 #define SELECTOR_FLAT_C     FLAT_C_INDEX * DESCRIPTOR_SIZE
 #define SELECTOR_FLAT_RW    FLAT_RW_INDEX * DESCRIPTOR_SIZE
-#define SELECTOR_VIDEO      VIDEO_INDEX * DESCRIPTOR_SIZE       /* 加3是因为这个段的 DPL(特权级) = 3 */
+#define SELECTOR_VIDEO      VIDEO_INDEX * DESCRIPTOR_SIZE + 3       /* 加3是因为这个段的 DPL(特权级) = 3 */
+
 #define SELECTOR_TSS        TSS_INDEX * DESCRIPTOR_SIZE
 #define SELECTOR_LDT_FIRST  LDT_FIRST_INDEX * DESCRIPTOR_SIZE
 
@@ -110,11 +111,6 @@ typedef struct tss_s
 #define SELECTOR_KERNEL_DS  SELECTOR_FLAT_RW	/* 0~4G，32位可读写数据段 */
 #define SELECTOR_KERNEL_GS  SELECTOR_VIDEO		/* 显存首地址，特权级3 */
 
-/* CPU 执行权限 */
-#define PRIVILEGE_KERNEL    0   /* 内核态 */
-#define PRIVILEGE_TASK      1   /* 任务态 */
-#define PRIVILEGE_SERVER    2   /* 服务态 */
-#define PRIVILEGE_USER      3   /* 用户态 */
 /*================================================================================================*/
 /* 固定的局部描述符 */
 /*================================================================================================*/
@@ -139,7 +135,7 @@ typedef struct tss_s
  * 一样。
  */
 /*================================================================================================*/
-#define INTR_PRIVILEGE      0	/* 内核和中断处理程序 */
+#define KERNEL_PRIVILEGE    0	/* 内核和中断处理程序 */
 #define TASK_PRIVILEGE      1
 #define SERVER_PRIVILEGE    2
 #define USER_PRIVILEGE      3

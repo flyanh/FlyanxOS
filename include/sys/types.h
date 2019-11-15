@@ -37,12 +37,12 @@ typedef int ssize_t;
 
 #ifndef _TIME_T
 #define _TIME_T
-typedef long time_t;		   /* 时间自1970年1月1日格林尼治时间0000 */
+typedef unsigned long time_t;		   /* 时间自1970年1月1日格林尼治时间0000 */
 #endif
 
 #ifndef _CLOCK_T
 #define _CLOCK_T
-typedef long clock_t;		   /* 系统时钟计时单位 */
+typedef unsigned long clock_t;		   /* 系统时钟计时单位 */
 #endif
 
 #ifndef _SIGSET_T

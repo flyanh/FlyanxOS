@@ -7,15 +7,13 @@
  *
  * 该文件包含flyanx的编译首选项，同时也是编译器实际上处理的第一个文件。
  *
- * flyanx暂时只支持32位有保护模式的机器，我们怎么知道这个呢？我们通过gcc编译器
- * 提供的宏，如果是16位机器，gcc会定义一个__8086__宏，而如果是32位机器，则会定义一个
- * __i386__宏(64为__x86_64__)，我们通过这个宏确定了_WORD_SIZE。我们也支持Amsterdam Comiler
- * Kit (ACK)编译器，但我们在这将不再细讲。
- * 16位机器_WORD_SIZE设置为2；而32_WORD_SIZE则为4；
+ * Flyanx暂时只支持32位有保护模式的机器，我们怎么知道这个呢？我们通过gcc编译器
+ * 提供的宏，如果是32，则__i386__宏会被定义，64则__x86_64__会被定义，通过简单
+ * 的判断就可以知道当前编译平台的机器位数了。
  * 虽然我们暂未支持其他，但可以识别他们Flyanx以后的扩展性会更好。
  */
-#ifndef FLYANX_CONFIG_H
-#define FLYANX_CONFIG_H
+#ifndef _FLYANX_CONFIG_H
+#define _FLYANX_CONFIG_H
 
 /* Flyanx发行版和版本号。 */
 #define OS_RELEASE "0"
@@ -36,17 +34,22 @@
 /* 机器字大小（以字节为单位），等于sizeof(int）的常量 */
 #if __ACK__     /* 确定是不是Amsterdam Comiler Kit (ACK)编译器 */
 #define _WORD_SIZE	_EM_WSIZE
-#endif
+#endif  //__ACK__
 
-#if __i386__    /* gcc编译器 */
-#define _WORD_SIZE      4       /* 32位机器 */
+#if __GNUC__    /* 确定是不是GNU/GCC编译器 */
+#if __i386__    /* 32位机器 */
+#define _WORD_SIZE	4
 #elif __x86_64__
-#define _WORD_SIZE      8       /* 64位机器 */
-#endif
+#define _WORD_SIZE	8   /* 64位机器 */
+#endif  // __i386__
+#endif  // __GNUC__
 
+/* 如果在不在32位机器上编译，报错 */
+#if _WORD_SIZE != 4
+#error 对不起，Flyanx暂时只支持32位机器！
+#endif
 
 /* 进程表中的用户进程的槽数。 */
-//#define NR_PROCS          32
 #define NR_PROCS          0
 
 /* 缓冲区高速缓存应尽可能地大。 */
@@ -124,4 +127,4 @@ error "In <minix/config.h> please define MACHINE to have a legal value"
 error "MACHINE has incorrect value (0)"
 #endif
 
-#endif //FLYANX_CONFIG_H
+#endif //_FLYANX_CONFIG_H

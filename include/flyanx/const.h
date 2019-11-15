@@ -31,7 +31,7 @@
 #define TRUE               1	/* 布尔值：真 */
 #define FALSE              0	/* 布尔值：假*/
 
-#define HZ	          	60		/* 时钟频率（可在IBM-PC上设置的软件） */
+#define HZ	          	100		/* 时钟频率（可在IBM-PC上设置为时钟软件） */
 #define BLOCK_SIZE      1024	/* 磁盘块中的字节量 */
 #define SUPER_USER      0	    /* 超级用户！ */
 
@@ -39,6 +39,14 @@
 #define MINOR	           0	/* 次设备 = (dev>>MINOR) & 0377 */
 
 #define NULL     ((void *)0)	/* 空指针 */
+
+/* 一些重要进程的进程号 */
+#define MM_PROC_NR         0	/* 内存管理器 */
+#define FS_PROC_NR         1	/* 文件系统 */
+#define FLY_PROC_NR        2    /* FLY */
+#define ORIGIN_PROC_NR	   3	/* 初始化 -- 将会fork为多用户进程 */
+//#define LOW_USER  ORIGIN_PROC_NR	/* 第一个用户不是操作系统的一部分 */
+#define LOW_USER           -1
 
 /* 其他 */
 #define BYTE            0377	/* 8位字节的掩码 */
@@ -55,7 +63,13 @@
 #define MAX(a, b)   ((a) > (b) ? (a) : (b))
 #define MIN(a, b)   ((a) < (b) ? (a) : (b))
 
-/* 系统任务数量 @TODO 未确定 */
-#define NR_TASKS    (0)
+/* 系统任务数量 */
+#define NR_TASKS    (3)
+
+/* 内存是通过块分配的。 */
+#if (CHIP == INTEL)
+#define CLICK_SIZE      1024u	/* 分配内存的单位 */
+#define CLICK_SHIFT       10u	/* log2 of CLICK_SIZE ：内存块位数，用于移位 */
+#endif
 
 #endif //_FLYANX_CONST_H

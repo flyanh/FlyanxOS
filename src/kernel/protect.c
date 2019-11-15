@@ -9,8 +9,8 @@
  */
 
 #include "kernel.h"
-#include "process.h"
 #include "protect.h"
+#include "process.h"
 
 #if _WORD_SIZE == 4
 #define INT_GATE_TYPE	(INT_286_GATE | DESC_386_BIT)
@@ -23,41 +23,6 @@
 PUBLIC SegDescriptor gdt[GDT_SIZE];     /* 全局描述符表 */
 PRIVATE Gate idt[IDT_SIZE];             /* 中断描述符表 */
 PUBLIC Tss tss;                         /* 用0初始化 */
-
-/* 中断处理函数 */
-void	hwint00();
-void	hwint01();
-void	hwint02();
-void	hwint03();
-void	hwint04();
-void	hwint05();
-void	hwint06();
-void	hwint07();
-void	hwint08();
-void	hwint09();
-void	hwint10();
-void	hwint11();
-void	hwint12();
-void	hwint13();
-void	hwint14();
-void	hwint15();
-/* 异常中断处理函数 */
-void	divide_error();
-void	single_step_exception();
-void	nmi();
-void	breakpoint_exception();
-void	overflow();
-void	bounds_check();
-void	inval_opcode();
-void	copr_not_available();
-void	double_fault();
-void	copr_seg_overrun();
-void	inval_tss();
-void	segment_not_present();
-void	stack_exception();
-void	general_protection();
-void	page_fault();
-void	copr_error();
 
 FORWARD _PROTOTYPE(void init_gate, (u8_t vector, u8_t desc_type, int_handler_t handler, u8_t privilege) );
 FORWARD _PROTOTYPE(void init_seg_desc, (SegDescriptor *p_desc, phys_bytes base, u32_t limit, u16_t attribute) );
@@ -75,14 +40,12 @@ PUBLIC void protect_init(void)
      * 与操作系统中的段不同，操作系统中的段将硬件定于的数据段进一
      * 步分为数据段和堆栈段。
      */
-    disp_str("protect_init ---");
 
     // 首先，将LOADER中的GDT复制到新的GDT中
     memcpy(	&gdt,				    		                // New GDT
                (void*)(*((u32_t *)(&gdt_ptr[2]))),   	// Base  of Old GDT
                *((u16_t *)(&gdt_ptr[0])) + 1	    	// Limit of Old GDT
     );
-
 
     // gdt_ptr[6] 共 6 个字节: 0~15:Limit  16~47:Base。用作 sgdt 以及 lgdt 的参数。
     u16_t * p_gdtLimit	= (u16_t *)(&gdt_ptr[0]);
@@ -97,43 +60,51 @@ PUBLIC void protect_init(void)
     *p_idtBase  = (u32_t)&idt;
 
     // 全部初始化成中断门(没有陷阱门)
-    init_gate(INT_VECTOR_DIVIDE,	DA_386IGate, divide_error,		PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_DEBUG,		DA_386IGate, single_step_exception,	PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_NMI,		DA_386IGate, nmi,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_BREAKPOINT,	DA_386IGate, breakpoint_exception,	PRIVILEGE_USER);
-    init_gate(INT_VECTOR_OVERFLOW,	DA_386IGate, overflow,			PRIVILEGE_USER);
-    init_gate(INT_VECTOR_BOUNDS,	DA_386IGate, bounds_check,		PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_INVAL_OP,	DA_386IGate, inval_opcode,		PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_COPROC_NOT,	DA_386IGate, copr_not_available,	PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_DOUBLE_FAULT,	DA_386IGate, double_fault,		PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_COPROC_SEG,	DA_386IGate, copr_seg_overrun,		PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_INVAL_TSS,	DA_386IGate, inval_tss,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_SEG_NOT,	DA_386IGate, segment_not_present,	PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_STACK_FAULT,	DA_386IGate, stack_exception,		PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_PROTECTION,	DA_386IGate, general_protection,	PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_PAGE_FAULT,	DA_386IGate, page_fault,		PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_COPROC_ERR,	DA_386IGate, copr_error,		PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ0 + 0,	DA_386IGate, hwint00,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ0 + 1,	DA_386IGate, hwint01,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ0 + 2,	DA_386IGate, hwint02,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ0 + 3,	DA_386IGate, hwint03,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ0 + 4,	DA_386IGate, hwint04,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ0 + 5,	DA_386IGate, hwint05,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ0 + 6,	DA_386IGate, hwint06,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ0 + 7,	DA_386IGate, hwint07,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ8 + 0,	DA_386IGate, hwint08,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ8 + 1,	DA_386IGate, hwint09,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ8 + 2,	DA_386IGate, hwint10,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ8 + 3,	DA_386IGate, hwint11,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ8 + 4,	DA_386IGate, hwint12,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ8 + 5,	DA_386IGate, hwint13,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ8 + 6,	DA_386IGate, hwint14,			PRIVILEGE_KERNEL);
-    init_gate(INT_VECTOR_IRQ8 + 7,	DA_386IGate, hwint15,			PRIVILEGE_KERNEL);
+    init_gate(INT_VECTOR_DIVIDE,	DA_386IGate, divide_error,		KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_DEBUG,		DA_386IGate, single_step_exception,	KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_NMI,		DA_386IGate, nmi,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_BREAKPOINT,	DA_386IGate, breakpoint_exception,	USER_PRIVILEGE);
+    init_gate(INT_VECTOR_OVERFLOW,	DA_386IGate, overflow,			USER_PRIVILEGE);
+    init_gate(INT_VECTOR_BOUNDS,	DA_386IGate, bounds_check,		KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_INVAL_OP,	DA_386IGate, inval_opcode,		KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_COPROC_NOT,	DA_386IGate, copr_not_available,	KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_DOUBLE_FAULT,	DA_386IGate, double_fault,		KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_COPROC_SEG,	DA_386IGate, copr_seg_overrun,		KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_INVAL_TSS,	DA_386IGate, inval_tss,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_SEG_NOT,	DA_386IGate, segment_not_present,	KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_STACK_FAULT,	DA_386IGate, stack_exception,		KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_PROTECTION,	DA_386IGate, general_protection,	KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_PAGE_FAULT,	DA_386IGate, page_fault,		KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_COPROC_ERR,	DA_386IGate, copr_error,		KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ0 + 0,	DA_386IGate, hwint00,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ0 + 1,	DA_386IGate, hwint01,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ0 + 2,	DA_386IGate, hwint02,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ0 + 3,	DA_386IGate, hwint03,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ0 + 4,	DA_386IGate, hwint04,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ0 + 5,	DA_386IGate, hwint05,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ0 + 6,	DA_386IGate, hwint06,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ0 + 7,	DA_386IGate, hwint07,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ8 + 0,	DA_386IGate, hwint08,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ8 + 1,	DA_386IGate, hwint09,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ8 + 2,	DA_386IGate, hwint10,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ8 + 3,	DA_386IGate, hwint11,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ8 + 4,	DA_386IGate, hwint12,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ8 + 5,	DA_386IGate, hwint13,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ8 + 6,	DA_386IGate, hwint14,			KERNEL_PRIVILEGE);
+    init_gate(INT_VECTOR_IRQ8 + 7,	DA_386IGate, hwint15,			KERNEL_PRIVILEGE);
+#if _WORD_SIZE == 2     /* 初始化286系统调用中断门 */
+    init_gate(INT_VECTOR_SYS286_CALL, 	DA_386IGate, flyanx_286_syscall, 	USER_PRIVILEGE);
+#else                   /* 初始化386系统调用中断门 */
+    init_gate(INT_VECTOR_SYS386_CALL, 	DA_386IGate, flyanx_386_syscall, 	USER_PRIVILEGE);
+#endif
+    // 初始化系统任务提权调用中断门
+    init_gate(INT_VECTOR_LEVEL0, 	DA_386IGate, level0_call, 	TASK_PRIVILEGE);
 
     /* 初始化任务状态段TSS，并为处理器寄存器和其他任务切换时应保存的信息提供空间。
      * 我们只使用了某些域的信息，这些域定义了当发生中断时在何处建立新堆栈。
      * 下面init_dataseg的调用保证它可以用GDT进行定位。
      */
+    memset(&tss, 0, sizeof(tss));
     tss.ss0 = SELECTOR_KERNEL_DS;
     init_seg_desc(&gdt[TSS_INDEX],
                 vir2phys(seg2phys(SELECTOR_KERNEL_DS), &tss),
@@ -149,16 +120,17 @@ PUBLIC void protect_init(void)
      */
     Process *proc;
     unsigned ldt_index;
+    int c = 0;
     for(proc = BEG_PROC_ADDR, ldt_index = LDT_FIRST_INDEX;
         proc < END_PROC_ADDR; ++proc, ldt_index++){
-//        init_data_seg(&gdt[ldt_index], vir2phys(seg2phys(SELECTOR_KERNEL_DS),proc->ldt),
-//                      sizeof(proc->ldt), DA_DPL0);
         init_seg_desc(&gdt[ldt_index],
                       vir2phys(seg2phys(SELECTOR_KERNEL_DS), proc->ldt),
                       LDT_SIZE * DESCRIPTOR_SIZE,
                       DA_LDT);
+        gdt[ldt_index].access = 0x82;
         proc->ldt_selector = ldt_index * DESCRIPTOR_SIZE;
     }
+    printf("Enter protection mode                                  [ OK ]\n");
 }
 
 /*=========================================================================*
@@ -172,12 +144,12 @@ u32_t limit;
 u16_t attribute;
 {
     /* 初始化一个数据段描述符 */
-    p_desc->limit_low	= limit & 0x0FFFF;
-    p_desc->base_low	= base & 0x0FFFF;
-    p_desc->base_middle	= (base >> 16) & 0x0FF;
-    p_desc->access		= attribute & 0xFF;
+    p_desc->limit_low	= limit & 0x0FFFFu;
+    p_desc->base_low	= base & 0x0FFFFu;
+    p_desc->base_middle	= (base >> 16u) & 0x0FFu;
+    p_desc->access		= attribute & 0xFFu;
     p_desc->granularity = ((limit >> 16) & 0x0F) | (attribute >> 8) & 0xF0;
-    p_desc->base_high	= (base >> 24) & 0x0FF;
+    p_desc->base_high	= (base >> 24u) & 0x0FFu;
 }
 
 /*=========================================================================*
