@@ -23,11 +23,18 @@ PRIVATE char k_environment[128 * sizeof(char *)];
  *				cstart					                                    *
  *				进入内核主函数前做一些准备工作                                  *
  *==========================================================================*/
-PUBLIC void cstart()
+PUBLIC void cstart(u32_t mem_size)
 //U16_t kss;                      /* 内核堆栈段 */
 //U16_t parm_offset, parm_size;	/* boot parameters offset and length */
 {
-//    clear_screen();
+    /* 成功进入cstart，清屏 */
+    clear_screen();
+
+    /* 显示内核欢迎信息 */
+    ok_print("********* Flyanx Kernel *********", "WELCOME");
+    /* 显示内存大小 */
+    printf("You computer memory size:%ldKB\n", mem_size);
+    printf("\n");
 
     /* 记录内核的位置。 */
     code_base = seg2phys(SELECTOR_KERNEL_CS);

@@ -34,6 +34,7 @@ _PROTOTYPE(int main, (void)						);
 _PROTOTYPE( void panic, (const char *msg, int errno)				);
 _PROTOTYPE( void clear_screen, (void) );
 _PROTOTYPE( void idle_test_task, (void) );
+_PROTOTYPE( void ok_print, (char* msg, char* ok) );
 
 /*================================================================================================*/
 /* protect.c */
@@ -46,7 +47,8 @@ _PROTOTYPE( vir_bytes seg2phys, (u8_t seg) );
 /*================================================================================================*/
 _PROTOTYPE( int flyanx_send, (struct process_s *caller_ptr, int dest, struct message_s *message_ptr) );
 _PROTOTYPE( int flyanx_receive, (struct process_s *caller_ptr, int src, struct message_s *message_ptr) );
-_PROTOTYPE( int flyanx_send_receive,  (struct process_s *caller_ptr, int sdest, struct message_s *message_ptr));
+_PROTOTYPE( int sys_call, (int function, int src_dest, struct message_s *message_ptr) );
+
 
 /*================================================================================================*/
 /* clock.c */
@@ -64,6 +66,7 @@ _PROTOTYPE( void lock_hunter, (void) );
 _PROTOTYPE( void lock_ready, (struct process_s *proc) );
 _PROTOTYPE( void lock_unready, (struct process_s *proc) );
 _PROTOTYPE( void lock_schedule, (void) );
+_PROTOTYPE( void unhold, (void) );
 
 /*================================================================================================*/
 /* exception.c */
@@ -80,8 +83,13 @@ _PROTOTYPE( int spurious_irq, (int ) );
 /*================================================================================================*/
 /* kernel_386_lib.asm  */
 /*================================================================================================*/
-_PROTOTYPE( void out_byte, (u16_t port, u8_t value) );
-_PROTOTYPE( u8_t in_byte, (u16_t port) );
+_PROTOTYPE( void copy_msg, (int src,phys_clicks src_clicks,vir_bytes src_offset,
+        phys_clicks dst_clicks, vir_bytes dst_offset) );
+_PROTOTYPE( void phys_copy, (phys_bytes source, phys_bytes dest, phys_bytes count) );
+_PROTOTYPE( void out_byte, (port_t port, U8_t value) );
+_PROTOTYPE( U8_t in_byte, (port_t port) );
+_PROTOTYPE( void out_word, (port_t port, U16_t value) );
+_PROTOTYPE(U16_t in_word, (port_t port) );
 _PROTOTYPE( void disable_irq, (u32_t intRequest) );
 _PROTOTYPE( void enable_irq, (u32_t intRequest) );
 _PROTOTYPE( void interrupt_lock, (void) );
@@ -91,7 +99,7 @@ _PROTOTYPE( void level0, (void (*func)(void)) );
 /*================================================================================================*/
 /* system.c  */
 /*================================================================================================*/
-_PROTOTYPE( void bad_syscall, (void) );
+
 
 /*================================================================================================*/
 /* table.c */

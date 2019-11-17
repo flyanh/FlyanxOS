@@ -29,13 +29,6 @@ typedef unsigned int phys_clicks;
 typedef unsigned int vir_bytes;
 #endif
 
-#if (CHIP == M68000)
-typedef unsigned long vir_bytes;/* virtual addresses and lengths in bytes */
-#endif
-
-#if (CHIP == SPARC)
-typedef unsigned long vir_bytes;/* virtual addresses and lengths in bytes */
-#endif
 
 /* 与消息有关的类型。 */
 #define M1                 1
@@ -51,7 +44,9 @@ typedef struct {long m4l1, m4l2, m4l3, m4l4, m4l5;} mess_union4;
 typedef struct {char m5c1, m5c2; int m5i1, m5i2; long m5l1, m5l2, m5l3;}mess_union5;
 typedef struct {int m6i1, m6i2, m6i3; long m6l1; sighandler_t m6f1;} mess_union6;
 
-/* 消息，MINIX中的进程通信的根本，同时也是客户端和服务端通信的根本 */
+/* 消息，Flyanx中的进程通信的根本，同时也是客户端和服务端通信的根本
+ * 此数据结构来源自MINIX
+ */
 typedef struct message_s{
     int source;         /* 谁发送的消息 */
     int type;           /* 消息的类型（例如，发给时钟任务的GET_TIME） */
@@ -64,5 +59,15 @@ typedef struct message_s{
         mess_union6 u6;
     } u;
 } Message;
+
+/* 内存映像（映射）结构体定义
+ *
+ * 该结构表示在内存中的一块区域
+ */
+typedef struct memory_map_s {
+    vir_clicks virtual;     /* 虚拟地址 */
+    phys_clicks physical;   /* 物理地址 */
+    vir_clicks length;  /* 映像长度 */
+} MemoryMap;
 
 #endif //_FLYANX_TYPE_H

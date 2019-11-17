@@ -9,11 +9,11 @@
  */
 
 #include "kernel.h"
-//#include <termios.h>
+#include <termios.h>
 #include <flyanx/callnr.h>
 #include <flyanx/common.h>
 #include "protect.h"
-//#include "tty.h"
+#include "tty.h"
 #include "process.h"
 
 /*===========================================================================*

@@ -93,9 +93,9 @@ PUBLIC void protect_init(void)
     init_gate(INT_VECTOR_IRQ8 + 6,	DA_386IGate, hwint14,			KERNEL_PRIVILEGE);
     init_gate(INT_VECTOR_IRQ8 + 7,	DA_386IGate, hwint15,			KERNEL_PRIVILEGE);
 #if _WORD_SIZE == 2     /* 初始化286系统调用中断门 */
-    init_gate(INT_VECTOR_SYS286_CALL, 	DA_386IGate, flyanx_286_syscall, 	USER_PRIVILEGE);
+    init_gate(INT_VECTOR_SYS_CALL, 	DA_386IGate, flyanx_286_syscall, 	USER_PRIVILEGE);
 #else                   /* 初始化386系统调用中断门 */
-    init_gate(INT_VECTOR_SYS386_CALL, 	DA_386IGate, flyanx_386_syscall, 	USER_PRIVILEGE);
+    init_gate(INT_VECTOR_SYS_CALL, 	DA_386IGate, flyanx_386_syscall, 	USER_PRIVILEGE);
 #endif
     // 初始化系统任务提权调用中断门
     init_gate(INT_VECTOR_LEVEL0, 	DA_386IGate, level0_call, 	TASK_PRIVILEGE);
@@ -130,7 +130,7 @@ PUBLIC void protect_init(void)
         gdt[ldt_index].access = 0x82;
         proc->ldt_selector = ldt_index * DESCRIPTOR_SIZE;
     }
-    printf("Enter protection mode                                  [ OK ]\n");
+    ok_print("Enter protection mode", "OK");
 }
 
 /*=========================================================================*

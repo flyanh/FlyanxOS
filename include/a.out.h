@@ -1,7 +1,7 @@
 /* The <a.out> header file describes the format of executable files. */
 
 /* 定义了可执行文件在磁盘上的存储格式，包括启动文件执行的文件
- * 头结构和编译器产生的符号表。它只由文件系统引用。
+ * 的头结构和编译器产生的符号表。它只由文件系统引用。
  *
  * 本文件从Minix2操作系统中导入，本人懒...
  */
@@ -9,25 +9,26 @@
 #ifndef _AOUT_H
 #define _AOUT_H
 
-struct	exec {			/* a.out header */
-  unsigned char	a_magic[2];	/* magic number */
-  unsigned char	a_flags;	/* flags, see below */
-  unsigned char	a_cpu;		/* cpu id */
-  unsigned char	a_hdrlen;	/* length of header */
-  unsigned char	a_unused;	/* reserved for future use */
-  unsigned short a_version;	/* version stamp (not used at present) */
-  long		a_text;		/* size of text segement in bytes */
-  long		a_data;		/* size of data segment in bytes */
-  long		a_bss;		/* size of bss segment in bytes */
-  long		a_entry;	/* entry point */
-  long		a_total;	/* total memory allocated */
-  long		a_syms;		/* size of symbol table */
+/* a.out标头 */
+struct	exec {
+  unsigned char	a_magic[2];	/* 魔数 */
+  unsigned char	a_flags;	/* 标志，请看下面 */
+  unsigned char	a_cpu;		/* cpu编号 */
+  unsigned char	a_hdrlen;	/* 标头长度 */
+  unsigned char	a_unused;	/* 保留以备将来使用 */
+  unsigned short a_version;	/* 版本标记（目前已不使用） */
+  long		a_text;		    /* 文本段的大小（以字节为单位） */
+  long		a_data;		    /* 数据段的大小（以字节为单位） */
+  long		a_bss;		    /* bss段的大小（以字节为单位） */
+  long		a_entry;	    /* 入口点 */
+  long		a_total;	    /* 分配的总内存 */
+  long		a_syms;		    /* 符号表的大小 */
 
   /* SHORT FORM ENDS HERE */
-  long		a_trsize;	/* text relocation size */
-  long		a_drsize;	/* data relocation size */
-  long		a_tbase;	/* text relocation base */
-  long		a_dbase;	/* data relocation base */
+  long		a_trsize;	    /* 正文重定位大小 */
+  long		a_drsize;	    /* 数据重定位大小 */
+  long		a_tbase;	    /* 正文重定位基地址 */
+  long		a_dbase;	    /* 数据重定位基地址 */
 };
 
 #define A_MAGIC0      (unsigned char) 0x01

@@ -68,11 +68,11 @@
 #define NR_BUF_HASH	 512	/* size of buf hash table; MUST BE POWER OF 2*/
 #endif
 
-/* minix所启用的控制台的数量计数定义
+/* flyanx所启用的控制台的数量等定义
  */
-#define NR_CONS           	2	/* # system consoles (1 to 8) ： 系统控制台(1 ~ 7) */
-#define	NR_RS_LINES	   		0	/* # rs232 terminals (0, 1, or 2) ： rs232终端(0 ~ 2) */
-#define	NR_PTYS		  	 	0	/* # pseudo terminals (0 to 64) ： 伪终端(0 ~ 64) */
+#define NR_CONSOLE           	3	/* 系统控制台(1 ~ 7) */
+#define	NR_RS_LINES	   		    0	/* rs232终端(0 ~ 2) */
+#define	NR_PTYS		  	 	    0	/* 伪终端(0 ~ 64) */
 
 /*===========================================================================*
  *	在这一行之后没有用户可设置的参数		     *
@@ -93,30 +93,12 @@
 #define CHIP          INTEL
 #endif
 
-#if (MACHINE == ATARI) || (MACHINE == AMIGA) || (MACHINE == MACINTOSH)
-#define CHIP         M68000
-#endif
-
-#if (MACHINE == SUN_4) || (MACHINE == SUN_4_60)
-#define CHIP          SPARC
-#define FP_FORMAT   FP_IEEE
-#endif
-
-#if (MACHINE == ATARI) || (MACHINE == SUN_4)
-#define ASKDEV            1	/* ask for boot device */
-#define FASTLOAD          1	/* use multiple block transfers to init ram */
-#endif
-
-#if (ATARI_TYPE == TT) /* and all other 68030's */
-#define FPP
-#endif
-
 #ifndef FP_FORMAT
 #define FP_FORMAT   FP_NONE
 #endif
 
 #ifndef MACHINE
-error "In <minix/config.h> please define MACHINE"
+error "编译前请在<flyanx/config.h>配置文件中定义你要编译的机器的宏(MACHINE)"
 #endif
 
 #ifndef CHIP

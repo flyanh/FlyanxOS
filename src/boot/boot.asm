@@ -138,7 +138,7 @@ LABEL_GOON_LOADING_FILE:
 	jmp	LABEL_GOON_LOADING_FILE
 LABEL_FILE_LOADED:
 
-	mov	dh, 1			    ; "Ready."
+	mov	dh, 1			    ; "Found  it!!!"
 	call	DispStr			; 显示字符串
 
 ; *****************************************************************************************************
@@ -160,9 +160,9 @@ bOdd			db	0		; 奇数还是偶数
 LoaderFileName		db	"LOADER  BIN", 0	; LOADER.BIN 之文件名
 ; 为简化代码, 下面每个字符串的长度均为 MessageLength
 MessageLength		equ	12
-BootMessage:		db	"Booting     "; 12字节, 不够则用空格补齐. 序号 0
-Message1		    db	"Find LOADER!"; 12字节, 不够则用空格补齐. 序号 1
-Message2		    db	"No LOADER!!!"; 12字节, 不够则用空格补齐. 序号 2
+BootMessage:		db	"Booting....."  ; 12字节, 不够则用空格补齐. 序号 0
+Message1		    db	"Found  it!!!"  ; 12字节, 不够则用空格补齐. 序号 1
+Message2		    db	"No LOADER!!!"  ; 12字节, 不够则用空格补齐. 序号 2
 ;============================================================================
 
 

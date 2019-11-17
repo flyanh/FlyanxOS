@@ -32,9 +32,6 @@ PUBLIC int main(){
 
     /* 主要做一些初始化工作，最重要的莫过于建立进程表 */
 
-//    Process *bp = bill_proc;
-//    Process **ppp = p_process_addr;
-
     /* 调用interrupt_init来初始化中断控制硬件
      * 该操作之所以放在这里是因为此前必须知道机器类型,因为完全依赖于硬件,所以该过程放在一个独立文件中。
      * 参数(1)，代表为Flyanx内核执行初始化，若是参数(0)则再次初始化硬件使其回到原始状态。
@@ -44,7 +41,10 @@ PUBLIC int main(){
      */
     interrupt_init(1);
 
-    // 初始化内存 @TODO
+    /* 初始化内存空间
+     *
+     */
+//    memory_init();
 
 
     /* 进程表的所有表项都被标志为空闲;
@@ -73,6 +73,8 @@ PUBLIC int main(){
     u8_t		rpl;			/* 段访问权限 */
     int hdr_index;
     int task_count = 0;
+    int server_count = 0;
+    int usr_proc_count = 0;
     // 初始化进程表
     for(t = -NR_TASKS; t <= LOW_USER;++t){
         proc = proc_addr(t);                /* t是进程插槽号 */
@@ -92,13 +94,18 @@ PUBLIC int main(){
             /* 设置任务权限 */
             privilege = rpl = proc->priority = PROC_PRI_TASK;
             task_count++;                                /* 任务数量 */
-            // 显示当前任务的基本信息
-//            printf("Task #%s runing...\n", proc->name);
         } else {    /* 服务或用户进程 */
             hdr_index = 1 + t;
-            proc->priority = t < LOW_USER ? PROC_PRI_SERVER : PROC_PRI_USER;
+            if(t < LOW_USER){
+                /* 服务 */
+                proc->priority = PROC_PRI_SERVER;
+                server_count++;
+            } else{
+                /* 用户进程 */
+                proc->priority = PROC_PRI_USER;
+                usr_proc_count++;
+            }
             privilege = rpl = proc->priority;
-//            printf("Server or user process (#%d) runing...\n", t);
         }
 
         // 设置进程的LDT
@@ -108,7 +115,7 @@ PUBLIC int main(){
         memcpy(&proc->ldt[1], &gdt[SELECTOR_KERNEL_DS >> 3], DESCRIPTOR_SIZE);
         proc->ldt[1].access = DA_DRW | privilege << 5;  // 改变DPL
 
-        // 配置进程的上下文环境（寄存器）
+        /* 初始化寄存器值，上下文环境 */
         proc->regs.cs   = (0 & SA_RPL_MASK & SA_TI_MASK) | SA_TIL | rpl;
         proc->regs.ds	= (8 & SA_RPL_MASK & SA_TI_MASK) | SA_TIL | rpl;
         proc->regs.es	= (8 & SA_RPL_MASK & SA_TI_MASK) | SA_TIL | rpl;
@@ -118,36 +125,46 @@ PUBLIC int main(){
         proc->regs.pc   = (reg_t) p_task->initial_pc;
         proc->regs.psw = is_task_proc(proc) ? INIT_TASK_PSW : INIT_PSW;
 
+        /* 初始化服务器的堆栈指针，记下一个字。 */
+//        if(t > 0){
+//            proc->regs.sp = (proc->map[STACK].virtual + proc->map[STACK].length) << CLICK_SHIFT;
+//            proc->regs.sp -= sizeof(reg_t);
+//        }
+
         /* 如果进程不是IDLE或HARDWARE，就调用lock_ready()
          *
          * IDLE和HARDWARE这两项进程是不按通常方式调度的进程，
          * IDLE是一个空循环,在系统中无其他进程就绪时就运行它。
          * HARDWARE进程用于计费-它记录中断服务所用的时间。
          */
-        if (!isidlehardware(t)) lock_ready(proc);	/* IDLE, HARDWARE neveready */
+        if (!is_idle_hardware(t)) lock_ready(proc);	    /* 闲置任务, 硬件任务从不就绪，除非没有任何进程可以运行才会就绪闲置任务 */
+        proc->flags = 0;        /* 进程刚初始化，处于不堵塞状态，所以标志值是全0 */
 
         ldt_selector += DESCRIPTOR_SIZE;
     }
 
 //    process[NR_TASKS + ORIGIN_PROC_NR].pid = 1;     /* 源进程id为1 */
-    printf("Tasks count: %d\n", task_count);
 
-    /* 设置消费进程，因为进程刚刚启动，所以应该设置为IDLE闲置任务为默认值是最好的。
-     * 随后在调用下一个函数lock_hunter时可能会选择其他进程。
+    /* 设置消费进程，它需要一个初值。因为系统闲置刚刚启动，所以此时闲置进程是一个最合适的选择。
+     * 随后在调用下一个函数lock_hunter进行第一次进程狩猎时可能会选择其他进程。
      */
     bill_proc = proc_addr(IDLE_TASK);
     proc_addr(IDLE_TASK)->priority = PROC_PRI_IDLE;
     lock_hunter();  /* 让我们看看，有什么进程那么幸运的被抓出来执行 */
 
-    /* 最后,main的工作至此结束。在许多C程序中main是一个循环,但在MINIX核心中,
+    /* 最后,main的工作至此结束。在许多C程序中main是一个循环,但在Flyanx核心中,
      * 它的工作到初始化结束为止。restart的调用将启动第一个任务,控制权从此不再返回到main。
      *
      * restart作用是引发一个上下文切换,这样curr_proc所指向的进程将运行。
-     * 当restart执行了第一次时,我们可以说MINIX正在运行-它在执行一个进程。
+     * 当restart执行了第一次时,我们可以说Flyanx正在运行-它在执行一个进程。
      * restart被反复地执行,每当系统任务、服务器进程或用户进程放弃运行机会挂
      * 起时都要执行restart,无论挂起原因是等待输入还是在轮到其他进程运行时将控制器转交给它们。
      */
-    printf("Flyanx Kernel                                     [ SUCCESS ]\n");
+//    printf("Flyanx Kernel                                     [ SUCCESS ]\n");
+    ok_print("Multi-process management, Details below", "OK");
+    printf("Tasks count: %d | ", task_count);
+    printf("Server count: %d | ", server_count);
+    printf("User Process count: %d\n", usr_proc_count);
     restart();
 }
 
@@ -183,20 +200,31 @@ PUBLIC void clear_screen(){
      */
     display_position = 0;
     int i;
-    for(i = 0;i < 5 * 80; i++){
+    for(i = 0;i < (160 * 25 + 2 * 80); i++){
         disp_str(" ");
     }
     display_position = 0;
 }
 
-//PUBLIC void idle_test_task(){
-//    printf("idle_test_task");
-//    while (TRUE){
-//
-//    }
-//
-//}
+/*===========================================================================*
+ *                                   ok_print                          *
+ *                                  打印成功信息                               *
+ *===========================================================================*/
+PUBLIC void ok_print(char* msg, char* ok){
+    /* 当内核完成一项重大的工作时，需要显示一个成功信息，本函数完成这个功能
+     * 可以打印类似于"message          [ OK ]"的信息，且可以占满整行
+     */
 
+    printf("%s", msg);
+    int msg_len = strlen(msg);
+    int ok_len = strlen(ok);
+    for(; msg_len < (80 - 4 - ok_len); msg_len++){
+        printf(" ");
+    }
+    printf("[ ");
+    disp_color_str(ok, GREEN);
+    printf(" ]");
+}
 
 
 

@@ -61,7 +61,8 @@ KernelObjs      = target/kernel/start.o target/kernel/protect.o target/kernel/ke
                   target/kernel/system.o  target/kernel/i8259.o target/kernel/clock.o \
                   target/kernel/console.o target/kernel/message.o target/kernel/process.o
 
-LibObjs         = target/lib/syslib/string.o target/lib/syslib/kernel_debug.o target/lib/syslib/kprintf.o
+LibObjs         = target/lib/i386/message.o \
+                  target/lib/syslib/string.o target/lib/syslib/kernel_debug.o target/lib/syslib/kprintf.o
 Objs			= $(FlyanxKernelHead) $(KernelObjs) $(LibObjs)
 
 DASMOutPut		= kernel.bin.asm
@@ -222,6 +223,9 @@ target/kernelconsole.o:	protect.h
 target/kernel/process.o: src/kernel/process.h
 target/kernel/console.o: src/kernel/console.c
 	$(CC) $(CFlags) -o $@ $<
+
+target/lib/i386/message.o: src/lib/i386/message.asm
+	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
 
 target/lib/syslib/kprintf.o: $i/stdarg.h
 target/lib/syslib/kprintf.o: $i/stddef.h

@@ -16,10 +16,9 @@
  * 作用是保证所有POSIX要求的符号和那些显式地允许但并不要求的符号将是可见的，
  * 同时隐藏掉任何POSIX非官方扩展的附加符号。
  */
-#define _POSIX_SOURCE      1
-
+#define _POSIX_SOURCE       1
 /* 宏_FLYANX将为FLYANX所定义的扩展而"重载_POSIX_SOURCE"的作用 */
-#define _FLYANX
+#define _FLYANX             1
 
 #include <flyanx/config.h>
 #include <sys/types.h>
@@ -35,7 +34,8 @@
 #define FS                  1       /* 文件系统 */
 #define FLY                 2       /* 飞彦拓展器，其他调用都在这处理 */
 
-_PROTOTYPE( void panic, (const char *_message, int _errnum)		);
+_PROTOTYPE( void panic, (const char *_message, int _errnum) );
+_PROTOTYPE( int send_receive, (int src_dest, Message *message_ptr) );
 
 
 

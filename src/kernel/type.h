@@ -12,6 +12,7 @@
 #define FLYANX_TYPE_H
 
 typedef _PROTOTYPE( void task_t, (void) );
+typedef _PROTOTYPE( void (*WatchDog), (void) );
 
 /* 任务表项定义
  * 一个表项可以存放一个系统任务，在这里我们和用户进程表项分开定义了

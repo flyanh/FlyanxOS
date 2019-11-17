@@ -17,10 +17,10 @@
 #define _FLYANX_COMMON_H
 
 /* System calls. */
-#define SEND		   1	/* function code for sending messages */
-#define RECEIVE		   2	/* function code for receiving messages */
-#define BOTH		   3	/* function code for SEND + RECEIVE */
-#define ANY		0x7fac	/* a magic, invalid process number.
+#define SEND		    1	/* function code for sending messages */
+#define RECEIVE		    2	/* function code for receiving messages */
+#define SEND_REC	    3	/* function code for SEND + RECEIVE */
+#define ANY		    0x7fac	/* a magic, invalid process number.
                          * receive(ANY, buf) accepts from any source
                          */
 

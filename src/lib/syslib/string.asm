@@ -7,7 +7,7 @@
 ; 库函数开始
 [SECTION .lib]
 
-; 导出库函数,有关函数的作用,可以查阅prototype.h文件;详细信息请往下查阅其函数代码
+; 导出库函数
 global	memcpy
 global	memset
 global  strcpy

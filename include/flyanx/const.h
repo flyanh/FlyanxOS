@@ -40,6 +40,11 @@
 
 #define NULL     ((void *)0)	/* 空指针 */
 
+#define NR_SEGS             3   /* 每个进程的拥有的段数量 */
+#define TEXT                0   /* 正文段索引号，也称为代码段 */
+#define DATA                1   /* 数据段索引号 */
+#define STACK               2   /* 堆栈段索引号 */
+
 /* 一些重要进程的进程号 */
 #define MM_PROC_NR         0	/* 内存管理器 */
 #define FS_PROC_NR         1	/* 文件系统 */
@@ -68,8 +73,8 @@
 
 /* 内存是通过块分配的。 */
 #if (CHIP == INTEL)
-#define CLICK_SIZE      1024u	/* 分配内存的单位 */
-#define CLICK_SHIFT       10u	/* log2 of CLICK_SIZE ：内存块位数，用于移位 */
+#define CLICK_SIZE      1024	/* 分配内存的单位 */
+#define CLICK_SHIFT       10	/* log2 of CLICK_SIZE ：内存块位数，用于移位 */
 #endif
 
 #endif //_FLYANX_CONST_H

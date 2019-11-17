@@ -23,9 +23,13 @@ EXTERN phys_bytes data_base;	/* base of kernel data ： 核心数据段基地址
 EXTERN phys_bytes aout;		    /* address of a.out headers ： a.out可执行文件头文件的地址 */
 
 /* GDT 和 IDT 以及显示位置 */
-EXTERN u8_t display_position;       /* 256显示模式下，文字显示位置，注意：这不是光标 */
+EXTERN u16_t display_position;       /* 256显示模式下，文字显示位置，注意：这不是光标 */
 EXTERN u8_t gdt_ptr[6];             /* GDT指针，0~15：Limit 16~47：Base */
 EXTERN u8_t idt_ptr[6];             /* IDT指针，同上 */
+
+/* held_head 和 held_tail是指向挂起中断队列的头尾指针 */
+EXTERN struct process_s *held_head;
+EXTERN struct process_s *held_tail;
 
 EXTERN unsigned char kernel_reenter;	/* 记录内核中断重入的次数 */
 

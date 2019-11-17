@@ -7,6 +7,8 @@
 ; gitee: https://gitee.com/flyanh/
 ;================================================================================================
 ; 导入和导出
+; 注：所有导入的函数和全局变量都在c语言文件中，函数大部分你能在prototype.h头文件
+;    中有声明，而全局变量大部分你能global.h中找到。
 
 ; 导入头文件
 %include "asmconst.inc"
@@ -14,21 +16,21 @@
 ; 导入函数
 extern  cstart				; 改变gdt_ptr，让它指向新的GDT
 extern  main	            ; 内核主函数
-extern  disp_str			; 显示一个字符串
 extern	spurious_irq	    ; 默认中断请求处理程序
 extern	exception_handler	; 异常处理程序
 extern  level0              ; 系统任务提权
+extern  unhold              ; 处理所有挂起的中断并释放它们
 
 ; 导入全局变量
-extern  display_position	; 显示位置（不同于光标哦）
 extern  gdt_ptr;			; GDT指针
 extern  idt_ptr;			; IDT指针
 extern	curr_proc		    ; 当前系统运行的进程
 extern	tss					; 任务状态段
 extern	kernel_reenter		; 中断重入标志
 extern	int_request_table	; 中断处理程序表
-extern	syscall_table	    ; 系统调用表
+extern	sys_call	        ; 系统调用函数
 extern  level0_func         ; 导入提权的函数地址
+extern  held_head           ; 导入挂起的中断进程队列
 
 ;================================================================================================
 ; 32 位数据段
@@ -136,10 +138,13 @@ _start:
     ; 把　esp 从　LOADER 挪到 KERNEL　处
 	mov esp, StackTop       ; 堆栈在 bss 段中
     
-    mov dword [display_position], (160 * 13 + 2 * 0)  ; 显示位置从 第 13 行 第 0 列 开始
-    
     sgdt    [gdt_ptr]    ; cstart() 中将会用到 gdt_ptr
+
+    mov eax, 0x1FF80    ; 压入内存大小，@TODO 还没拿过来，这是个假数字
+    push eax
     call    cstart      ; 在此函数中改变了gdt_ptr，让它指向新的GDT
+    add esp, 4
+
     lgdt    [gdt_ptr]    ; 使用新的GDT
 
     lidt    [idt_ptr]	; 加载idtr
@@ -179,11 +184,12 @@ csinit:         ; “这个跳转指令强制使用刚刚初始化的结构”�
 	call [int_request_table + 4 * %1]	; 执行中断处理程序
 	pop ecx
 	cli
-	
+	test    eax, eax            ; 测试中断处理程序返回值，如果为0，不允许再发送中断
+	jz .0
 	in al, INT_M_CTLMASK		; @
 	and al, ~(1 << %1)			; #-> 再次允许发生当前中断，因为上边已经执行完中断处理程序了嘛～
 	out INT_M_CTLMASK, al		; @
-	ret
+.0:	ret
 %endmacro
 
 ALIGN	16
@@ -336,8 +342,8 @@ save:
 
 	mov esi, esp	; esi = 进程表起始地址
 
-	inc dword [kernel_reenter]		; 中断重入标志++
-	cmp dword [kernel_reenter], 0	; if(kernel_reenter == 0){ 
+	inc byte [kernel_reenter]		; 中断重入标志++
+	cmp byte [kernel_reenter], 0	; if(kernel_reenter == 0){
 	jne	.1							;
 	mov esp, StackTop				;	mov esp, StackTop // 切换到内核栈
 	push restart					;	push restart
@@ -373,31 +379,52 @@ halt:                   ; 暂停处理器使处理器处于待机状态
 flyanx_386_syscall:
 	call save
 	push dword [curr_proc]
-	sti			; 关中断
 
-	push 	ecx
-	push 	ebx
-	call	[syscall_table + eax * 4]
-	add esp, 4 * 3
+    ;* 重新开启中断,注：软件中断与硬件中断的相似之处还包括它们都关中断 *
+    sti
+    ;* 这里是重点，将所需参数压入栈中（现在处于核心栈），然后调用sys_call去真正调用实际的系统调用例程 *
+    mov     ebp, esp        ; 保存内核堆栈指针
+    add     ebp, 4          ; 执行完调用后，指针数值 + 4，我们预先求出这个值
 
-	mov		[esi + EAXREG - P_STACKBASE], eax
-	cli			; 开中断
+	push 	ebx     ; 用户消息缓冲区
+    push 	eax     ; 源/目标
+    push    ecx     ; 发送消息还是接收？或者两者都做，参数：SEND/RECEIVE/SEND_REC
+    call	sys_call
+    mov     esp, ebp            ; 执行完系统调用后，栈指针恢复
+
+    ;* 在执行restart之前，关闭中断以保护即将被再次启动的进程的栈帧结构 *
+    ;* 系统调用流程：进程A进行系统调用（发送或接收一条消息），系统调用完成后，CPU控制权还是回到进程A手中，除非被调度程序调度。 *
+	mov		[esi + EAXREG - P_STACKBASE], eax   ; 系统调用函数必须保留 esi
+	cli			; 关闭中断
 	ret
+; 在这里，直接陷入restart的代码以重新启动进程/任务运行。
+
 ;================================================================================================
 ; restart : 进程重新启动
 restart:
+    ;*----------------------------------------------------------------------------*
+    ;* 如果检测到存在被挂起的中断，这些中断是在处理其他中断期间到达的， *
+    ;* 则调用unhold，这样就允许在任何进程被重新启动之前将所有挂起的中断转换为消息。 *
+    ;* 这将暂时地重新关闭中断，但在unhold返回之前将再次打开中断。 *
+    cmp dword [held_head], 0      ; 检查该进程的中断挂起队列
+    jz  over_unhold         ; 如果该队列是空的，说明进程没有挂起的中断，直接跳转到over_unhold代码处进行进程的切换恢复
+    call    unhold          ; 处理挂起的中断队列
+over_unhold:
 	mov esp, [curr_proc]	; 离开内核栈，到正在运行的进程堆栈中
 	lldt [esp + P_LDT_SEL]	; 每个进程有自己的 LDT，所以每次进程的切换都需要加载新的ldtr
 
-	lea eax, [esp + P_STACKTOP]	; 得到仅此的栈顶地址
+	lea eax, [esp + P_STACKTOP]	; 得到自己的栈顶地址
 	mov dword [tss + TSS3_S_SP0], eax	
 restart_reenter:
-	dec dword [kernel_reenter]	
+	;* 在这一点上，k_reenter被减1，以记录一层可能的嵌套中断已被处理，然后其余指令将处理 *
+	;* 器恢复到下一进程上一次执行所处的状态。 *
+	dec byte [kernel_reenter]
 	pop gs 
 	pop fs
 	pop es
 	pop ds
 	popad
+	;* 修改栈指针，这样使调用save时压栈的_restart或_restart地址被忽略。*
 	add esp, 4
 	iretd
 
