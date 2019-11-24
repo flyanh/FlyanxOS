@@ -27,7 +27,7 @@ memcpy:
 	mov ecx, [ebp + 16]	; ecx <- 计数器（复制的数据大小）
 .1:
 	cmp ecx, 0			; 判断计数器
-	jz	.2				; if(计算器 == 0); jmp .2
+	jz	.2				; if(计数器器 == 0); jmp .2
 
 	mov al, [ds:esi]		; @
 	inc esi					; #

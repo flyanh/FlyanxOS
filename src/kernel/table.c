@@ -19,10 +19,10 @@
 
 #include "kernel.h"
 #include <stdlib.h>
-//#include <termios.h>
+#include <termios.h>
 #include <flyanx/common.h>
 #include "process.h"
-//#include "tty.h"
+#include "tty.h"
 #include <ibm/int86.h>
 
 /* 下面从系统任务号从小到大给出每个系统任务的启动例程。此处的名称循序
@@ -52,7 +52,8 @@
 
 /* 为系统任务表的所有表象分配空间 */
 PUBLIC TaskTab tasktab[] = {
-        /* 终端任务，必须存在 @TODO 未完成 */
+        /* 终端任务，必须存在 */
+        { tty_task, TTY_TASK_STASK, "TTY_TASK"  },
 
         /* 闲置任务 */
         { idle_task, IDLE_TASK_STACK, "IDLE_TASK" },

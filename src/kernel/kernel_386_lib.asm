@@ -12,6 +12,12 @@
 ; 导入变量
 extern  display_position    ; 显示位置（不同于光标哦）
 extern  level0_func         ; 导入提权函数
+extern  video_size          ; 视频存储器大小
+extern  video_mask          ; 视频存储器的大小索引
+extern  blank_color         ; 空白显示颜色码
+
+; 导入c语言函数
+extern  simple_brk_point           ; 简单断点
 
 ;================================================================================================
 ; 库函数开始
@@ -36,7 +42,7 @@ global  level0
 ;*				copy_msg					     *
 ;*              复制消息
 ;*===========================================================================*
-;* 本例程来源于MINIX
+;* 本例程参考自MINIX
 ;* 尽管用phys_copy就可以完成消息的拷贝（在下面），然而这是一个更快的专门过程
 ;* copy_msg被用作消息拷贝的目的
 ;* 函数原型：copy_msg (int src,phys_clicks src_clicks,vir_bytes src_offset,
@@ -52,80 +58,68 @@ global  level0
 CM_ARGS equ 4 + 4 + 4 + 4 + 4     ; 用于到达复制的参数堆栈的栈顶
 align 16        ; 对齐16位，下面的每个例程都有
 copy_msg:
-    cld
-    push esi
-    push edi
-    push ds
-    push es
+    ;cld
+    ;push esi
+    ;push edi
+    ;push ds
+    ;push es
 
-    mov eax, SELECTOR_KERNEL_DS
-    mov ds, ax
-    mov es, ax
+    ;mov eax, SELECTOR_KERNEL_DS
+    ;mov ds, ax
+    ;mov es, ax
 
-    mov esi, [esp + CM_ARGS + 4]        ; 源数据块
-    shl esi, CLICK_SHIFT
-    add esi, [esp + CM_ARGS + 4 + 4]          ; 源数据偏移
-    mov edi, [esp + CM_ARGS + 4 + 4 + 4]      ; 目的地块
-    shl edi, CLICK_SHIFT
-    add edi, [esp + CM_ARGS + 4 + 4 + 4 + 4]    ; 目的地偏移
+    ;mov esi, [esp + CM_ARGS + 4]        ; 源数据块
+    ;shl esi, CLICK_SHIFT
+    ;add esi, [esp + CM_ARGS + 4 + 4]          ; 源数据偏移
+    ;mov edi, [esp + CM_ARGS + 4 + 4 + 4]      ; 目的地块
+    ;shl edi, CLICK_SHIFT
+    ;add edi, [esp + CM_ARGS + 4 + 4 + 4 + 4]    ; 目的地偏移
 
-    mov eax, [esp + CM_ARGS]        ; 发送者的进程槽号
-    stos                            ; 将发送者的进程槽号复制到目标消息
-    add esi, 4                      ; 不要复制第一个字
-    mov ecx, MSG_SIZE - 1           ; 记住，第一个字不算进去
-    rep
-    movsw                            ; 复制消息
+    ;mov eax, [esp + CM_ARGS]        ; 发送者的进程槽号
+    ;stos                            ; 将发送者的进程槽号复制到目标消息
+    ;add esi, 4                      ; 不要复制第一个字
+    ;mov ecx, MSG_SIZE - 1           ; 记住，第一个字不算进去
+    ;rep
+    ;movsw                            ; 复制消息
 
-    pop es
-    pop ds
-    pop edi
-    pop esi
-    ret                             ; 就这些了！
+    ;pop es
+    ;pop ds
+    ;pop edi
+    ;pop esi
+    ;ret                             ; 就这些了！
 ;*===========================================================================*
 ;*				phys_copy				     *
 ;*===========================================================================*
-;* 本例程来源于MINIX
 ; PUBLIC void phys_copy(phys_bytes source, phys_bytes destination,
 ;			phys_bytes bytecount);
 ;* 将物理内存中任意处的一个数据块拷贝到任意的另外一处 *
-;* 函数调用原型：phys_copy(source_address, destination_address, bytes) *
 ;* 参数中的两个地址都是绝对地址，也就是地址0确实表示整个地址空间的第一个字节， *
 ;* 并且三个参数均为无符号长整数 *
-PC_ARGS     equ     4 + 4 + 4 + 4   ; 用于到达复制的参数堆栈的栈顶
-align 16
+PC_ARGS     equ     16    ; 用于到达复制的参数堆栈的栈顶
 phys_copy:
-    cld
     push esi
     push edi
-    push es
-
-    mov eax, SELECTOR_KERNEL_DS
-    mov es, ax
+    push ecx
 
     ; 获得所有参数
-    mov esi, [esp + PC_ARGS]
-    mov edi, [esp + PC_ARGS + 4]
-    mov eax, [esp + PC_ARGS + 4 + 4]
+    mov esi, [esp + PC_ARGS]            ; source
+    mov edi, [esp + PC_ARGS + 4]        ; destination
+    mov ecx, [esp + PC_ARGS + 4 + 4]    ; bytecoun
+    ; 注：因为得到的就是物理地址，所以esi和edi无需再转换，直接就表示一个真实的位置。
+phys_copy_start:
+    cmp ecx, 0              ; 判断bytecount
+    jz phys_copy_end        ; if( bytecount == 0 ); jmp phys_copy_end
 
-    cmp eax, 10         ; 避免小的数导致的对齐开销
-    jb phys_cp_small
-    mov ecx, esi        ; 对齐源数据，希望目标也一样
-    neg ecx
-    and ecx, 3          ; 计数对齐
-    sub eax, eax
-    rep
-    movsb
-    mov ecx, eax
-    shr ecx, 2          ; 双字计数
-    rep
-    movsd
-    and eax, 3
-phys_cp_small:
-    xchg ecx, eax    ; 余
-    rep
-    movsb
+    mov al, [esi]
+    inc esi
 
-    pop es
+    mov byte [edi], al
+    inc edi
+
+    dec ecx                 ; bytecount--
+    jmp phys_copy_start
+phys_copy_end:
+    pop ecx
     pop edi
     pop esi
     ret
@@ -203,6 +197,7 @@ disp_color_str:
 
 	pop	ebp
 	ret
+
 ;================================================================================================
 ;                  void out_byte(port_t port, U8_t value) ;	向端口输出数据
 align 16

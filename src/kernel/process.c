@@ -51,7 +51,7 @@ int task;           /* 要开始的任务号 */
 
     /* 得到目标任务的进程项 */
     proc = proc_addr(task);
-    printf("%s interrupt\n", proc->name);
+//    printf("%s interrupt\n", proc->name);
 
     /* 通过变量kernel_reenter检查在接收当前中断时是否已经有一个中断在处理
      * 若是，则将当前中断加入排队，函数到此结束，当前挂起的中断将在以后调用
@@ -142,14 +142,14 @@ PRIVATE void hunter(){
     /* 就绪任务进程队列使我们狩猎的第一个目标 */
     if( (prey = ready_head[TASK_QUEUE]) != NIL_PROC){
         curr_proc = prey;
-        printf("hunter --> %s\n", prey->name);
+//        printf("%s process was caught by the hunter.\n", prey->name);
         return;
     }
 
     /* 寻找第二目标：就绪服务进程队列 */
     if( (prey = ready_head[SERVER_QUEUE]) != NIL_PROC ){
         curr_proc = prey;
-        printf("hunter --> %s\n", prey->name);
+//        printf("%s process was caught by the hunter.\n", prey->name);
         return;
     }
 
@@ -160,13 +160,13 @@ PRIVATE void hunter(){
     if( (prey = ready_head[USER_QUEUE]) != NIL_PROC){
         curr_proc = prey;
         bill_proc  = prey;
-        printf("hunter --> %s\n", prey->name);
+//        printf("%s process was caught by the hunter.\n", prey->name);
         return;
     }
     /* 咳咳，本次狩猎失败了，那么只能狩猎IDLE闲置进程了，但这种情况较少发生 */
     prey = proc_addr(IDLE_TASK);
     bill_proc = curr_proc = prey;
-    printf("hunter --> %s\n", prey->name);
+//    printf("%s process was caught by the hunter.\n", prey->name);
     /* 本例程只负责狩猎，狩猎到一个可以执行的进程，而进程执行完毕后的删除或更改在队列中的位置
      * 这种事情我们安排在其他地方去做。
      */

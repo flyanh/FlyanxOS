@@ -62,16 +62,16 @@
 #define MAKE_COLOR(x,y) (x | y) /* MAKE_COLOR(Background,Foreground) */
 
 /* 中断控制器的神奇数字，当然，这个宏可以被类似功能的引用 */
-#define DISABLE         0       /* 用于在中断后保持中断关闭的代码 */
-#define ENABLE          0x19	/* 用于在中断后重新启用中断的代码 */
+#define DISABLE         0       /* 用于在中断后保持当前中断关闭的代码 */
+#define ENABLE          19	    /* 用于在中断后重新启用当前中断的代码，不为0即可 */
 
 /* Sizes of memory tables. */
 /* 内存表的大小。 */
-#define NR_MEMS            8	/* 内存块的数量 */
+#define NR_MEMORY_CLICK            6	/* 内存块的数量 */
 
 /* 其他的端口 */
 #define PCR		0x65			/* 平面控制寄存器 */
-#define PORT_B          0x61	/* 8255端口B的I/O端口(kbd，蜂鸣…) */
+#define PORT_B          0x61	/* 8255端口B的I/O端口(键盘，蜂鸣…) */
 #define TIMER0          0x40	/* 定时器通道0的I/O端口 */
 #define TIMER2          0x42	/* 定时器通道2的I/O端口 */
 #define TIMER_MODE      0x43	/* 用于定时器模式控制的I/O端口 */
@@ -94,6 +94,9 @@
 /* 将内核空间中的地址转换为物理地址。这与umap(proc ptr, D, vir, sizeof(*vir))函数
  * 相同，但成本要低得多。
  */
-#define	vir2phys(seg_base, vir) (vir_bytes)(((vir_bytes)seg_base) + (vir_bytes)(vir))
+#define	vir2phys(seg_base, vir) ((phys_bytes)seg_base + (vir_bytes)(vir))
+
+/* 内嵌汇编nop，有些函数和调用间需要它，它可以让CPU休眠一个指令周期 */
+
 
 #endif //FLYANX_CONST_H

@@ -44,12 +44,12 @@ INT_S_CTLMASK   equ 0xA1            ; setting bits in this port disable ints <Sl
 EOI             equ 0x20
 
 ; 以下选择子值必须与 portect.h 中保持一致！
-SELECTOR_FLAT_C equ 0x08                ; LOADER 里面已经确定了的
-SELECTOR_FLAT_RW    equ 0x10            ; LOADER 里面已经确定了的，可读写数据段
-SELECTOR_TSS    equ 0x20                ; TSS. 从外层调到内存时 SS 和 ESP 的值从里面获得
+SELECTOR_FLAT_C     equ 08h                ; LOADER 里面已经确定了的
+SELECTOR_FLAT_RW    equ 10h                ; LOADER 里面已经确定了的，可读写数据段
+SELECTOR_TSS        equ 20h                ; TSS. 从外层调到内存时 SS 和 ESP 的值从里面获得
 
-SELECTOR_KERNEL_CS  equ SELECTOR_FLAT_C ; 内核代码段
-SELECTOR_KERNEL_DS  equ SELECTOR_FLAT_RW ; 内核代码段
+SELECTOR_KERNEL_CS  equ SELECTOR_FLAT_C     ; 内核代码段
+SELECTOR_KERNEL_DS  equ SELECTOR_FLAT_RW    ; 内核数据段
 ;================================================================================================
 ; 关于消息通信的一些参数
 CLICK_SHIFT     equ     10

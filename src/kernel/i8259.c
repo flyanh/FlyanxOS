@@ -68,7 +68,6 @@ int mine;           /* 中断初始化的模式 */
         int_request_table[i] = spurious_irq;	// 默认的
     }
 
-    ok_print("Open interrupt mechanism", "OK");
 }
 
 /*=========================================================================*

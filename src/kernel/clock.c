@@ -5,7 +5,7 @@
  * QQ-Group:909830414
  * gitee: https://gitee.com/flyanh/
  *
- * 包含时钟相关，最主要的是时钟系统任务（时钟驱动程序）
+ * 包含时钟相关，最主要的是时钟系统任务（同时也是时钟驱动程序）
  * 时钟任务接收留个参数的消息类型：
  *  1.HARD_INT
  *  2.GET_UPTIME（获取时钟的运行时间（滴答））
@@ -88,10 +88,9 @@ PUBLIC void clock_task(){
      * 时，时间永远是准确的。如果你的手表当你看它的时候是准时的，而当你不看它的时候，它却
      * 不准时，这有关系吗？
      */
-    ok_print("Clock task", "RUNNING");
     int mess_type;      /* 消息类型，通过其判断用户需要什么服务 */
 
-    /* 初始化时钟任务 */
+    /* 初始化时钟 */
     init_clock();
 
     /* 时钟任务主循环，一直得到工作，处理工作，回复处理结果 */
@@ -212,12 +211,11 @@ time_t millisec;
      * 解决。
      */
 
-    // 首先，我们得到当前的时钟滴答数
-    unsigned long ticks = ticks;
-    unsigned long enter_millis = 0;       /* 进入延迟函数的总时间 */
-    while( enter_millis < millisec ){     /* 只要还没达到延迟时间的要求，就继续循环 */
-        enter_millis = (ticks - ticks) * 10;
-    }
+    // 得出退出循环的时间
+//    clock_t end_ticks = ticks + millisec / ONE_TICK_MILLISECOND;
+//    clock_t enter_millis = 0;       /* 进入延迟函数的总时间 */
+//    next_alarm = end_ticks;
+
 }
 
 /*===========================================================================*
@@ -266,7 +264,10 @@ int irq;
      pending_ticks += one_ticks;    /* 对中断挂起滴答时间充电 */
      now = one_ticks + pending_ticks;    /* 当前实际时间 = 开机运行时间 + 中断挂起滴答时间 */
 
-     /* 任务闹钟时间到了？产生一个时钟中断，激活时钟任务 */
+     /* 好了，如果终端任务的触发时间到了，唤醒其 */
+     if(tty_wake_time <= now) tty_wakeup(now);
+
+     /* 任务闹钟时间到了？产生一个时钟中断，唤醒时钟任务 */
      if(next_alarm <= now){
          interrupt(CLOCK_TASK);
          return 1;  /* 使其再能发生时钟中断 */

@@ -367,13 +367,14 @@ LAB_PM_START:	; 程序开始
 	; 打印显示内存信息
 	call DispMemInfo
 	; 启动分页机制，分页机制能让我们将所有的物理地址看做是一维的线性空间
-	call SetupPaging
-
-	
+    call SetupPaging
 	; 初始化内核
 	call InitKernel
 
-	;jmp $			; 调试 Loader 时可以取消注释
+
+    ; 进入内核代码前，我们将一些启动参数保存好，内核可以很方便的获取到它们
+    mov eax, [dwMemSize]            ; eax = 内存大小
+    mov ebx, MemChkBuf              ; ebx = 内存地址范围描述符数组的绝对地址
 
 	; 正式进入内核，Loader将CPU控制权转交给内核，至此，Loader的使命也结束了！比Boot厉害吧！
 	; 从这里的函数运行成功后，我们才真正算是进入编写操作系统的门槛
@@ -524,7 +525,6 @@ DispInt:
 ; ------------------------------------------------------------------------
 DispStr:
 	push ebp
-	mov ebp, esp
 	push ebx
 	push esi
 	push edi
@@ -570,7 +570,15 @@ DispReturn:
 	push	szReturn
 	call	DispStr			;printf("\n");
 	add	esp, 4
-
+	ret
+;================================================================================================
+; ------------------------------------------------------------------------
+; 打印三个空格
+; ------------------------------------------------------------------------
+DispThreeSpace:
+	push	szThreeSpace
+	call	DispStr			;printf("   ");
+	add	esp, 4
 	ret
 
 ;================================================================================================
@@ -644,29 +652,21 @@ DispMemInfo:
 .2:							;		}
 	loop .loop				;	}
 							; }
-	mov dword [dwDispPos], (160 * 3 + 2 * 30)	; 第 3 行 第 30 列
+	mov dword [dwDispPos], (160 * 5 + 2 * 30)	; 第 5 行 第 30 列
 
 	push szRAMSize			;
-	call DispStr			; 
+	call DispStr			;
 	add esp, 4				; printf("RAM size:");
 							;
 	call dispMemSize		; dispMemSize(); // 将内存转换为KB显示并显示
-
-	mov dword [dwDispPos], (160 * 6 + 2 * 0)	; 显示内存信息完毕后,设置显示位置在 第 6 行 第 0 列
 
 	pop ecx
 	pop edi
 	pop esi
 	ret
-
 ;================================================================================================
 ; 换算内存byte到MB --------------------------------------------------------------
 dispMemSize:
-    push eax
-    push ebx
-    push ecx
-    push edx
-
     mov ebx, [dwMemSize]    ; ebx = 内存大小（字节）
     xor edx, edx
     mov eax, ebx
@@ -681,10 +681,6 @@ dispMemSize:
     call DispStr
     add esp, 4
 
-    pop edx
-    pop ecx
-    pop ebx
-    pop eax
     ret
 ;================================================================================================
 ; 启动分页机制 --------------------------------------------------------------
@@ -736,7 +732,6 @@ SetupPaging:
 	jmp short .3
 .3:
 	nop
-
 	ret
 
 ;================================================================================================
@@ -780,6 +775,7 @@ LABEL_DATA:
 _szRAMSize:			    db	"RAM size:", 0
 _szMSizeKb:             db  "KB", 0
 _szReturn:			    db	0Ah, 0
+_szThreeSpace:          db  '   ', 0
 ;; 变量
 _dwMCRNumber:			dd	0	                ; Memory Check Result
 _dwDispPos:			    dd	(160 * 4 + 2 * 0)	; 屏幕第 4 行, 第 0 列。
@@ -796,6 +792,7 @@ _MemChkBuf:	times	256	db	0
 szRAMSize		    equ	BaseOfLoaderPhyAddr + _szRAMSize
 szMSizeKb           equ BaseOfLoaderPhyAddr + _szMSizeKb
 szReturn		    equ	BaseOfLoaderPhyAddr + _szReturn
+szThreeSpace        equ BaseOfLoaderPhyAddr + _szThreeSpace
 dwDispPos		    equ	BaseOfLoaderPhyAddr + _dwDispPos
 dwMemSize		    equ	BaseOfLoaderPhyAddr + _dwMemSize
 dwMCRNumber		    equ	BaseOfLoaderPhyAddr + _dwMCRNumber

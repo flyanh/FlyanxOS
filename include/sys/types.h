@@ -73,6 +73,8 @@ typedef char            i8_t;      /* 8位有符号类型 */
 typedef short          i16_t;      /* 16位有符号类型 */
 typedef long           i32_t;      /* 32位有符号类型 */
 
+typedef u8_t           status_t;     /* 状态类型，只需要为0~N（没有负数）判断状态的类型 */
+
 typedef struct { u32_t _[2]; } u64_t;
 
 /* The following types are needed because MINIX uses K&R style function

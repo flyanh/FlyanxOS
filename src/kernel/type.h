@@ -24,6 +24,21 @@ typedef struct tasktab_s {
     char    name[16];           /* 任务名称 */
 } TaskTab;
 
+/* 地址范围描述符结构
+ * 用于系统启动时，存放内存检查的结果
+ */
+typedef struct address_range_descriptor_s {
+    U32_t base_addr_low;
+    U32_t base_addr_high;
+    U32_t size_low;
+    U32_t size_high;
+    U32_t type;
+} ARDS;
+
+typedef struct memory_s {
+
+} Memory;
+
 #if (CHIP == INTEL)
 /* 端口数据类型，用于访问I/O端口 */
 typedef unsigned port_t;
@@ -72,7 +87,6 @@ typedef struct seg_descriptor_s {		    /* 受保护模式的段描述符 */
 typedef _PROTOTYPE( void (*int_handler_t), (void) );
 /* 中断请求处理函数原型 */
 typedef _PROTOTYPE( int (*irq_handler_t), (int irq) );
-
 /* 系统调用函数原型 */
 typedef _PROTOTYPE( void (*flyanx_syscall_t),  (void) );
 

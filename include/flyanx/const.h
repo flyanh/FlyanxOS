@@ -54,7 +54,7 @@
 #define LOW_USER           -1
 
 /* 其他 */
-#define BYTE            0377	/* 8位字节的掩码 */
+#define BYTE            0xFF	/* 8位字节的掩码 */
 #define READING            0	/* 复制数据给用户 */
 #define WRITING            1	/* 从用户那复制数据 */
 #define NO_NUM        0x8000	/* 用作panic()的数值参数 */
@@ -69,7 +69,7 @@
 #define MIN(a, b)   ((a) < (b) ? (a) : (b))
 
 /* 系统任务数量 */
-#define NR_TASKS    (3)
+#define NR_TASKS    (4)
 
 /* 内存是通过块分配的。 */
 #if (CHIP == INTEL)

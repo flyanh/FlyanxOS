@@ -84,16 +84,29 @@ void va_end (va_list);		/* 已经定义在libgcc.a中 */
 
 /* GNU C编译器版本高于4 */
 
-#define __vasz(x)		((sizeof(x)+sizeof(int)-1) & ~(sizeof(int) -1))
+/* Define __gnuc_va_list.  */
 
-#define va_start(ap, parmN)	((ap) = (va_list)&parmN + __vasz(parmN))
-#define va_arg(AP, TYPE)						\
- (AP = ((char *) __builtin_va_arg(AP, TYPE)))
+#ifndef __GNUC_VA_LIST
+#define __GNUC_VA_LIST
+typedef __builtin_va_list __gnuc_va_list;
+#endif
 
-void va_end (va_list);		/* 已经定义在libgcc.a中 */
-#define va_end(AP)
+/* Define the standard macros for the user,
+   if this invocation was from the user program.  */
+#ifdef _STDARG_H
+
+#define va_start(v,l)	__builtin_va_start(v,l)
+#define va_end(v)	__builtin_va_end(v)
+#define va_arg(v,l)	__builtin_va_arg(v,l)
+#if !defined(__STRICT_ANSI__) || __STDC_VERSION__ + 0 >= 199900L \
+    || __cplusplus + 0 >= 201103L
+#define va_copy(d,s)	__builtin_va_copy(d,s)
+#endif
+#define __va_copy(d,s)	__builtin_va_copy(d,s)
+#endif /* _STDARG_H */
 
 #endif	/* __GNUC__ <= 2 */
+
 
 #else	/* not __GNUC__ */
 

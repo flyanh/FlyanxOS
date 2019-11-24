@@ -68,9 +68,12 @@
 #define NR_BUF_HASH	 512	/* size of buf hash table; MUST BE POWER OF 2*/
 #endif
 
+/* 内核配置参数 */
+#define LINE_WARP               1   /* 控制台选项 - 是否需要在第80列换行？ */
+
 /* flyanx所启用的控制台的数量等定义
  */
-#define NR_CONSOLE           	3	/* 系统控制台(1 ~ 7) */
+#define NR_CONSOLES           	3	/* 系统控制台(1 ~ 7) */
 #define	NR_RS_LINES	   		    0	/* rs232终端(0 ~ 2) */
 #define	NR_PTYS		  	 	    0	/* 伪终端(0 ~ 64) */
 
@@ -81,13 +84,13 @@
  * indicative of more than just the CPU.  For example, machines for which
  * CHIP == INTEL are expected to have 8259A interrrupt controllers and the
  * other properties of IBM PC/XT/AT/386 types machines in general. */
-#define INTEL             1	/* CHIP type for PC, XT, AT, 386 and clones */
-#define M68000            2	/* CHIP type for Atari, Amiga, Macintosh    */
-#define SPARC             3	/* CHIP type for SUN-4 (e.g. SPARCstation)  */
+#define INTEL               1	/* CHIP type for PC, XT, AT, 386 and clones */
+#define M68000              2	/* CHIP type for Atari, Amiga, Macintosh    */
+#define SPARC               3	/* CHIP type for SUN-4 (e.g. SPARCstation)  */
 
 /* Set the FP_FORMAT type based on the machine selected, either hw or sw    */
-#define FP_NONE		  0	/* no floating point support                */
-#define FP_IEEE		  1	/* conform IEEE floating point standard     */
+#define FP_NONE		        0	/* no floating point support                */
+#define FP_IEEE		        1	/* conform IEEE floating point standard     */
 
 #if (MACHINE == IBM_PC)
 #define CHIP          INTEL

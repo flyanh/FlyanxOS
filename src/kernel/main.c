@@ -31,7 +31,6 @@
 PUBLIC int main(){
 
     /* 主要做一些初始化工作，最重要的莫过于建立进程表 */
-
     /* 调用interrupt_init来初始化中断控制硬件
      * 该操作之所以放在这里是因为此前必须知道机器类型,因为完全依赖于硬件,所以该过程放在一个独立文件中。
      * 参数(1)，代表为Flyanx内核执行初始化，若是参数(0)则再次初始化硬件使其回到原始状态。
@@ -42,10 +41,11 @@ PUBLIC int main(){
     interrupt_init(1);
 
     /* 初始化内存空间
-     *
+     * 初始化一个数组,该数组定义系统中每个可用内存块的地址和大小。和中断硬件的初始化一样,
+     * 内存初始化的细节是与硬件相关的。而且这里将mem_init分离到一个独立的文件中以保持main函数
+     * 的平台无关性。
      */
-//    memory_init();
-
+    memory_init();
 
     /* 进程表的所有表项都被标志为空闲;
      * 用于加快进程表访问的pproc_addr数组被循环的进行初始化。
@@ -160,11 +160,6 @@ PUBLIC int main(){
      * restart被反复地执行,每当系统任务、服务器进程或用户进程放弃运行机会挂
      * 起时都要执行restart,无论挂起原因是等待输入还是在轮到其他进程运行时将控制器转交给它们。
      */
-//    printf("Flyanx Kernel                                     [ SUCCESS ]\n");
-    ok_print("Multi-process management, Details below", "OK");
-    printf("Tasks count: %d | ", task_count);
-    printf("Server count: %d | ", server_count);
-    printf("User Process count: %d\n", usr_proc_count);
     restart();
 }
 
@@ -187,14 +182,14 @@ int errno;
         if(errno != NO_NUM) printf(" %d", errno);
         printf("\n");
     }
-//    wreboot(RBT_PANIC);   错误重启功能还未完成
+    wreboot(RBT_PANIC);
 }
 
 /*===========================================================================*
- *                                   clear_screen                          *
+ *                                   raw_clear_screen                          *
  *                                     清屏                               *
  *===========================================================================*/
-PUBLIC void clear_screen(){
+PUBLIC void raw_clear_screen(){
     /* 现在屏幕实在是有点脏了，所以我们可以清理一下屏幕
      * 该例程仅限内核调试使用，用户自然有用户该使用的例程。
      */
@@ -203,7 +198,7 @@ PUBLIC void clear_screen(){
     for(i = 0;i < (160 * 25 + 2 * 80); i++){
         disp_str(" ");
     }
-    display_position = 0;
+    display_position = 160;
 }
 
 /*===========================================================================*
@@ -219,11 +214,9 @@ PUBLIC void ok_print(char* msg, char* ok){
     int msg_len = strlen(msg);
     int ok_len = strlen(ok);
     for(; msg_len < (80 - 4 - ok_len); msg_len++){
-        printf(" ");
+        display_position += 2;
     }
-    printf("[ ");
-    disp_color_str(ok, GREEN);
-    printf(" ]");
+    printf("[ %s ]", ok);
 }
 
 

@@ -20,6 +20,8 @@
 /* 结构体声明 */
 struct process_s;
 struct message_s;
+struct tty_s;
+struct console_s;
 
 /*================================================================================================*/
 /* kernel.asm */
@@ -32,7 +34,7 @@ _PROTOTYPE( void idle_task, (void) );
 /*================================================================================================*/
 _PROTOTYPE(int main, (void)						);
 _PROTOTYPE( void panic, (const char *msg, int errno)				);
-_PROTOTYPE( void clear_screen, (void) );
+_PROTOTYPE(void raw_clear_screen, (void) );
 _PROTOTYPE( void idle_test_task, (void) );
 _PROTOTYPE( void ok_print, (char* msg, char* ok) );
 
@@ -40,7 +42,8 @@ _PROTOTYPE( void ok_print, (char* msg, char* ok) );
 /* protect.c */
 /*================================================================================================*/
 _PROTOTYPE( void protect_init, (void) );
-_PROTOTYPE( vir_bytes seg2phys, (u8_t seg) );
+_PROTOTYPE( phys_bytes seg2phys, (U16_t seg) );
+_PROTOTYPE( void phys2seg, (u16_t *seg, vir_bytes *off, phys_bytes phys) );
 
 /*================================================================================================*/
 /* message.c */
@@ -52,8 +55,16 @@ _PROTOTYPE( int sys_call, (int function, int src_dest, struct message_s *message
 
 /*================================================================================================*/
 /* clock.c */
+/*================================================================================================*/
 _PROTOTYPE( void clock_task, (void)					);
 _PROTOTYPE( void milli_delay, (time_t millisec) );
+
+/*================================================================================================*/
+/* tty.c */
+/*================================================================================================*/
+_PROTOTYPE( void tty_task, (void) );
+_PROTOTYPE( void tty_wakeup, (clock_t now) );
+_PROTOTYPE( int input_handler, (struct tty_s *tty, char *buffer, int count) );
 
 /*================================================================================================*/
 
@@ -71,7 +82,7 @@ _PROTOTYPE( void unhold, (void) );
 /*================================================================================================*/
 /* exception.c */
 /*================================================================================================*/
-_PROTOTYPE( void exception_handler, (unsigned vec_nr, int errno, int eip, int cs, int eflags) );
+_PROTOTYPE( void exception_handler, (int vec_nr, int errno) );
 
 /*================================================================================================*/
 /* i8259.c */
@@ -79,6 +90,13 @@ _PROTOTYPE( void exception_handler, (unsigned vec_nr, int errno, int eip, int cs
 _PROTOTYPE( void interrupt_init, (int mine)						);
 _PROTOTYPE( void put_irq_handler, (int irq, irq_handler_t handler) );
 _PROTOTYPE( int spurious_irq, (int ) );
+
+/*================================================================================================*/
+/* keyboard.c */
+/*================================================================================================*/
+_PROTOTYPE( void keyboard_init, (struct tty_s *tty) );
+_PROTOTYPE( int keyboard_loadmap, (phys_bytes user_phys) );
+_PROTOTYPE( void wreboot, (int how) );
 
 /*================================================================================================*/
 /* kernel_386_lib.asm  */
@@ -109,13 +127,28 @@ _PROTOTYPE( void map_drivers, (void)					);
 /*================================================================================================*/
 /* console.c */
 /*================================================================================================*/
-_PROTOTYPE( void putk, (int c) );
+_PROTOTYPE( void putk, (int ch) );
+_PROTOTYPE( void toggle_scroll, (void) );
+_PROTOTYPE( void screen_init, (struct tty_s *tty) );
+_PROTOTYPE( void switch_console, (u16_t console_line) );
+_PROTOTYPE( void clear_srceen, (int line) );
 
 /*================================================================================================*/
 /* kernel_debug.c  */
 /*================================================================================================*/
 _PROTOTYPE( void delay_by_loop, (int ltime) );
+_PROTOTYPE( void simple_brk_point, (int code) );
 
+/*================================================================================================*/
+/* dmp.c */
+/*================================================================================================*/
+_PROTOTYPE( void proc_dmp, (void) );
+_PROTOTYPE( void map_dmp, (void) );
+
+/*================================================================================================*/
+/* misc.c */
+/*================================================================================================*/
+_PROTOTYPE( void memory_init, (void) );
 
 /*================================================================================================*/
 /*  硬件中断处理程序。 */

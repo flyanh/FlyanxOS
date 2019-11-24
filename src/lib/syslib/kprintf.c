@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 Free Software Foundation, Inc. 
+/* Copyright (C) 2007 Free Software Foundation, Inc.
  * See the copyright notice in the file /usr/LICENSE.
  * Created by flyan on 2019/11/9.
  * QQ: 1341662010
@@ -24,7 +24,7 @@ int printf(fmt) char *fmt;
 #else
 
 /* printf()使用putk()打印字符。 putk在内核中有内核的实现，在服务中，使用系统库中的实现 */
-void putk(int c);
+void putk(int ch);
 
 /*=========================================================================*
  *				        printf				   *

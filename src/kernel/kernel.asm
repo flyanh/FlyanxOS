@@ -20,6 +20,7 @@ extern	spurious_irq	    ; 默认中断请求处理程序
 extern	exception_handler	; 异常处理程序
 extern  level0              ; 系统任务提权
 extern  unhold              ; 处理所有挂起的中断并释放它们
+extern  simple_brk_point    ; 简单断点
 
 ; 导入全局变量
 extern  gdt_ptr;			; GDT指针
@@ -31,6 +32,8 @@ extern	int_request_table	; 中断处理程序表
 extern	sys_call	        ; 系统调用函数
 extern  level0_func         ; 导入提权的函数地址
 extern  held_head           ; 导入挂起的中断进程队列
+extern  total_memory_size   ; 内存大小
+extern  ards_phys           ; 地址范围描述符数组的物理地址
 
 ;================================================================================================
 ; 32 位数据段
@@ -135,15 +138,21 @@ _start:
 	;
 	;
 
+    ; 先获取LOADER得到的一些启动参数
+    mov [total_memory_size], eax ; 内存大小
+    mov [ards_phys], ebx         ; 内存块信息
+
+    ; 建立各种处理器寄存器
+    mov	ax, ds		; kernel data
+    mov	es, ax
+    mov	fs, ax
+    mov	ss, ax
     ; 把　esp 从　LOADER 挪到 KERNEL　处
 	mov esp, StackTop       ; 堆栈在 bss 段中
     
     sgdt    [gdt_ptr]    ; cstart() 中将会用到 gdt_ptr
 
-    mov eax, 0x1FF80    ; 压入内存大小，@TODO 还没拿过来，这是个假数字
-    push eax
     call    cstart      ; 在此函数中改变了gdt_ptr，让它指向新的GDT
-    add esp, 4
 
     lgdt    [gdt_ptr]    ; 使用新的GDT
 
@@ -163,7 +172,6 @@ csinit:         ; “这个跳转指令强制使用刚刚初始化的结构”�
 	; 跳入c语言编写的内核主函数，以后我们的工作将主要在c语言下开发
 	; 这里,我们又迎来一个质的飞跃,汇编虽然好,只是不够骚
     jmp main
-
     ; call hwint05		; 手动触发5号中断处理程序
     ; jmp $
 
@@ -177,7 +185,7 @@ csinit:         ; “这个跳转指令强制使用刚刚初始化的结构”�
 	out INT_M_CTLMASK, al	; @
 
 	mov al, EOI				; @
-	out INT_M_CTL, al		; #-> 置 EOI 位
+	out INT_M_CTL, al		; #-> 置 EOI 位，并重新启用主8259
 	sti						; #	  CPU 在响应中断时会自动关闭中断，这句之后就允许响应别的中断
 							; @	  但因为上边已经屏蔽了当前中断，所以当前中断再次发生将不会响应
 	push %1
@@ -226,9 +234,29 @@ hwint07:		; Interrupt routine for irq 7 (printer)，打印机中断
 
 ; ---------------------------------
 %macro	hwint_slave	1		; 从中断处理模板
-	push	%1
-	call	spurious_irq
-	add	esp, 4
+	call save				; 调用保存函数,保存当前正在运行的进程的上下文
+
+    in al, INT_S_CTLMASK	; @
+    or al, (1 << (%1 - 8))		; #-> 屏蔽当前中断
+    out INT_S_CTLMASK, al	; @
+
+    mov al, EOI				; @
+    out INT_M_CTL, al		; #-> 置 EOI 位，并重新启用主8259
+    nop                     ; 一些小小的延迟
+    nop
+    out INT_S_CTL, al       ; 重新启用从8259
+    sti                     ; CPU 在响应中断时会自动关闭中断，这句之后就允许响应别的中断
+                            ; 但因为上边已经屏蔽了当前中断，所以当前中断再次发生将不会响应
+    push %1
+    call [int_request_table + 4 * %1]	; 执行中断处理程序
+    pop ecx
+    cli
+    test    eax, eax            ; 测试中断处理程序返回值，如果为0，不允许再发送中断
+    jz .0
+    in al, INT_S_CTLMASK		; @
+    and al, ~(1 << (%1 - 8))	; #-> 再次允许发生当前中断，因为上边已经执行完中断处理程序了嘛～
+    out INT_S_CTLMASK, al		; @
+.0:	ret
 %endmacro
 ; ---------------------------------
 
@@ -396,7 +424,6 @@ flyanx_386_syscall:
     ;* 系统调用流程：进程A进行系统调用（发送或接收一条消息），系统调用完成后，CPU控制权还是回到进程A手中，除非被调度程序调度。 *
 	mov		[esi + EAXREG - P_STACKBASE], eax   ; 系统调用函数必须保留 esi
 	cli			; 关闭中断
-	ret
 ; 在这里，直接陷入restart的代码以重新启动进程/任务运行。
 
 ;================================================================================================

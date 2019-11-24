@@ -41,7 +41,7 @@ typedef struct termios_s {
     cc_t c_cc[NCCS];		/* 控制字符数组 */
 } Termios;
 
-/* Values for termios c_iflag bit map.  POSIX Table 7-2. */
+/* 终端控制结构iflag位图的值. 来自 POSIX Table 7-2. 所以下面的原英文注释我应保留为好 */
 #define BRKINT		0x0001	/* signal interrupt on break */
 #define ICRNL		0x0002	/* map CR to NL on input */
 #define IGNBRK		0x0004	/* ignore break */
@@ -49,15 +49,15 @@ typedef struct termios_s {
 #define IGNPAR		0x0010	/* ignore characters with parity errors */
 #define INLCR		0x0020	/* map NL to CR on input */
 #define INPCK		0x0040	/* enable input parity check */
-#define ISTRIP		0x0080	/* mask off 8th bit */
+#define ISTRIP		0x0080	/* mask off 8th bit > 屏蔽掉第8位 */
 #define IXOFF		0x0100	/* enable start/stop input control */
-#define IXON		0x0200	/* enable start/stop output control */
+#define IXON		0x0200	/* enable start/stop output control > 启用开始/停止输入控制 */
 #define PARMRK		0x0400	/* mark parity errors in the input queue */
 
-/* Values for termios c_oflag bit map.  POSIX Sec. 7.1.2.3. */
-#define OPOST		0x0001	/* perform output processing ：执行输出处理 */
+/* 终端控制结构oflag位图的值. 来自 POSIX Sec. 7.1.2.3. */
+#define OPOST		0x0001	/* perform output processing > 执行输出处理 */
 
-/* Values for termios c_cflag bit map.  POSIX Table 7-3. */
+/* 终端控制结构cflag位图的值. 来自 POSIX Table 7-3. */
 #define		CLOCAL		0x0001	/* ignore modem status lines */
 #define 	CREAD		0x0002	/* enable receiver */
 #define 	CSIZE		0x000C	/* number of bits per character */
@@ -70,14 +70,14 @@ typedef struct termios_s {
 #define 	PARENB		0x0040	/* enable parity on output */
 #define 	PARODD		0x0080	/* use odd parity if set, else even */
 
-/* Values for termios c_lflag bit map.  POSIX Table 7-4. */
+/* 终端控制结构lflag位图的值. 来自  POSIX Table 7-4. */
 #define ECHO		0x0001	/* enable echoing of input characters */
-#define ECHOE		0x0002	/* echo ERASE as backspace ： 回送擦除作为退格 */
-#define ECHOK		0x0004	/* echo KILL */
+#define ECHOE		0x0002	/* echo ERASE as backspace > 回显ERASE(擦除)作为退格 */
+#define ECHOK		0x0004	/* echo KILL > 回显终止字符 */
 #define ECHONL		0x0008	/* echo NL */
 #define ICANON		0x0010	/* canonical input (erase and kill enabled) */
-#define IEXTEN		0x0020	/* enable extended functions */
-#define ISIG		0x0040	/* enable signals ： 启用信号 */
+#define IEXTEN		0x0020	/* enable extended functions > 启用扩展功能 */
+#define ISIG		0x0040	/* enable signals > 启用信号 */
 #define NOFLSH		0x0080	/* disable flush after interrupt or quit */
 #define TOSTOP		0x0100	/* send SIGTTOU (job control, not implemented*/
 
@@ -94,13 +94,11 @@ typedef struct termios_s {
 #define VSTART             9	/* cc_c[VSTART] = START char (^S) */
 #define VSTOP             10	/* cc_c[VSTOP] = STOP char (^Q) */
 
-#define _POSIX_VDISABLE	  (cc_t)0xFF	/* You can't even generate this
-					 * character with 'normal' keyboards.
-					 * But some language specific keyboards
-					 * can generate 0xFF. It seems that all
-					 * 256 are used, so cc_t should be a
-					 * short...
-					 */
+#define _POSIX_VDISABLE	  (cc_t)0xFF	/* 您甚至无法使用“普通”键盘生成此字符。
+                                         * 但是某些语言特定的键盘扫描会生成它。
+                                         * 现在看来所有256个字符都已使用，因此
+                                         * cc_t数组应该不大...
+                                         */
 
 /* Values for the baud rate settings.  POSIX Table 7-6. */
 #define B0		0x0000	/* hang up the line */
@@ -178,10 +176,10 @@ _PROTOTYPE( int tcsetattr,
 /* Extensions to the termios c_lflag bit map.  */
 #define LFLUSHO		0x0200	/* Flush output. */
 
-/* Extensions to the c_cc array. */
-#define VREPRINT	  	  11	/* cc_c[VREPRINT] (^R) */
-#define VLNEXT            12    /* cc_c[VLNEXT] (^V) */
-#define VDISCARD          13    /* cc_c[VDISCARD] (^O) */
+/* c_cc数组的扩展位 */
+#define VREPRINT	  	  11	/* cc_c[VREPRINT]  = (^R) */
+#define VLNEXT            12    /* cc_c[VLNEXT]    = (^V) */
+#define VDISCARD          13    /* cc_c[VDISCARD]  = (^O) */
 
 /* Extensions to baud rate settings. */
 #define B57600		0x0100	/* 57600 baud */
@@ -216,10 +214,10 @@ _PROTOTYPE( int tcsetattr,
  */
 typedef struct win_frame_s
 {
-    unsigned short	row;	    /* 行，以字符为单位 */
-    unsigned short	col;	    /* 列，以字符为单位 */
-    unsigned short	x_pixel;	/* 水平尺寸，像素 */
-    unsigned short	y_pixel;	/* 垂直尺寸，像素 */
+    u16_t	row;	    /* 行，以字符为单位 */
+    u16_t 	col;	    /* 列，以字符为单位 */
+    u16_t 	x_pixel;	/* 水平尺寸，像素 */
+    u16_t 	y_pixel;	/* 垂直尺寸，像素 */
 } WinFrame;
 
 #endif /*_ FLYANX */

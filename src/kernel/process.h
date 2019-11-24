@@ -118,7 +118,7 @@ typedef struct process_s {
 #define proc_addr(n)      (p_process_addr + NR_TASKS)[(n)]  /* 得到进程的指针 */
 #define cproc_addr(n)     (&(process + NR_TASKS)[(n)])      /* 得到进程的地址 */
 #define proc_vir2phys(p, vir) \
-			  (((phys_bytes)(p)->p_map[D].mem_phys << CLICK_SHIFT) \
+			  (((phys_bytes)(p)->map[DATA].virtual << CLICK_SHIFT) \
 							+ (vir_bytes) (vir))
 
 

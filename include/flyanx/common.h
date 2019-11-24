@@ -26,7 +26,7 @@
 
 /* 任务号，函数索引号(消息类型)和回复代码，将在下面开始定义 */
 
-#define TTY_TASK            -17  /* 终端I/O任务 */
+#define TTY_TASK            -4  /* 终端I/O任务 */
 #	define CANCEL           0	/* general req to force a task to cancel */
 #	define HARD_INT         2	/* fcn code for all hardware interrupts */
 #	define DEV_READ	        3	/* fcn code for reading from tty */
