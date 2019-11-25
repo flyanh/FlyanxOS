@@ -31,10 +31,6 @@
 
 PRIVATE Message msg;            /* 发送和接收的消息缓冲区 */
 
-FORWARD _PROTOTYPE( void tty_init, (TTY *tty) );
-FORWARD _PROTOTYPE( void tty_dev_nop, (TTY *tty) );
-FORWARD _PROTOTYPE( void reprint, (TTY *tty) );
-
 /* 默认的终端控制结构，初始化了默认参数 */
 PRIVATE Termios default_termios = {
         TINPUT_DEF, TOUTPUT_DEF, TCTRL_DEF, TLOCAL_DEF, TSPEED_DEF, TSPEED_DEF,
@@ -50,18 +46,17 @@ PRIVATE WinFrame default_winframe;
 
 /* 本地函数声明 */
 FORWARD _PROTOTYPE( void do_default, (void) );
-FORWARD _PROTOTYPE( void handle_events, (TTY *tty) );
 FORWARD _PROTOTYPE( void dev_ioctl, (TTY *tty) );
 FORWARD _PROTOTYPE( void raw_echo, (TTY *tty, int ch) );
 FORWARD _PROTOTYPE( int back_over, (TTY *tty) );
 FORWARD _PROTOTYPE( int echo, (TTY *tty, int ch) );
+FORWARD _PROTOTYPE( void tty_init, (TTY *tty) );
+FORWARD _PROTOTYPE( void reprint, (TTY *tty) );
 
 /*===========================================================================*
  *				tty_task				     *
  *				终端任务
  *===========================================================================*/
-void tty_init();
-
 PUBLIC void tty_task(void){
     /* 终端任务 */
 
@@ -71,6 +66,8 @@ PUBLIC void tty_task(void){
     /* 初始化所有启用的终端 */
     for(tty = FIRST_TTY; tty < END_TTY; tty++) tty_init(tty);
 
+    /* 终端任务初始化工作后，暂时不需要再被唤醒了 */
+    tty_wake_time = TIME_NEVER;
 
     /* 显示Flyanx启动信息
      * 现在已经有可以交互的终端任务了，所以我们打印系统启动信息。
@@ -116,7 +113,6 @@ PUBLIC void tty_task(void){
         for(tty = FIRST_TTY; tty < END_TTY; tty++){
             if(tty->events) handle_events(tty);
         }
-
         /* 从外界得到一条消息 */
         receive(ANY, &msg);
 
@@ -128,30 +124,211 @@ PUBLIC void tty_task(void){
 
         /* 根据消息类型提供不同的功能服务 */
         switch (mess_type){
-            case GET_UPTIME:    do_default();	        break;      /* 获取从启动开始后的时钟滴答数时间 */
-            case GET_TIME:      do_default();              break;      /* 获取系统时间（时间戳） */
-            case SET_TIME:	    do_default();	        break;      /* 设置系统时间 */
-            case SET_ALARM:	    do_default();	        break;      /* 设置定时器 */
-            case SET_SYNC_ALARM:do_default();    break;         /* 设置同步闹钟 */
+            case 0:    do_default();	        break;      /* 获取从启动开始后的时钟滴答数时间 */
+            case 1:      do_default();              break;      /* 获取系统时间（时间戳） */
+            case 3:	    do_default();	        break;      /* 设置系统时间 */
+            case 4:	    do_default();	        break;      /* 设置定时器 */
+            case 5:do_default();    break;         /* 设置同步闹钟 */
             default: panic("TTY task got bad message", msg.type);  /* 当然了，获取到不识别的操作就宕机 */
         }
     }
 
 }
 
-PRIVATE void do_default(void){
-    printf("tty received a msg.\n");
+PRIVATE void do_default(){
+    Message tty_msg;
+    tty_msg.type = 66;
+    send(msg.source, &tty_msg);
+}
+
+/*===========================================================================*
+ *				echo					     *
+ *				回显
+ *===========================================================================*/
+PRIVATE int echo(
+        register TTY *tty,      /* 回显到哪个终端 */
+        register int ch         /* 回显的字符 */
+/* return: 返回一个包含回显字符和其所用屏幕上的空格数，例如TAB字符，可以占用空格数最大到8。 */
+){
+    /* 回显输入的字符，这个例程很短，但也略有些复杂性。
+     * echo对一些字符进行特殊处理，但对大多数字符只是在和输入使用的同一个设备的输入方显示出来。
+     */
+
+    int len, rp;
+    /* 将字符的长度位复位 */
+    ch & ~IN_LENGTH;
+    /* 如果不在回显模式下，但是规范模式下的可回显换行符，回显换行符 */
+    if(!(tty->termios.lflag & ECHO)){
+        if(ch == ('\n' | IN_EOT) && (tty->termios.lflag
+                                     & (ICANON | ECHONL)) == (ICANON | ECHONL) ){
+            (*tty->echo)(tty, '\n');
+        }
+        return ch;
+    }
+
+
+    /* 在输入被回显的同时，一个进程可能正好要向同一个设备输出，这时如果用户正试图从键盘退格，
+     * 就有可能引起混乱。为了处理这种情况，在产生正常的输出时，设备指定输出例程总是把
+     * tp->tty_reprint标志设置为TRUE，这样处理退格的函数就能够判断出是否产生了混合输出。
+     * 由于echo也使用设备输出例程，所以tp->tty_reprint的当前值在回显时由局部变量rp保存起来。
+     * 不过，如果刚开始了一个新的输入行，rp将被置为FALSE而不是保持原值以保证tp->tty_reprint
+     * 在echo终止时被重置。
+     */
+    rp = tty->input_count == 0 ? FALSE : tty->status_reprint;
+
+    /* 字符是控制字符？0~31是控制字符，32是空格符，所以这里取小于空格符的ascii码 */
+    if((ch & IN_CHAR) < ' '){
+        /* 根据字符判断是何控制字符 */
+        switch (ch & (IN_ESCAPE|IN_EOF|IN_EOT|IN_CHAR)){
+            /* 制表符：我们打印制表符长度的空格符 */
+            case '\t':
+                for(len = 0; len < TAB_SIZE; len++){
+                    if((tty->position & TAB_MASK) != 0){    /*  */
+                        (*tty->echo)(tty, ' ');
+                    }
+                }
+                break;
+                /* 换行符：长度0，将其交由设备回显例程回显。 */
+            case '\r' | IN_EOT:
+            case '\n' | IN_EOT:
+                (*tty->echo)(tty, ch & IN_CHAR);
+                len = 0;
+                break;
+                /* 其他控制字符：长度2，回显 '^' + char(ch + 64) 的形式，例如 ^C */
+            default:
+                (*tty->echo)(tty, '^');
+                (*tty->echo)(tty, '@' + (ch & IN_CHAR));
+                len = 2;
+                break;
+        }
+    } else if((ch & IN_CHAR) == '\177'){    /* DEL符号？ */
+        /* DEL打印为"^?" */
+        (*tty->echo)(tty, '^');
+        (*tty->echo)(tty, '?');
+        len = 2;
+    } else{                                 /* 以上都不是，说明是可回显的普通字符 */
+        /* 直接回显即可 */
+        (*tty->echo)(tty, ch & IN_CHAR);
+        len = 1;
+    }
+
+    /* 如果是文件结束符号，我们再删掉回显的字符，回到最初的状态 */
+    if(ch & IN_EOF){
+        while (len > 0) {
+            (*tty->echo) (tty, '\b');
+            len--;
+        }
+    }
+    tty->status_reprint = rp;
+    return (ch | (len << IN_LSHIFT));
+}
+
+/*==========================================================================*
+ *				raw_echo					    *
+ *				原始回显
+ *==========================================================================*/
+PRIVATE void raw_echo(register TTY *tty, int ch){
+    /* 不进行任何特殊处理的回显，如果设置了ECHO（启用回显），
+     * 则进行回显，否则，本例程等于什么都没做。
+     */
+    int rep = tty->status_reprint;
+    if(tty->termios.lflag & ECHO) (*tty->echo)(tty, ch);
+    tty->status_reprint = rep;
+}
+
+/*==========================================================================*
+ *				back_over				    *
+ *				 退格
+ *==========================================================================*/
+PRIVATE int back_over(register TTY *tty){
+    /* 回退到到屏幕上的前一个字符并擦除它 */
+    u16_t *head;
+    int len;
+
+
+    if(tty->input_count == 0) return 0;     /* 终端输入队列为空，即屏幕是空的。 */
+    head = tty->input_free;
+    /* 如果空闲区是输入缓冲区的第一个，那么将其设置为缓冲区界限，这样---下一步就可以得到缓冲区的最后一个元素 */
+    if(head == tty->input_buffer) head = buffer_end(tty->input_buffer);
+    head--;     /* 得到上一个输入的字符 */
+    /* 上一个字符是换行符，不能退格 */
+    if(*head & IN_EOT) return 0;
+    /* 如果视频内存已经被改变，那么需要重新打印该输出行 */
+    if(tty->status_reprint) reprint(tty);
+    /* ok，空闲区等于上一个输入的字符 */
+    tty->input_free = head;
+    tty->input_count--;
+    /* 现在检查终端配置是否要回显擦除字符作为退格
+     */
+    if(tty->termios.lflag & ECHOE){
+        /* 查询上一个显示字符的长度来确定需要在显示器上擦除几个字符 */
+        len = (*head & IN_LENGTH) >> IN_LSHIFT;
+        while (len > 0){
+            /* 由rawecho发出一个退格-空格-退格字符序列从屏幕上删除不需要的字符。 */
+            raw_echo(tty, '\b');
+            raw_echo(tty, ' ');
+            raw_echo(tty, '\b');
+            len--;
+        }
+    }
+    return 1;       /* 一个字符已擦除成功 */
+}
+
+/*==========================================================================*
+ *				reprint					    *
+ *				重新打印
+ *==========================================================================*/
+PRIVATE void reprint(register TTY *tty){
+//    printf("reprint...\n");
+}
+
+/*===========================================================================*
+ *				dev_ioctl				     *
+ *			  初始化一个终端
+ *===========================================================================*/
+PRIVATE void dev_ioctl(TTY *tty){
+    /* 可以对终端设备进行io控制（设置设备的io速率等等）
+     * 当用TCSADRAIN或TCSAFLUSH选项调用dev_ioctl时，它都支持执行tcdrain函数和tcsetattr函数。
+     */
+//    printf("dev_ioctl()\n");
+}
+
+/*===========================================================================*
+ *				tty_init				     *
+ *			  初始化一个终端
+ *===========================================================================*/
+PRIVATE void tty_init(TTY *tty) {
+    /* 初始化终端结构并调用设备初始化例程 */
+
+    /* 初始化终端基本数据结构 */
+    tty->input_handle = tty->input_free = tty->input_buffer;
+    tty->min = 1;
+    tty->termios = default_termios;
+    /* input_cancel、output_cancel、ioctl、close指向一个什么都不做的空函数 */
+    tty->input_cancel = tty->output_cancel = tty->ioctl = tty->close = tty_dev_nop;
+
+
+    /* 根据不同类型的终端（系统控制台、串行线、伪终端）调用设备指定的初始化函数，
+     * 它们再间接的设置调用设备指定函数实际的指针。
+     */
+    if(tty < tty_addr(NR_CONSOLES)){
+        /* 控制台类型的终端，初始化它的屏幕等参数 */
+        screen_init(tty);
+    }
+    /* 其他的，Flyanx虽然已经定义，但暂未支持 */
+
 }
 
 /*===========================================================================*
  *				handle_events				     *
  *			    处理挂起事件
  *===========================================================================*/
-PRIVATE void handle_events(register TTY *tty){
+PUBLIC void handle_events(register TTY *tty){
     /* 处理终端上挂起的任何事件。这些事件通常是设备中断。
      *
      * 	do_read和do_write也调用handle_events，这个例程必须工作的很快。
      */
+    /* 测试消息发送功能 */
 
     char *buffer;
     unsigned count;
@@ -335,155 +512,29 @@ PUBLIC int input_handler(register TTY *tty, char *buffer, int count){
 }
 
 /*===========================================================================*
- *				echo					     *
- *				回显
+ *				tty_reply				     *
+ *			    终端任务回复
  *===========================================================================*/
-PRIVATE int echo(
-        register TTY *tty,      /* 回显到哪个终端 */
-        register int ch         /* 回显的字符 */
-/* return: 返回一个包含回显字符和其所用屏幕上的空格数，例如TAB字符，可以占用空格数最大到8。 */
+PUBLIC void tty_reply(
+        int code,               /* TASK_REPLY（任务回复） 或 REVIVE（恢复进程） */
+        int reply_dest,         /* 直接回复的目标地址，是一个进程索引号，一般是服务 */
+        int proc_nr,            /* 告诉服务应该回复给谁？一般是一个用户进程 */
+        int status              /* 回复代码 */
 ){
-    /* 回显输入的字符，这个例程很短，但也略有些复杂性。
-     * echo对一些字符进行特殊处理，但对大多数字符只是在和输入使用的同一个设备的输入方显示出来。
-     */
+    /* 构造并发送一条消息。如果因为某种原因回答失败，就会出错停止内核运行。 */
 
-    int len, rp;
-    /* 将字符的长度位复位 */
-    ch & ~IN_LENGTH;
-    /* 如果不在回显模式下，但是规范模式下的可回显换行符，回显换行符 */
-    if(!(tty->termios.lflag & ECHO)){
-        if(ch == ('\n' | IN_EOT) && (tty->termios.lflag
-                        & (ICANON | ECHONL)) == (ICANON | ECHONL) ){
-            (*tty->echo)(tty, '\n');
-        }
-        return ch;
+    Message tty_msg;
+
+    /* 设置回复代码 */
+    tty_msg.type = code;
+    /* 设置回复 */
+    tty_msg.REPLY_PROC_NR = proc_nr;
+    tty_msg.REPLY_STATUS = status;
+    status = send(reply_dest, &tty_msg);
+    if(status != OK){
+        panic("tty_reply failed, status\n", status);
     }
 
-
-    /* 在输入被回显的同时，一个进程可能正好要向同一个设备输出，这时如果用户正试图从键盘退格，
-     * 就有可能引起混乱。为了处理这种情况，在产生正常的输出时，设备指定输出例程总是把
-     * tp->tty_reprint标志设置为TRUE，这样处理退格的函数就能够判断出是否产生了混合输出。
-     * 由于echo也使用设备输出例程，所以tp->tty_reprint的当前值在回显时由局部变量rp保存起来。
-     * 不过，如果刚开始了一个新的输入行，rp将被置为FALSE而不是保持原值以保证tp->tty_reprint
-     * 在echo终止时被重置。
-     */
-    rp = tty->input_count == 0 ? FALSE : tty->status_reprint;
-
-    /* 字符是控制字符？0~31是控制字符，32是空格符，所以这里取小于空格符的ascii码 */
-    if((ch & IN_CHAR) < ' '){
-        /* 根据字符判断是何控制字符 */
-        switch (ch & (IN_ESCAPE|IN_EOF|IN_EOT|IN_CHAR)){
-            /* 制表符：我们打印制表符长度的空格符 */
-            case '\t':
-                for(len = 0; len < TAB_SIZE; len++){
-                    if((tty->position & TAB_MASK) != 0){    /*  */
-                        (*tty->echo)(tty, ' ');
-                    }
-                }
-                break;
-            /* 换行符：长度0，将其交由设备回显例程回显。 */
-            case '\r' | IN_EOT:
-            case '\n' | IN_EOT:
-                (*tty->echo)(tty, ch & IN_CHAR);
-                len = 0;
-                break;
-            /* 其他控制字符：长度2，回显 '^' + char(ch + 64) 的形式，例如 ^C */
-            default:
-                (*tty->echo)(tty, '^');
-                (*tty->echo)(tty, '@' + (ch & IN_CHAR));
-                len = 2;
-                break;
-        }
-    } else if((ch & IN_CHAR) == '\177'){    /* DEL符号？ */
-        /* DEL打印为"^?" */
-        (*tty->echo)(tty, '^');
-        (*tty->echo)(tty, '?');
-        len = 2;
-    } else{                                 /* 以上都不是，说明是可回显的普通字符 */
-        /* 直接回显即可 */
-        (*tty->echo)(tty, ch & IN_CHAR);
-        len = 1;
-    }
-
-    /* 如果是文件结束符号，我们再删掉回显的字符，回到最初的状态 */
-    if(ch & IN_EOF){
-        while (len > 0) {
-            (*tty->echo) (tty, '\b');
-            len--;
-        }
-    }
-    tty->status_reprint = rp;
-    return (ch | (len << IN_LSHIFT));
-}
-
-/*==========================================================================*
- *				raw_echo					    *
- *				原始回显
- *==========================================================================*/
-PRIVATE void raw_echo(register TTY *tty, int ch){
-    /* 不进行任何特殊处理的回显，如果设置了ECHO（启用回显），
-     * 则进行回显，否则，本例程等于什么都没做。
-     */
-    int rep = tty->status_reprint;
-    if(tty->termios.lflag & ECHO) (*tty->echo)(tty, ch);
-    tty->status_reprint = rep;
-}
-
-/*==========================================================================*
- *				back_over				    *
- *				 退格
- *==========================================================================*/
-PRIVATE int back_over(register TTY *tty){
-    /* 回退到到屏幕上的前一个字符并擦除它 */
-    u16_t *head;
-    int len;
-
-
-    if(tty->input_count == 0) return 0;     /* 终端输入队列为空，即屏幕是空的。 */
-    head = tty->input_free;
-    /* 如果空闲区是输入缓冲区的第一个，那么将其设置为缓冲区界限，这样---下一步就可以得到缓冲区的最后一个元素 */
-    if(head == tty->input_buffer) head = buffer_end(tty->input_buffer);
-    head--;     /* 得到上一个输入的字符 */
-    /* 上一个字符是换行符，不能退格 */
-    if(*head & IN_EOT) return 0;
-    /* 如果视频内存已经被改变，那么需要重新打印该输出行 */
-    if(tty->status_reprint) reprint(tty);
-    /* ok，空闲区等于上一个输入的字符 */
-    tty->input_free = head;
-    tty->input_count--;
-    /* 现在检查终端配置是否要回显擦除字符作为退格
-     */
-    if(tty->termios.lflag & ECHOE){
-        /* 查询上一个显示字符的长度来确定需要在显示器上擦除几个字符 */
-        len = (*head & IN_LENGTH) >> IN_LSHIFT;
-        while (len > 0){
-            /* 由rawecho发出一个退格-空格-退格字符序列从屏幕上删除不需要的字符。 */
-            raw_echo(tty, '\b');
-            raw_echo(tty, ' ');
-            raw_echo(tty, '\b');
-            len--;
-        }
-    }
-    return 1;       /* 一个字符已擦除成功 */
-}
-
-/*==========================================================================*
- *				reprint					    *
- *				重新打印
- *==========================================================================*/
-PRIVATE void reprint(register TTY *tty){
-//    printf("reprint...\n");
-}
-
-/*===========================================================================*
- *				dev_ioctl				     *
- *			  初始化一个终端
- *===========================================================================*/
-PRIVATE void dev_ioctl(TTY *tty){
-    /* 可以对终端设备进行io控制（设置设备的io速率等等）
-     * 当用TCSADRAIN或TCSAFLUSH选项调用dev_ioctl时，它都支持执行tcdrain函数和tcsetattr函数。
-     */
-//    printf("dev_ioctl()\n");
 }
 
 /*===========================================================================*
@@ -530,36 +581,10 @@ PUBLIC void tty_wakeup(clock_t now){
     interrupt(TTY_TASK);
 }
 
-/*===========================================================================*
- *				tty_init				     *
- *			  初始化一个终端
- *===========================================================================*/
-PRIVATE void tty_init(TTY *tty) {
-    /* 初始化终端结构并调用设备初始化例程 */
-
-    /* 初始化终端基本数据结构 */
-    tty->input_handle = tty->input_free = tty->input_buffer;
-    tty->min = 1;
-    tty->termios = default_termios;
-    /* input_cancel、output_cancel、ioctl、close指向一个什么都不做的空函数 */
-    tty->input_cancel = tty->output_cancel = tty->ioctl = tty->close = tty_dev_nop;
-
-
-    /* 根据不同类型的终端（系统控制台、串行线、伪终端）调用设备指定的初始化函数，
-     * 它们再间接的设置调用设备指定函数实际的指针。
-     */
-    if(tty < tty_addr(NR_CONSOLES)){
-        /* 控制台类型的终端，初始化它的屏幕等参数 */
-        screen_init(tty);
-    }
-    /* 其他的，Flyanx虽然已经定义，但暂未支持 */
-
-}
-
 /*==========================================================================*
  *				tty_devnop				    *
  *==========================================================================*/
-PRIVATE void tty_dev_nop(TTY *tty) {
+PUBLIC void tty_dev_nop(TTY *tty) {
     /* 有些设备不需要服务，同时，这个函数也被用在初始化例程中。 */
 }
 

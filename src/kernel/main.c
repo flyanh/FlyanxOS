@@ -71,10 +71,8 @@ PUBLIC int main(){
     u16_t ldt_selector = SELECTOR_LDT_FIRST;    /* LDT选择子 */
     u8_t		privilege;		/* CPU权限 */
     u8_t		rpl;			/* 段访问权限 */
-    int hdr_index;
-    int task_count = 0;
-    int server_count = 0;
-    int usr_proc_count = 0;
+    int hdr_index;              /* a.out头的索引 */
+    struct exec exec_hdr;       /* a.out可执行文件头 */
     // 初始化进程表
     for(t = -NR_TASKS; t <= LOW_USER;++t){
         proc = proc_addr(t);                /* t是进程插槽号 */
@@ -89,22 +87,12 @@ PUBLIC int main(){
             /* 设置任务堆栈 */
             k_task_stack_base += p_task->stack_size;
             proc->regs.sp = k_task_stack_base;
-            /* 设置任务的硬盘索引号 */
+            /* 任务使用第一个a.out头 */
             hdr_index = 0;
             /* 设置任务权限 */
             privilege = rpl = proc->priority = PROC_PRI_TASK;
-            task_count++;                                /* 任务数量 */
         } else {    /* 服务或用户进程 */
-            hdr_index = 1 + t;
-            if(t < LOW_USER){
-                /* 服务 */
-                proc->priority = PROC_PRI_SERVER;
-                server_count++;
-            } else{
-                /* 用户进程 */
-                proc->priority = PROC_PRI_USER;
-                usr_proc_count++;
-            }
+            hdr_index = 1 + t;      /* MM、FS、FLY、ORIGIN的a.out头跟在内核后面 */
             privilege = rpl = proc->priority;
         }
 

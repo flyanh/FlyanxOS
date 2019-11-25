@@ -63,8 +63,11 @@ _PROTOTYPE( void milli_delay, (time_t millisec) );
 /* tty.c */
 /*================================================================================================*/
 _PROTOTYPE( void tty_task, (void) );
+_PROTOTYPE( void handle_events, (struct tty_s *tty) );
 _PROTOTYPE( void tty_wakeup, (clock_t now) );
+_PROTOTYPE( void tty_dev_nop, (struct tty_s *tty) );
 _PROTOTYPE( int input_handler, (struct tty_s *tty, char *buffer, int count) );
+_PROTOTYPE( void tty_reply, (int code, int reply_dest, int proc_nr, int status) );
 
 /*================================================================================================*/
 
@@ -101,8 +104,6 @@ _PROTOTYPE( void wreboot, (int how) );
 /*================================================================================================*/
 /* kernel_386_lib.asm  */
 /*================================================================================================*/
-_PROTOTYPE( void copy_msg, (int src,phys_clicks src_clicks,vir_bytes src_offset,
-        phys_clicks dst_clicks, vir_bytes dst_offset) );
 _PROTOTYPE( void phys_copy, (phys_bytes source, phys_bytes dest, phys_bytes count) );
 _PROTOTYPE( void out_byte, (port_t port, U8_t value) );
 _PROTOTYPE( U8_t in_byte, (port_t port) );

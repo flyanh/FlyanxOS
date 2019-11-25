@@ -93,7 +93,7 @@ FORWARD _PROTOTYPE( int function_key, (int scan_code) );
  *				map_key					     *
  *				映射按键
  *===========================================================================*/
-PUBLIC unsigned map_key(int scan_code){
+PRIVATE unsigned map_key(int scan_code){
     /* 返回扫描码对应映射文件中的ascii码，完全映射，包括处理和普通字符同时按下的（多重）修饰组合键。 */
 
     int caps, column, lock;

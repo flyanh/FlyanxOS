@@ -125,6 +125,7 @@ int task;           /* 要开始的任务号 */
  *				     hunter   				     *
  *				     狩猎进程以用下次执行
  *===========================================================================*/
+//status_t first = TRUE;
 PRIVATE void hunter(){
     /* 从进程表中抓出一个作为下次运行的进程
      *
@@ -139,10 +140,14 @@ PRIVATE void hunter(){
      */
     register Process *prey;      /* 准备运行的进程 */
 
+//    if(first){
+//        first = FALSE;
+//    }
+
     /* 就绪任务进程队列使我们狩猎的第一个目标 */
     if( (prey = ready_head[TASK_QUEUE]) != NIL_PROC){
         curr_proc = prey;
-//        printf("%s process was caught by the hunter.\n", prey->name);
+//        if(!first) printf("%s process was caught by the hunter.\n", prey->name);
         return;
     }
 
@@ -166,7 +171,7 @@ PRIVATE void hunter(){
     /* 咳咳，本次狩猎失败了，那么只能狩猎IDLE闲置进程了，但这种情况较少发生 */
     prey = proc_addr(IDLE_TASK);
     bill_proc = curr_proc = prey;
-//    printf("%s process was caught by the hunter.\n", prey->name);
+//    if(!first) printf("%s process was caught by the hunter.\n", prey->name);
     /* 本例程只负责狩猎，狩猎到一个可以执行的进程，而进程执行完毕后的删除或更改在队列中的位置
      * 这种事情我们安排在其他地方去做。
      */

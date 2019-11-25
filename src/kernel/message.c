@@ -14,7 +14,6 @@
  * 该文件的入口点：
  *  - flyanx_send              向某个进程发送一条消息
  *  - flyanx_receive           接收来自某个进程的消息
- *  - flyanx_send_receive      向某个进程发送一条消息并等待该进程的回应
  *
  * 注意：这两个调用都会导致进程进入堵塞状态。
  */
@@ -25,11 +24,16 @@
 #include "process.h"
 #include "message.h"
 
-#if (CHIP == INTEL)
-#define CopyMessage(s, sp, sm, dp, dm)  \
-    copy_msg(s, (sp)->map[DATA].physical, (vir_bytes)sm, (dp)->map[DATA].physical, (vir_bytes)dm)
+#ifdef INTEL
+#define MESSAGE_SIZE    36  /* intel体系下，一个消息的字节大小 */
+/* 复制消息的宏，就是简单的调用了phys_copy例程，它通过物理地址复制，
+ * 速度较慢。后期将会改进，因为现在还未实现物理块。
+ */
+#define CopyMsg(src, src_msg, dest_msg) \
+    src_msg->source = src; phys_copy(vir2phys(data_base, src_msg), vir2phys(data_base, dest_msg), MESSAGE_SIZE)
 #endif
 
+FORWARD _PROTOTYPE( void copy_msg, (int src, Message *src_msg, Message *dest_msg) );
 
 /*===========================================================================*
  *				flyanx_send	    		     *
@@ -38,7 +42,7 @@
 PUBLIC int flyanx_send(caller_ptr, dest, message_ptr)
 register struct process_s *caller_ptr;	/* 调用进程，即谁想发消息？ */
 int dest;			                    /* 目标进程号，即谁将接收这条消息？或说这条消息将发给谁？ */
-struct message_s *message_ptr;          /* 消息 */
+Message *message_ptr;          /* 消息 */
 {
     /* 发送一条消息从发送进程到接收进程，消息在发送进程的数据空间中，所以我们
      * 需要将其复制到接收进程的数据空间的消息缓冲中。
@@ -81,8 +85,8 @@ struct message_s *message_ptr;          /* 消息 */
      */
     if((dest_proc->flags & (RECEIVING | SENDING)) == RECEIVING  /* RECEIVING|SENDING是为了保证对方不处于SEND_REC调用上 */
         && (dest_proc->get_form == ANY || dest_proc->get_form == caller_ptr->nr)){
-        /* 调用CopyMess复制消息给对方 */
-        CopyMessage(caller_ptr->nr, caller_ptr, message_ptr, dest_proc, dest_proc->message);
+        /* 调用CopyMsg复制消息给对方 */
+        CopyMsg(caller_ptr->nr, message_ptr, dest_proc->message);
         /* 好了，拿到了消息，解除对方接收消息堵塞的状态 */
         dest_proc->flags &= ~RECEIVING;
 
@@ -141,7 +145,7 @@ PUBLIC int flyanx_receive(
             previous_proc = sender_proc, sender_proc = sender_proc->caller_link){
             /* 我如果接收任何人的消息 或者 找到了我期望发送消息给我的对方，那么可以拿到对方的消息了 */
             if(src == ANY || src == sender_proc->nr){
-                CopyMessage(sender_proc->nr, sender_proc, sender_proc->message, caller_ptr, message_ptr);
+                CopyMsg(sender_proc->nr, sender_proc->message, message_ptr);
                 if(sender_proc == caller_ptr->caller_head){
                     /* 如果对方是排队队列的第一个（头），那么排队队列的头更改为下一个 */
                     caller_ptr->caller_head = sender_proc->caller_link;
@@ -251,6 +255,7 @@ Message *message_ptr;   /* 消息地址 */
      * 直接调用接收消息的函数，并返回操作代码，例程结束
      */
     return (flyanx_receive(caller, src_dest, message_ptr));
-
 }
+
+
 

@@ -93,8 +93,19 @@ PUBLIC void clock_task(){
     /* 初始化时钟 */
     init_clock();
 
+    /* 测试发送消息 */
+    msg.type = 3;
+    int status = send_receive(TTY_TASK, &msg);
+    if(status == OK){
+        printf("clock send_receive a msg.\n");
+        printf("type: %d\n", msg.type);
+    } else {
+        printf("clock send_receive a msg failed.\n");
+    }
+
     /* 时钟任务主循环，一直得到工作，处理工作，回复处理结果 */
     while (TRUE){
+
         /* 从外界得到一条消息 */
         receive(ANY, &msg);
 
@@ -166,7 +177,7 @@ PRIVATE void do_clock_int() {
 }
 
 PRIVATE void do_get_uptime() {
-
+    printf("do_get_uptime\n");
 }
 
 PRIVATE void do_get_time() {
@@ -265,7 +276,9 @@ int irq;
      now = one_ticks + pending_ticks;    /* 当前实际时间 = 开机运行时间 + 中断挂起滴答时间 */
 
      /* 好了，如果终端任务的触发时间到了，唤醒其 */
-     if(tty_wake_time <= now) tty_wakeup(now);
+     if(tty_wake_time <= now){
+         tty_wakeup(now);
+     }
 
      /* 任务闹钟时间到了？产生一个时钟中断，唤醒时钟任务 */
      if(next_alarm <= now){

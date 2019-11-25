@@ -55,4 +55,8 @@
 
 #define HARDWARE            -1	    /* 用作中断生成消息的源 */
 
+/* 任务回复消息中使用的消息字段名称。 */
+#define REPLY_PROC_NR   m2_i1       /* 代表I/O完成的进程索引号 */
+#define REPLY_STATUS    m2_i2       /* 传输的字节数或错误号 */
+
 #endif //_FLYANX_COMMON_H

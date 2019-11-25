@@ -51,13 +51,13 @@ typedef struct message_s{
     int source;         /* 谁发送的消息 */
     int type;           /* 消息的类型（例如，发给时钟任务的GET_TIME） */
     union {             /* 消息域，一共可以是六种消息域类型之一 */
-        mess_union1 u1;
-        mess_union2 u2;
-        mess_union3 u3;
-        mess_union4 u4;
-        mess_union5 u5;
-        mess_union6 u6;
-    } u;
+        mess_union1 m_u1;
+        mess_union2 m_u2;
+        mess_union3 m_u3;
+        mess_union4 m_u4;
+        mess_union5 m_u5;
+        mess_union6 m_u6;
+    } m_u;
 } Message;
 
 /* 内存映像（映射）结构体定义
@@ -67,7 +67,53 @@ typedef struct message_s{
 typedef struct memory_map_s {
     vir_clicks virtual;     /* 虚拟地址 */
     phys_clicks physical;   /* 物理地址 */
-    vir_clicks length;  /* 映像长度 */
+    vir_clicks length;      /* 映像长度 */
 } MemoryMap;
+
+/* 以下定义提供了消息中消息域有用成员的简短名称。 */
+/* 消息域1中的消息属性 */
+#define m1_i1   m_u.m_u1.m1i1
+#define m1_i2   m_u.m_u1.m1i2
+#define m1_i3   m_u.m_u1.m1i3
+#define m1_p1   m_u.m_u1.m1p1
+#define m1_p2   m_u.m_u1.m1p2
+#define m1_p3   m_u.m_u1.m1p3
+
+/* 消息域2中的消息属性 */
+#define m2_i1   m_u.m_u2.m2i1
+#define m2_i2   m_u.m_u2.m2i2
+#define m2_i3   m_u.m_u2.m2i3
+#define m2_l1   m_u.m_u2.m2l1
+#define m2_l2   m_u.m_u2.m2l2
+#define m2_p1   m_u.m_u2.m2p1
+
+/* 消息域3中的消息属性 */
+#define m3_i1   m_u.m_u3.m3i1
+#define m3_i2   m_u.m_u3.m3i2
+#define m3_p1   m_u.m_u3.m3p1
+#define m3_ca1  m_u.m_u3.m3ca1
+
+/* 消息域4中的消息属性 */
+#define m4_l1   m_u.m_u4.m4l1
+#define m4_l2   m_u.m_u4.m4l2
+#define m4_l3   m_u.m_u4.m4l3
+#define m4_l4   m_u.m_u4.m4l4
+#define m4_l5   m_u.m_u4.m4l5
+
+/* 消息域5中的消息属性 */
+#define m5_c1   m_u.m_u5.m5c1
+#define m5_c2   m_u.m_u5.m5c2
+#define m5_i1   m_u.m_u5.m5i1
+#define m5_i2   m_u.m_u5.m5i2
+#define m5_l1   m_u.m_u5.m5l1
+#define m5_l2   m_u.m_u5.m5l2
+#define m5_l3   m_u.m_u5.m5l3
+
+/* 消息域6中的消息属性 */
+#define m6_i1   m_u.m_u6.m6i1
+#define m6_i2   m_u.m_u6.m6i2
+#define m6_i3   m_u.m_u6.m6i3
+#define m6_l1   m_u.m_u6.m6l1
+#define m6_f1   m_u.m_u6.m6f1
 
 #endif //_FLYANX_TYPE_H

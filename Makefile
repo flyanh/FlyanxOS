@@ -64,9 +64,9 @@ FlyanxKernelHead = $(tk)/kernel.o
 
 KernelObjs      = $(tk)/start.o $(tk)/protect.o $(tk)/kernel_386_lib.o \
                   $(tk)/table.o $(tk)/main.o $(tk)/process.o \
-                  $(tk)/exception.o $(tk)/system.o $(tk)/clock.o \
-                  $(tk)/tty.o $(tk)/keyboard.o $(tk)/console.o \
-                  $(tk)/i8259.o $(tk)/message.o $(tk)/dmp.o \
+                  $(tk)/message.o $(tk)/exception.o $(tk)/system.o \
+                  $(tk)/clock.o $(tk)/tty.o $(tk)/keyboard.o \
+                  $(tk)/console.o $(tk)/i8259.o  $(tk)/dmp.o \
                   $(tk)/misc.o
 
 LibObjs         = $(tl)/i386/message.o \

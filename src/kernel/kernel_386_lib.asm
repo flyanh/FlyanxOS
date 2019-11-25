@@ -24,7 +24,6 @@ extern  simple_brk_point           ; 简单断点
 [SECTION .lib]
 
 ; 导出库函数
-global  copy_msg
 global  phys_copy
 global  disp_str
 global  disp_color_str
@@ -39,55 +38,6 @@ global  interrupt_unlock
 global  level0
 
 ;*===========================================================================*
-;*				copy_msg					     *
-;*              复制消息
-;*===========================================================================*
-;* 本例程参考自MINIX
-;* 尽管用phys_copy就可以完成消息的拷贝（在下面），然而这是一个更快的专门过程
-;* copy_msg被用作消息拷贝的目的
-;* 函数原型：copy_msg (int src,phys_clicks src_clicks,vir_bytes src_offset,
-;*                 		phys_clicks dst_clicks, vir_bytes dst_offset );
-;* 各参数意义：
-;* source: 发送者的进程号，它将被拷贝到接收者缓冲区的m_source域
-;* src_clicks: 源数据的段基地址
-;* dst_clicks: 目的地的段基址
-;* src_offset: 源数据的偏移
-;* dst_offset: 目的地的偏移
-;* 使用块和偏移指定源和目标的方式比phys_copy所用的32位物理地址更加的高效。
-
-CM_ARGS equ 4 + 4 + 4 + 4 + 4     ; 用于到达复制的参数堆栈的栈顶
-align 16        ; 对齐16位，下面的每个例程都有
-copy_msg:
-    ;cld
-    ;push esi
-    ;push edi
-    ;push ds
-    ;push es
-
-    ;mov eax, SELECTOR_KERNEL_DS
-    ;mov ds, ax
-    ;mov es, ax
-
-    ;mov esi, [esp + CM_ARGS + 4]        ; 源数据块
-    ;shl esi, CLICK_SHIFT
-    ;add esi, [esp + CM_ARGS + 4 + 4]          ; 源数据偏移
-    ;mov edi, [esp + CM_ARGS + 4 + 4 + 4]      ; 目的地块
-    ;shl edi, CLICK_SHIFT
-    ;add edi, [esp + CM_ARGS + 4 + 4 + 4 + 4]    ; 目的地偏移
-
-    ;mov eax, [esp + CM_ARGS]        ; 发送者的进程槽号
-    ;stos                            ; 将发送者的进程槽号复制到目标消息
-    ;add esi, 4                      ; 不要复制第一个字
-    ;mov ecx, MSG_SIZE - 1           ; 记住，第一个字不算进去
-    ;rep
-    ;movsw                            ; 复制消息
-
-    ;pop es
-    ;pop ds
-    ;pop edi
-    ;pop esi
-    ;ret                             ; 就这些了！
-;*===========================================================================*
 ;*				phys_copy				     *
 ;*===========================================================================*
 ; PUBLIC void phys_copy(phys_bytes source, phys_bytes destination,
@@ -96,10 +46,11 @@ copy_msg:
 ;* 参数中的两个地址都是绝对地址，也就是地址0确实表示整个地址空间的第一个字节， *
 ;* 并且三个参数均为无符号长整数 *
 PC_ARGS     equ     16    ; 用于到达复制的参数堆栈的栈顶
+align 16
 phys_copy:
     push esi
     push edi
-    push ecx
+    push es
 
     ; 获得所有参数
     mov esi, [esp + PC_ARGS]            ; source
@@ -119,7 +70,7 @@ phys_copy_start:
     dec ecx                 ; bytecount--
     jmp phys_copy_start
 phys_copy_end:
-    pop ecx
+    pop es
     pop edi
     pop esi
     ret

@@ -129,19 +129,6 @@ FORWARD _PROTOTYPE( void stop_beep, (void) );
 FORWARD _PROTOTYPE( void do_escape, (Console *console, char ch) );
 
 /*===========================================================================*
- *				clear_srceen					     *
- *			        清屏
- *===========================================================================*/
-PUBLIC void clear_srceen(int line){
-    Console *console = &console_table[line];
-    /* 清空控制台的屏幕 */
-    blank_color = BLANK_COLOR;
-    memory2video_copy(BLANK_MEM, console->origin, screen_size);
-    console->row = console->column = 0;
-    flush(console);
-}
-
-/*===========================================================================*
  *				console_write				     *
  *                控制台写入
  *===========================================================================*/
@@ -397,14 +384,14 @@ PRIVATE void scroll_screen(unsigned direction){
         } else if(!wrap && curr_console->origin + screen_size + screen_width >= curr_console->limit){
             /* wrap变量被检测，它是一系列复合检测的第一部分，如果为FLASE，说明存在多各控制台
              * 不允许视频内存重叠，复合检测将继续测试滚屏操作将要移动的内存块是否溢出了分配给
-             * 该控制台的内存界线，如果是，就再次调用vid_vid_copy执行一个回滚移动把内存块移动
+             * 该控制台的内存界线，如果是，就再次调用video2video_copy执行一个回滚移动把内存块移动
              * 到控制台分配内存的起始处，并且原始指针被修改，通过软件辅助完成滚屏。如果没有重叠
              * ，控制就被传递给旧的视频控制器一直使用的简单硬件滚屏方法（在下面）。
              */
             video2video_copy(curr_console->origin + screen_width, curr_console->start, chars);
             curr_console->origin = curr_console->start;
 
-        } else {                            /* 硬件滚屏滚屏 */
+        } else {                            /* 硬件滚屏 */
             /* 对于支持硬件滚屏的显示器wrap为真，那么这里进行简单的硬件滚屏，
              * 视频控制芯片使用的原始指针被更新为显示器左上角显示的第一个字符。
              */
@@ -421,7 +408,7 @@ PRIVATE void scroll_screen(unsigned direction){
             new_origin = curr_console->limit - screen_size;
             video2video_copy(curr_console->origin, new_origin + screen_width , chars);
             curr_console->origin = new_origin;
-        } else {                            /* 硬件滚屏滚屏 */
+        } else {                            /* 硬件滚屏 */
             curr_console->origin = (curr_console->origin - screen_width) & video_mask;
         }
         /* 得到出现的新行，它从屏幕底部出现。 */
@@ -431,7 +418,7 @@ PRIVATE void scroll_screen(unsigned direction){
     blank_color = curr_console->blank;
     memory2video_copy(BLANK_MEM, new_line, screen_width);
 
-    /* 如果给定的控制台是当前使用的控制台，设置新的原点位置 */
+    /* 设置新的原点位置 */
     set_6845_video_start(curr_console->origin);
     flush(curr_console);
 }
@@ -502,68 +489,6 @@ PRIVATE void memory2video_copy(
 }
 
 /*===========================================================================*
- *				video2video_copy					     *
- *			     显存内复制
- *===========================================================================*/
-PUBLIC void video2video_copy(
-        unsigned int src,       /* 源，是显存中的相对位置 */
-        unsigned int dest,      /* 目标，是显存中的相对位置 */
-        unsigned int count      /* 要复制多少个字？ */
-){
-    /* 显示器存储器(显存)内部的数据块拷贝。
-     * 这里例程较为复杂，因为目的数据块可能与源数据块之间有重叠，
-     * 并且数据移动的方向非常关键。 *
-     */
-    u16_t *src_video_memory = (u16_t*)(video_base + src * 2);  /* 得到目标显存 */
-    u16_t *dest_video_memory = (u16_t*)(video_base + dest * 2);  /* 得到目标显存 */
-
-    if(src < dest) {
-        /* 目标比源小，那么说明是向下移动，即向高地址移动
-         * 这个非常复杂，因为它们发生了重叠！暂时未实现！@TODO
-         */
-        while (count != 0){             /* 只要count != 0，一直复制 */
-            *dest_video_memory = *src_video_memory;
-            dest_video_memory++;
-            src_video_memory++;
-            count--;
-        }
-    } else {
-        /* 是向上移动，即向低地址移动，这个很简单 */
-        while (count != 0){             /* 只要count != 0，一直复制 */
-            *dest_video_memory = *src_video_memory;
-            dest_video_memory++;
-            src_video_memory++;
-            count--;
-        }
-    }
-
-}
-
-/*===========================================================================*
- *				putk					     *
- *			输出一个字符到当前控制台
- *===========================================================================*/
-PUBLIC void putk(int ch)
-{
-    /* 不需要通过文件系统而直接打印一个字符，内核和任务级别可使用
-     * 与内核本身链接的printf()将使用这个过程，系统库中的printf
-     * 则需要向文件系统发送一条消息，这么低效的工作方式不是内核和
-     * 任务所需要的，所以本例程只将输出的字符加入输出队列并输出。
-     */
-
-    if(ch != 0){
-        /* 如果遇到了换行符，在'\n'前再加一个'\r'回车符号 */
-        if(ch == '\n') out_char(&console_table[0], '\r');
-        /* 只要还没到遇到字符串结束符号0，继续将字符加入到输出队列 */
-        out_char(&console_table[0], ch);
-    } else {
-        /* 如果是一个字符串结束符号0，将输出队列冲洗到视频内存 */
-        flush(&console_table[0]);
-    }
-
-}
-
-/*===========================================================================*
  *				    beep				     *
  *			      发出蜂鸣声
  *===========================================================================*/
@@ -611,7 +536,7 @@ PRIVATE void stop_beep(void){
  *				parse_escape				     *
  *			    转义处理
  *===========================================================================*/
-PUBLIC void parse_escape(
+PRIVATE void parse_escape(
         register Console *console,  /* 哪个控制台产生了转义？ */
         char ch                     /* 转义序列中的下一个字符，将会陆续进来 */
 ){
@@ -776,6 +701,38 @@ PRIVATE void do_escape(register Console *console, char ch){
 }
 
 /*===========================================================================*
+ *				console_origin0				     *
+ *	    滚动视频的内存，还原所有控制台的源地址为0
+ *===========================================================================*/
+PRIVATE void console_origin0(void){
+    /* 滚动视频内存，使其原点为0
+     * 本例程只有在F3键强制切换卷屏模式或准备关机时使用。
+     * @TODO 有bug
+     */
+
+    int line;
+    Console *console;
+    unsigned int unused;
+
+    for(line = 0; line < nr_console; line++){
+        /* 得到控制台实例 */
+        console = &console_table[line];
+        while (console->origin > console->start){
+            /* 未使用的内存量 */
+            unused = video_size - screen_size;
+            if(unused > console->origin - console->start){
+                unused = console->origin - console->start;
+            }
+            video2video_copy(console->origin, console->origin - unused, screen_size);
+            console->origin -= unused;
+        }
+        flush(console);
+    }
+    /* 激活控制台 */
+    switch_console(current_console_nr);
+}
+
+/*===========================================================================*
  *				switch_console				     *
  *				切换控制台
  *===========================================================================*/
@@ -806,38 +763,6 @@ PUBLIC void toggle_scroll(void){
     software_scroll = !software_scroll;
     /* 打印一条提示信息 */
     printf("%sware scrolling enabled.\n", software_scroll ? "Soft" : "Hard");
-}
-
-/*===========================================================================*
- *				console_origin0				     *
- *	    滚动视频的内存，还原所有控制台的源地址为0
- *===========================================================================*/
-PRIVATE void console_origin0(void){
-    /* 滚动视频内存，使其原点为0
-     * 本例程只有在F3键强制切换卷屏模式或准备关机时使用。
-     * @TODO 有bug
-     */
-
-    int line;
-    Console *console;
-    unsigned int unused;
-
-    for(line = 0; line < nr_console; line++){
-        /* 得到控制台实例 */
-        console = &console_table[line];
-        while (console->origin > console->start){
-            /* 未使用的内存量 */
-            unused = video_size - screen_size;
-            if(unused > console->origin - console->start){
-                unused = console->origin - console->start;
-            }
-            video2video_copy(console->origin, console->origin - unused, screen_size);
-            console->origin -= unused;
-        }
-        flush(console);
-    }
-    /* 激活控制台 */
-    switch_console(current_console_nr);
 }
 
 /*===========================================================================*
@@ -962,4 +887,78 @@ PRIVATE void console_ioctl(TTY *tty){
     unsigned short s;
 }
 
+/*===========================================================================*
+ *				clear_srceen					     *
+ *			        清屏
+ *===========================================================================*/
+PUBLIC void clear_srceen(int line){
+    Console *console = &console_table[line];
+    /* 清空控制台的屏幕 */
+    blank_color = BLANK_COLOR;
+    memory2video_copy(BLANK_MEM, console->origin, screen_size);
+    console->row = console->column = 0;
+    flush(console);
+}
+
+/*===========================================================================*
+ *				video2video_copy					     *
+ *			     显存内复制
+ *===========================================================================*/
+PUBLIC void video2video_copy(
+        unsigned int src,       /* 源，是显存中的相对位置 */
+        unsigned int dest,      /* 目标，是显存中的相对位置 */
+        unsigned int count      /* 要复制多少个字？ */
+){
+    /* 显示器存储器(显存)内部的数据块拷贝。
+     * 这里例程较为复杂，因为目的数据块可能与源数据块之间有重叠，
+     * 并且数据移动的方向非常关键。 *
+     */
+    u16_t *src_video_memory = (u16_t*)(video_base + src * 2);  /* 得到目标显存 */
+    u16_t *dest_video_memory = (u16_t*)(video_base + dest * 2);  /* 得到目标显存 */
+
+    if(src < dest) {
+        /* 目标比源小，那么说明是向下移动，即向高地址移动
+         * 这个非常复杂，因为它们发生了重叠！暂时未实现！@TODO
+         */
+        while (count != 0){             /* 只要count != 0，一直复制 */
+            *dest_video_memory = *src_video_memory;
+            dest_video_memory++;
+            src_video_memory++;
+            count--;
+        }
+    } else {
+        /* 是向上移动，即向低地址移动，这个很简单 */
+        while (count != 0){             /* 只要count != 0，一直复制 */
+            *dest_video_memory = *src_video_memory;
+            dest_video_memory++;
+            src_video_memory++;
+            count--;
+        }
+    }
+
+}
+
+/*===========================================================================*
+ *				putk					     *
+ *			输出一个字符到当前控制台
+ *===========================================================================*/
+PUBLIC void putk(int ch)
+{
+    /* 不需要通过文件系统而直接打印一个字符，内核和任务级别可使用
+     * 与内核本身链接的printf()将使用这个过程，系统库中的printf
+     * 则需要向文件系统发送一条消息，这么低效的工作方式不是内核和
+     * 任务所需要的，所以本例程只将输出的字符加入输出队列并输出。
+     */
+
+    if(ch != 0){
+        /* 如果遇到了换行符，在'\n'前再加一个'\r'回车符号 */
+        if(ch == '\n') out_char(&console_table[0], '\r');
+        /* 只要还没到遇到字符串结束符号0，继续将字符加入到输出队列 */
+        out_char(&console_table[0], ch);
+    } else {
+        /* 如果是一个字符串结束符号0，将输出队列冲洗到视频内存 */
+        flush(&console_table[0]);
+    }
+
+}
 

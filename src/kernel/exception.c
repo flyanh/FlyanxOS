@@ -83,16 +83,13 @@ PUBLIC void exception_handler(int vec_nr, int errno)
 //        return;
 //    }
 
-    /* 清屏，因为到这里，系统已经崩溃，全部屏幕将都用来显示异常信息 */
-//    clear_srceen((int)current_console_nr);
-
     /* 如果上面两个条件都没有满足，说明这是内核代码的的异常，它不应该发生的...
      * 但没办法，我们打印这些异常信息，最后使用panic结束内核的运行。
      */
     if(ep->msg == NIL_PTR){
         printf("\nException %d no exist...\n", vec_nr);
     } else {
-        printf("%s\n", ep->msg);
+        printf("\n%s\n", ep->msg);
     }
     printf("Process number %d, pc = 0x%04x:0x%08x\n",
            saved_proc->nr,
