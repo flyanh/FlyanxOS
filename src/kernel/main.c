@@ -202,7 +202,7 @@ PUBLIC void ok_print(char* msg, char* ok){
     int msg_len = strlen(msg);
     int ok_len = strlen(ok);
     for(; msg_len < (80 - 4 - ok_len); msg_len++){
-        display_position += 2;
+        printf(" ");
     }
     printf("[ %s ]", ok);
 }

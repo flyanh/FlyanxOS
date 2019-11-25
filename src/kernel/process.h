@@ -121,7 +121,9 @@ typedef struct process_s {
 			  (((phys_bytes)(p)->map[DATA].virtual << CLICK_SHIFT) \
 							+ (vir_bytes) (vir))
 
-
+/* process.c文件所需要的两个函数，发送消息和接收消息，放在这是因为这两个函数不需要全部人都知道。 */
+_PROTOTYPE( int flyanx_send, (struct process_s *caller_ptr, int dest, struct message_s *message_ptr) );
+_PROTOTYPE( int flyanx_receive, (struct process_s *caller_ptr, int src, struct message_s *message_ptr) );
 
 EXTERN Process process[NR_TASKS + NR_PROCS];        /* 进程表，EXTERN关键字使其声明内存 */
 /* 因为进程表的访问非常频繁,并且计算数组中的一个地址需要用到很慢的乘法操作,

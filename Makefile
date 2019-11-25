@@ -17,7 +17,10 @@ s = $i/sys
 b = $i/ibm
 l = $i/lib
 
-# c文科目录
+# c文件所在目录
+sk = src/kernel
+
+# 编辑链接中间目录
 t = target
 tb = $t/boot
 tk = $t/kernel
@@ -42,15 +45,15 @@ DASM 			= ndisasm
 CC 				= gcc
 LD				= ld
 ASMFlagsOfBoot	= -I src/boot/include/
-ASMFlagsOfKernel= -f elf -I src/kernel/
+ASMFlagsOfKernel= -f elf -I $(sk)/
 CFlags			= -I$i -c -fno-builtin
 LDFlags			= -s -Ttext $(ENTRYPOINT)
 DASMFlags		= -u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 
 # 依赖关系
-a = src/kernel/kernel.h $h/config.h $h/const.h $h/type.h $h/syslib.h \
+a = $(sk)/kernel.h $h/config.h $h/const.h $h/type.h $h/syslib.h \
     $s/types.h $i/string.h $i/limits.h $i/errno.h \
-    src/kernel/const.h src/kernel/type.h src/kernel/prototype.h src/kernel/global.h
+    $(sk)/const.h $(sk)/type.h $(sk)/prototype.h $(sk)/global.h
 
 lib = $i/lib.h $h/common.h $h/syslib.h
 
@@ -67,7 +70,7 @@ KernelObjs      = $(tk)/start.o $(tk)/protect.o $(tk)/kernel_386_lib.o \
                   $(tk)/message.o $(tk)/exception.o $(tk)/system.o \
                   $(tk)/clock.o $(tk)/tty.o $(tk)/keyboard.o \
                   $(tk)/console.o $(tk)/i8259.o  $(tk)/dmp.o \
-                  $(tk)/misc.o
+                  $(tk)/misc.o $(tk)/test.o
 
 LibObjs         = $(tl)/i386/message.o \
                   $(tl)/syslib/string.o $(tl)/syslib/kernel_debug.o $(tl)/syslib/kprintf.o
@@ -136,16 +139,16 @@ $(tb)/loader.bin : src/boot/loader.asm src/boot/include/load.inc src/boot/includ
 $(FlyanxKernel): $(Objs)
 	$(LD) $(LDFlags) -o $(FlyanxKernel) $(Objs)
 
-$(tk)/kernel.o: src/kernel/kernel.asm
+$(tk)/kernel.o: $(sk)/kernel.asm
 	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
 
 $(tk)/start.o: $a
-$(tk)/start.o: src/kernel/protect.h
-$(tk)/start.o: src/kernel/start.c
+$(tk)/start.o: $(sk)/protect.h
+$(tk)/start.o: $(sk)/start.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/i8259.o: $a
-$(tk)/i8259.o: src/kernel/i8259.c
+$(tk)/i8259.o: $(sk)/i8259.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/main.o: $a
@@ -154,17 +157,17 @@ $(tk)/main.o: $i/signal.h
 $(tk)/main.o: $i/a.out.h
 $(tk)/main.o: $h/callnr.h
 $(tk)/main.o: $h/common.h
-$(tk)/main.o: src/kernel/process.h
-$(tk)/main.o: src/kernel/main.c
+$(tk)/main.o: $(sk)/process.h
+$(tk)/main.o: $(sk)/main.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/protect.o: $a
-$(tk)/protect.o: src/kernel/process.h
-$(tk)/protect.o: src/kernel/protect.h
-$(tk)/protect.o: src/kernel/protect.c
+$(tk)/protect.o: $(sk)/process.h
+$(tk)/protect.o: $(sk)/protect.h
+$(tk)/protect.o: $(sk)/protect.c
 	$(CC) $(CFlags) -o $@ $<
 
-$(tk)/kernel_386_lib.o: src/kernel/kernel_386_lib.asm
+$(tk)/kernel_386_lib.o: $(sk)/kernel_386_lib.asm
 	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
 
 $(tl)/syslib/string.o: src/lib/syslib/string.asm
@@ -176,8 +179,8 @@ $(tl)/syslib/kernel_debug.o: src/lib/syslib/kernel_debug.c
 
 $(tk)/exception.o: $a
 $(tk)/exception.o: $i/signal.h
-$(tk)/exception.o: src/kernel/process.h
-$(tk)/exception.o: src/kernel/exception.c
+$(tk)/exception.o: $(sk)/process.h
+$(tk)/exception.o: $(sk)/exception.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/system.o: $a
@@ -189,51 +192,52 @@ $(tk)/system.o:	$i/unistd.h
 # $(tk)/system.o:	$s/svrctl.h
 $(tk)/system.o:	$h/callnr.h
 $(tk)/system.o:	$h/common.h
-$(tk)/system.o:	src/kernel/process.h
-$(tk)/system.o:	src/kernel/protect.h
-# $(tk)/system.o:	src/kernel/assert.h
-$(tk)/system.o: src/kernel/system.c
+$(tk)/system.o:	$(sk)/process.h
+$(tk)/system.o:	$(sk)/protect.h
+# $(tk)/system.o:	$(sk)/assert.h
+$(tk)/system.o: $(sk)/system.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/table.o:	$a
 $(tk)/table.o:	$i/stdlib.h
 # $(tk)/table.o:	$i/termios.h
 $(tk)/table.o:	$h/common.h
-$(tk)/table.o:	src/kernel/process.h
-# $(tk)/table.o:	src/kernel/tty.h
+$(tk)/table.o:	$(sk)/process.h
+# $(tk)/table.o:	$(sk)/tty.h
 $(tk)/table.o:	$b/int86.h
-$(tk)/table.o: src/kernel/table.c
+$(tk)/table.o: $(sk)/table.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/clock.o: $a
 $(tk)/clock.o: $i/signal.h
 $(tk)/clock.o: $h/callnr.h
 $(tk)/clock.o: $h/common.h
-$(tk)/clock.o: src/kernel/clock.c
+$(tk)/clock.o: $(sk)/process.h
+$(tk)/clock.o: $(sk)/clock.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/process.o: $a
 $(tk)/process.o: $h/callnr.h
 $(tk)/process.o: $h/common.h
-$(tk)/process.o: src/kernel/process.h
-$(tk)/process.o: src/kernel/process.c
+$(tk)/process.o: $(sk)/process.h
+$(tk)/process.o: $(sk)/process.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/process.o: $a
 $(tk)/process.o: $h/callnr.h
 $(tk)/process.o: $h/common.h
-$(tk)/process.o: src/kernel/process.h
-$(tk)/message.o: src/kernel/message.c
+$(tk)/process.o: $(sk)/process.h
+$(tk)/message.o: $(sk)/message.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/console.o: $a
 $(tk)/console.o: $i/termios.h
 $(tk)/console.o: $h/callnr.h
 $(tk)/console.o: $h/common.h
-$(tk)/console.o: src/kernel/protect.h
-$(tk)/console.o: src/kernel/tty.h
-$(tk)/console.o: src/kernel/process.h
-$(tk)/console.o: src/kernel/console.c
+$(tk)/console.o: $(sk)/protect.h
+$(tk)/console.o: $(sk)/tty.h
+$(tk)/console.o: $(sk)/process.h
+$(tk)/console.o: $(sk)/console.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/keyboard.o: $a
@@ -243,9 +247,9 @@ $(tk)/keyboard.o: $i/unistd.h
 $(tk)/keyboard.o: $h/callnr.h
 $(tk)/keyboard.o: $h/common.h
 $(tk)/keyboard.o: $h/keymap.h
-$(tk)/keyboard.o: src/kernel/tty.h
-$(tk)/keyboard.o: src/kernel/keymaps/us-std.src
-$(tk)/keyboard.o: src/kernel/keyboard.c
+$(tk)/keyboard.o: $(sk)/tty.h
+$(tk)/keyboard.o: $(sk)/keymaps/us-std.src
+$(tk)/keyboard.o: $(sk)/keyboard.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/tty.o: $a
@@ -255,22 +259,29 @@ $(tk)/tty.o: $i/signal.h
 $(tk)/tty.o: $h/callnr.h
 $(tk)/tty.o: $h/common.h
 $(tk)/tty.o: $h/keymap.h
-$(tk)/tty.o: src/kernel/tty.h
-$(tk)/tty.o: src/kernel/process.h
-$(tk)/tty.o: src/kernel/tty.c
+$(tk)/tty.o: $(sk)/tty.h
+$(tk)/tty.o: $(sk)/process.h
+$(tk)/tty.o: $(sk)/tty.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/dmp.o: $a
 $(tk)/dmp.o: $h/common.h
-$(tk)/dmp.o: src/kernel/process.h
-$(tk)/dmp.o: src/kernel/dmp.c
+$(tk)/dmp.o: $(sk)/process.h
+$(tk)/dmp.o: $(sk)/dmp.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/misc.o: $a
-$(tk)/misc.o: src/kernel/assert.h
+$(tk)/misc.o: $(sk)/assert.h
 $(tk)/misc.o: $i/stdlib.h
 $(tk)/misc.o: $h/common.h
-$(tk)/misc.o: src/kernel/misc.c
+$(tk)/misc.o: $(sk)/misc.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tk)/test.o: $a
+$(tk)/test.o: $i/signal.h
+$(tk)/test.o: $h/callnr.h
+$(tk)/test.o: $h/common.h
+$(tk)/test.o: $(sk)/test.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tl)/i386/message.o: src/lib/i386/message.asm

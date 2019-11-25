@@ -96,7 +96,7 @@
  */
 #define	vir2phys(seg_base, vir) ((phys_bytes)seg_base + (vir_bytes)(vir))
 
-/* 内嵌汇编nop，有些函数和调用间需要它，它可以让CPU休眠一个指令周期 */
-
+/* 秒转化为毫秒 */
+#define second2ms(s) (s * 1000)
 
 #endif //FLYANX_CONST_H

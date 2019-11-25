@@ -69,7 +69,7 @@
 #define MIN(a, b)   ((a) < (b) ? (a) : (b))
 
 /* 系统任务数量 */
-#define NR_TASKS    (4)
+#define NR_TASKS    (5)
 
 /* 内存是通过块分配的。 */
 #if (CHIP == INTEL)

@@ -87,19 +87,19 @@ PUBLIC void tty_task(void){
 #endif  /* _WORD_SIZE == 4 */
 #endif  /* (CHIP == INTEL) */
     /* 显示欢迎信息 */
-    printf("************  **             **        **\n");
-    printf("************  **              **      **\n");
-    printf("**            **                **  **\n");
-    printf("**            **                  **\n");
-    printf("************  **                  **\n");
-    printf("************  **                  **\n");
-    printf("**            **                  **\n");
-    printf("**            **                  **\n");
-    printf("**            ************        **\n");
-    printf("**            ************        **\n");
-    printf("          Author QQ: 1341662010\n");
-    printf("****** QQ exchange group: 909830414 ******\n");
-    printf("*********** Welcome to disturb ***********\n\n");
+//    printf("************  **             **        **\n");
+//    printf("************  **              **      **\n");
+//    printf("**            **                **  **\n");
+//    printf("**            **                  **\n");
+//    printf("************  **                  **\n");
+//    printf("************  **                  **\n");
+//    printf("**            **                  **\n");
+//    printf("**            **                  **\n");
+//    printf("**            ************        **\n");
+//    printf("**            ************        **\n");
+//    printf("          Author QQ: 1341662010\n");
+//    printf("****** QQ exchange group: 909830414 ******\n");
+//    printf("*********** Welcome to disturb ***********\n\n");
     /* 显示现在进程的运行情况 */
     proc_dmp();
     printf("You can click <F5> to clear the screen...\n");
@@ -136,9 +136,7 @@ PUBLIC void tty_task(void){
 }
 
 PRIVATE void do_default(){
-    Message tty_msg;
-    tty_msg.type = 66;
-    send(msg.source, &tty_msg);
+    printf("tty task re");
 }
 
 /*===========================================================================*
@@ -328,7 +326,6 @@ PUBLIC void handle_events(register TTY *tty){
      *
      * 	do_read和do_write也调用handle_events，这个例程必须工作的很快。
      */
-    /* 测试消息发送功能 */
 
     char *buffer;
     unsigned count;

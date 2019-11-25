@@ -45,10 +45,13 @@
 /* 时钟任务栈大小 */
 #define CLOCK_TASK_STACK SMALL_STACK
 
+/* 测试任务堆栈大小 */
+#define TEST_TASK_STACK  SMALL_STACK
+/* 虚拟硬件任务，使用内核堆栈 */
+#define	HARDWARE_STACK	    0
+
 /* 所有系统任务的栈空间大小 */
 #define TOT_TASK_STACK_SPACE    (IDLE_TASK_STACK + CLOCK_TASK_STACK)
-
-#define	HARDWARE_STACK	    0		/* 虚拟任务，使用内核堆栈 */
 
 /* 为系统任务表的所有表象分配空间 */
 PUBLIC TaskTab tasktab[] = {
@@ -60,7 +63,13 @@ PUBLIC TaskTab tasktab[] = {
 
         /* 时钟任务 */
         { clock_task, CLOCK_TASK_STACK, "CLOCK_TASK" },
-        /* 硬件任务，没有任何数据和正文，占个位置 - 用作判断中断 */
+
+#if OPEN_TEST_TASK == 1     /* 开启了测试任务 */
+        /* 系统测试任务 */
+        { test_task, TEST_TASK_STACK, "TEST_TASK" },
+#endif
+
+        /* 硬件任务，没有任何数据和正文，占个位置 - 用作判断硬件中断 */
         { 0, HARDWARE_STACK, "HARDWARE" },
 
 //        /* 内存管理器 */
@@ -70,7 +79,7 @@ PUBLIC TaskTab tasktab[] = {
 //        /* 飞彦扩展管理器 */
 //        { 0,			0,		"FLY"		},
 //        /* 起源进程 */
-        { 0,			0,		"ORIGIN"		},
+//        { 0,			0,		"ORIGIN"		},
 };
 
 /* 所有系统任务堆栈的堆栈空间。 （声明为（char *）使其对齐。） */
@@ -95,7 +104,7 @@ PUBLIC void map_drivers(){
  * 简单解释：减去的是MM、FS、FLY和ORIGIN，这些都不属于系统任务
  */
 //#define NKT (sizeof(tasktab) / sizeof(struct tasktab_s) - (ORIGIN_PROC_NR + 1))
-#define NKT ( sizeof(tasktab) / sizeof(struct tasktab_s) - (1) )
+#define NKT ( sizeof(tasktab) / sizeof(struct tasktab_s) )
 
 extern int dummy_tasktab_check[NR_TASKS == NKT ? 1 : -1];
 

@@ -20,24 +20,15 @@ PUBLIC void proc_dmp(void)
 {
     /* 为所有的进程显示基本的处理信息，包括在按下F1键时显示的内存使用信息。 */
 
-    int t, task_count = 0, server_count = 0, usr_proc_count = 0;
+    int t, proc_count = 0;
+    printf("#\tNAME\t\tPRIORITY\n");
     for(t = -NR_TASKS; t <= LOW_USER;++t){
-        if(t < 0){  /* 任务 */
-            task_count++;
-        } else {    /* 服务或用户进程 */
-            if(t < LOW_USER){
-                /* 服务 */
-                server_count++;
-            } else{
-                /* 用户进程 */
-                usr_proc_count++;
-            }
-        }
+        Process *proc =  proc_addr(t);
+        printf("%d\t%s\t\t%s\n", proc->nr, proc->name, "SYSTEM TASK");
+        proc_count++;
     }
-    printf("System task count: %d\n", task_count);
-    printf("System server count: %d\n", server_count);
-    printf("User process count: %d\n", usr_proc_count);
-    printf("Current running process: %s, nr: %d.\n", curr_proc->name, curr_proc->nr);
+    printf("process count: %d\n", proc_count);
+    printf("current running process: %s, nr: %d.\n", curr_proc->name, curr_proc->nr);
 }
 
 /*===========================================================================*
