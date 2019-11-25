@@ -17,16 +17,16 @@
 #define _FLYANX_COMMON_H
 
 /* System calls. */
-#define SEND		   1	/* function code for sending messages */
-#define RECEIVE		   2	/* function code for receiving messages */
-#define BOTH		   3	/* function code for SEND + RECEIVE */
-#define ANY		0x7fac	/* a magic, invalid process number.
+#define SEND		    1	/* function code for sending messages */
+#define RECEIVE		    2	/* function code for receiving messages */
+#define SEND_REC	    3	/* function code for SEND + RECEIVE */
+#define ANY		    0x7fac	/* a magic, invalid process number.
                          * receive(ANY, buf) accepts from any source
                          */
 
 /* 任务号，函数索引号(消息类型)和回复代码，将在下面开始定义 */
 
-#define TTY_TASK            -17  /* 终端I/O任务 */
+#define TTY_TASK            -4  /* 终端I/O任务 */
 #	define CANCEL           0	/* general req to force a task to cancel */
 #	define HARD_INT         2	/* fcn code for all hardware interrupts */
 #	define DEV_READ	        3	/* fcn code for reading from tty */
@@ -54,5 +54,9 @@
 #	define CLOCK_INT   HARD_INT /* 此代码仅由同步闹钟任务发送，用来请求一个同步闹钟 */
 
 #define HARDWARE            -1	    /* 用作中断生成消息的源 */
+
+/* 任务回复消息中使用的消息字段名称。 */
+#define REPLY_PROC_NR   m2_i1       /* 代表I/O完成的进程索引号 */
+#define REPLY_STATUS    m2_i2       /* 传输的字节数或错误号 */
 
 #endif //_FLYANX_COMMON_H

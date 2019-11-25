@@ -174,7 +174,7 @@ LABEL_GOON_LOADING_FILE:
 	jmp LABEL_GOON_LOADING_FILE		; 继续读写　内核文件　下一个　Sector
 LABEL_FILE_LOADED:					;　读　内核文件　完毕
 	call KillMotor					;　关闭软驱马达
-	mov dh, 1						; "Ready!!!    "
+	mov dh, 1						; "Enter KERNEL"
 	call DispStrOnRealModel			; 显示字符串
 
 ; 通过上面的操作，我们已经将内核加载进入内存，接下来我们准备跳入保护模式 -------------------------------------------
@@ -214,8 +214,8 @@ dwKernelSize		dd	0		        ; KERNEL.BIN 文件大小
 KernelFileName		db	"KERNEL  BIN", 0	; KERNEL.BIN 之文件名(在FAT12中)
 ; 为简化代码, 下面每个字符串的长度均为 MessageLength
 MessageLength		equ	12
-LoadMessage:		db	"Loading     "
-Message1		    db	"Kernel YES! "
+LoadMessage:		db	"Loading....."
+Message1		    db	"Enter KERNEL"
 Message2		    db	"No KERNEL!!!"
 
 ;================================================================================================
@@ -237,7 +237,7 @@ DispStrOnRealModel:
 	mov	ax, 01301h		; AH = 13,  AL = 01h
 	mov	bx, 0007h		; 页号为0(BH = 0) 黑底白字(BL = 07h)
 	mov	dl, 0
-	add	dh, 3			; 从第 3 行往下显示
+	add	dh, 2			; 从第 3 行往下显示
 	int	10h			; int 10h
 	ret
 
@@ -364,21 +364,17 @@ LAB_PM_START:	; 程序开始
 	mov ss, ax
 	mov esp, TopOfStack
 
-	; 打印显示内存表头
-	push szMemChkTitle	
-	call DispStr
-	add esp, 4
-
 	; 打印显示内存信息
 	call DispMemInfo
 	; 启动分页机制，分页机制能让我们将所有的物理地址看做是一维的线性空间
-	call SetupPaging
-
-	
+    call SetupPaging
 	; 初始化内核
 	call InitKernel
 
-	;jmp $			; 调试 Loader 时可以取消注释
+
+    ; 进入内核代码前，我们将一些启动参数保存好，内核可以很方便的获取到它们
+    mov eax, [dwMemSize]            ; eax = 内存大小
+    mov ebx, MemChkBuf              ; ebx = 内存地址范围描述符数组的绝对地址
 
 	; 正式进入内核，Loader将CPU控制权转交给内核，至此，Loader的使命也结束了！比Boot厉害吧！
 	; 从这里的函数运行成功后，我们才真正算是进入编写操作系统的门槛
@@ -495,6 +491,18 @@ DispAL:
 ; 显示一个整形数
 ; ------------------------------------------------------------------------
 DispInt:
+    mov	ah, 0Fh			; 0000b: 黑底    1111b: 白字
+    mov	al, '0'
+    push	edi
+    mov	edi, [dwDispPos]
+    mov	[gs:edi], ax
+    add edi, 2
+    mov	al, 'x'
+    mov	[gs:edi], ax
+    add	edi, 2
+    mov	[dwDispPos], edi	; 显示完毕后，设置新的显示位置
+    pop edi
+
 	mov	eax, [esp + 4]
 	shr	eax, 24
 	call	DispAL
@@ -510,15 +518,6 @@ DispInt:
 	mov	eax, [esp + 4]
 	call	DispAL
 
-	mov	ah, 07h			; 0000b: 黑底    0111b: 灰字
-	mov	al, 'h'
-	push	edi
-	mov	edi, [dwDispPos]
-	mov	[gs:edi], ax
-	add	edi, 4
-	mov	[dwDispPos], edi	; 显示完毕后，设置新的显示位置
-	pop	edi
-
 	ret
 
 ;================================================================================================
@@ -526,7 +525,6 @@ DispInt:
 ; ------------------------------------------------------------------------
 DispStr:
 	push ebp
-	mov ebp, esp
 	push ebx
 	push esi
 	push edi
@@ -572,7 +570,15 @@ DispReturn:
 	push	szReturn
 	call	DispStr			;printf("\n");
 	add	esp, 4
-
+	ret
+;================================================================================================
+; ------------------------------------------------------------------------
+; 打印三个空格
+; ------------------------------------------------------------------------
+DispThreeSpace:
+	push	szThreeSpace
+	call	DispStr			;printf("   ");
+	add	esp, 4
 	ret
 
 ;================================================================================================
@@ -627,9 +633,8 @@ DispMemInfo:
 .loop:						; 	for(int j = 0; j < 5; j++)	// 每次得到一个ARDS中的成员，共5个成员
 	mov edx, 5				; 	{	// 依次显示：BaseAddrLow, BaseAddrHigh, LengthLow, LengthHigh, Type
 	mov edi, ARDStruct		;
-.1:							;	
+.1:							;
 	push dword [esi]		;
-	call DispInt			;		DispInt(MemChkBuf[j * 4]);	// 显示一个成员
 	pop eax					;
 	stosd					;		ARDStruct[j * 4] = MemChkBuf[j * 4];
 	add esi, 4				;
@@ -647,23 +652,36 @@ DispMemInfo:
 .2:							;		}
 	loop .loop				;	}
 							; }
-	mov dword [dwDispPos], (160 * 4 + 2 * 30)	; 第 4 行 第 30 列
+	mov dword [dwDispPos], (160 * 5 + 2 * 30)	; 第 5 行 第 30 列
 
 	push szRAMSize			;
-	call DispStr			; 
+	call DispStr			;
 	add esp, 4				; printf("RAM size:");
 							;
-	push dword [dwMemSize]	;
-	call DispInt			; DispInt(MemSize);
-	add esp, 4				;
-
-	mov dword [dwDispPos], (160 * 13 + 2 * 0)	; 显示内存信息完毕后,设置显示位置在 第 13 行 第 0 列
+	call dispMemSize		; dispMemSize(); // 将内存转换为KB显示并显示
 
 	pop ecx
 	pop edi
 	pop esi
-	ret	
+	ret
+;================================================================================================
+; 换算内存byte到MB --------------------------------------------------------------
+dispMemSize:
+    mov ebx, [dwMemSize]    ; ebx = 内存大小（字节）
+    xor edx, edx
+    mov eax, ebx
+    mov ecx, 1024
+    div ecx                  ; 内存大小 / 1024
 
+    push eax
+    call DispInt			; DispInt(MemSize);
+    add esp, 4
+
+    push szMSizeKb          ; 显示内存大小单位KB
+    call DispStr
+    add esp, 4
+
+    ret
 ;================================================================================================
 ; 启动分页机制 --------------------------------------------------------------
 SetupPaging:
@@ -714,7 +732,6 @@ SetupPaging:
 	jmp short .3
 .3:
 	nop
-
 	ret
 
 ;================================================================================================
@@ -755,12 +772,13 @@ ALIGN	32
 LABEL_DATA:
 ; 实模式下需要使用这些符号
 ; 字符串
-_szMemChkTitle:			db	"BaseAddrL BaseAddrH LengthLow LengthHigh   Type", 0Ah, 0
 _szRAMSize:			    db	"RAM size:", 0
+_szMSizeKb:             db  "KB", 0
 _szReturn:			    db	0Ah, 0
+_szThreeSpace:          db  '   ', 0
 ;; 变量
 _dwMCRNumber:			dd	0	                ; Memory Check Result
-_dwDispPos:			    dd	(160 * 5 + 2 * 0)	; 屏幕第 5 行, 第 0 列。
+_dwDispPos:			    dd	(160 * 4 + 2 * 0)	; 屏幕第 4 行, 第 0 列。
 _dwMemSize:			    dd	0
 _ARDStruct:			    ; Address Range Descriptor Structure
 	_dwBaseAddrLow:		dd	0
@@ -771,9 +789,10 @@ _ARDStruct:			    ; Address Range Descriptor Structure
 _MemChkBuf:	times	256	db	0
 ;
 ; 保护模式下需要使用这些符号
-szMemChkTitle		equ	BaseOfLoaderPhyAddr + _szMemChkTitle
 szRAMSize		    equ	BaseOfLoaderPhyAddr + _szRAMSize
+szMSizeKb           equ BaseOfLoaderPhyAddr + _szMSizeKb
 szReturn		    equ	BaseOfLoaderPhyAddr + _szReturn
+szThreeSpace        equ BaseOfLoaderPhyAddr + _szThreeSpace
 dwDispPos		    equ	BaseOfLoaderPhyAddr + _dwDispPos
 dwMemSize		    equ	BaseOfLoaderPhyAddr + _dwMemSize
 dwMCRNumber		    equ	BaseOfLoaderPhyAddr + _dwMCRNumber

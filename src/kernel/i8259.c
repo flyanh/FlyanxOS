@@ -68,7 +68,6 @@ int mine;           /* 中断初始化的模式 */
         int_request_table[i] = spurious_irq;	// 默认的
     }
 
-    printf("Open interrupt mechanism                               [ OK ]\n");
 }
 
 /*=========================================================================*

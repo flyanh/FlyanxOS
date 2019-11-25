@@ -20,8 +20,8 @@
 /* 内核栈大小，系统任务将使用这么大的栈空间 */
 #define K_STACK_BYTES   1024	/* 内核堆栈有多少字节 */
 
-#define INIT_PSW      0x0202	/* initial psw */
-#define INIT_TASK_PSW 0x1202	/* initial psw for tasks (with IOPL 1) */
+#define INIT_PSW      0x0200	/* initial psw */
+#define INIT_TASK_PSW 0x1200	/* initial psw for tasks (with IOPL 1) */
 
 /* 硬件中断数量 */
 #define NR_IRQ_VECTORS      16      /* 中断请求的数量 */
@@ -39,7 +39,7 @@
 /* 系统调用数量 */
 #define NR_SYS_CALL         2
 
-/* 8259A interrupt controller ports. */
+/* 8259A终端控制器端口 */
 #define INT_M_CTL           0x20    /* I/O port for interrupt controller         <Master> */
 #define INT_M_CTLMASK       0x21    /* setting bits in this port disables ints   <Master> */
 #define INT_S_CTL           0xA0    /* I/O port for second interrupt controller  <Slave>  */
@@ -61,52 +61,26 @@
 #define BRIGHT  0x08    /* 0000 1000 */
 #define MAKE_COLOR(x,y) (x | y) /* MAKE_COLOR(Background,Foreground) */
 
-/* 中断控制器的神奇数字。 */
-#define ENABLE          0x20	/* 用于在中断后重新启用中断的代码 */
+/* 中断控制器的神奇数字，当然，这个宏可以被类似功能的引用 */
+#define DISABLE         0       /* 用于在中断后保持当前中断关闭的代码 */
+#define ENABLE          19	    /* 用于在中断后重新启用当前中断的代码，不为0即可 */
 
 /* Sizes of memory tables. */
 /* 内存表的大小。 */
-#define NR_MEMS            8	/* 内存块的数量 */
+#define NR_MEMORY_CLICK            6	/* 内存块的数量 */
 
 /* 其他的端口 */
 #define PCR		0x65			/* 平面控制寄存器 */
-#define PORT_B          0x61	/* 8255端口B的I/O端口(kbd，蜂鸣…) */
+#define PORT_B          0x61	/* 8255端口B的I/O端口(键盘，蜂鸣…) */
 #define TIMER0          0x40	/* 定时器通道0的I/O端口 */
 #define TIMER2          0x42	/* 定时器通道2的I/O端口 */
 #define TIMER_MODE      0x43	/* 用于定时器模式控制的I/O端口 */
 
 /* 固定系统调用向量。 */
-#define INT_VECTOR_SYS286_CALL      120	/* flyanx 286系统调用向量 */
-#define INT_VECTOR_SYS386_CALL      121	/* flyanx 386系统调用向量 */
-#define INT_VECTOR_LEVEL0           37	/* 用于系统任务提权到0的调用向量 */
+#define INT_VECTOR_LEVEL0           43	    /* 用于系统任务提权到0的调用向量 */
+#define INT_VECTOR_SYS_CALL         47	    /* flyanx 386系统调用向量 */
 
 #endif /* (CHIP == INTEL) */
-
-/*
- * 当配置头文件config.h中CHIP是M68000时生效
- * 这些值用于Motorola 68000的系统,但在别的硬件上编译时则可能不同。
- **/
-#if (CHIP == M68000)
-
-#define K_STACK_BYTES   1024	/* how many bytes for the kernel stack */
-
-/* Sizes of memory tables. */
-#define NR_MEMS            2	/* number of chunks of memory */
-
-/* p_reg contains: d0-d7, a0-a6,   in that order. */
-#define NR_REGS           15	/* number of general regs in each proc slot */
-
-#define TRACEBIT      0x8000	/* or this with psw in proc[] for tracing */
-#define SETPSW(rp, new)		/* permits only certain bits to be set */ \
-	((rp)->p_reg.psw = (rp)->p_reg.psw & ~0xFF | (new) & 0xFF)
-
-#define MEM_BYTES  0xffffffff	/* memory size for /dev/mem */
-
-#ifdef __ACK__
-#define FSTRUCOPY
-#endif
-
-#endif /* (CHIP == M68000) */
 
 /*================================================================================================*/
 /* 以下的定义是机器无关的，但他们被核心代码的许多部分用到。 */
@@ -120,6 +94,9 @@
 /* 将内核空间中的地址转换为物理地址。这与umap(proc ptr, D, vir, sizeof(*vir))函数
  * 相同，但成本要低得多。
  */
-#define	vir2phys(seg_base, vir) (vir_bytes)(((vir_bytes)seg_base) + (vir_bytes)(vir))
+#define	vir2phys(seg_base, vir) ((phys_bytes)seg_base + (vir_bytes)(vir))
+
+/* 内嵌汇编nop，有些函数和调用间需要它，它可以让CPU休眠一个指令周期 */
+
 
 #endif //FLYANX_CONST_H

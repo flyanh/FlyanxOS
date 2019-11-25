@@ -40,6 +40,11 @@
 
 #define NULL     ((void *)0)	/* 空指针 */
 
+#define NR_SEGS             3   /* 每个进程的拥有的段数量 */
+#define TEXT                0   /* 正文段索引号，也称为代码段 */
+#define DATA                1   /* 数据段索引号 */
+#define STACK               2   /* 堆栈段索引号 */
+
 /* 一些重要进程的进程号 */
 #define MM_PROC_NR         0	/* 内存管理器 */
 #define FS_PROC_NR         1	/* 文件系统 */
@@ -49,7 +54,7 @@
 #define LOW_USER           -1
 
 /* 其他 */
-#define BYTE            0377	/* 8位字节的掩码 */
+#define BYTE            0xFF	/* 8位字节的掩码 */
 #define READING            0	/* 复制数据给用户 */
 #define WRITING            1	/* 从用户那复制数据 */
 #define NO_NUM        0x8000	/* 用作panic()的数值参数 */
@@ -64,12 +69,12 @@
 #define MIN(a, b)   ((a) < (b) ? (a) : (b))
 
 /* 系统任务数量 */
-#define NR_TASKS    (3)
+#define NR_TASKS    (4)
 
 /* 内存是通过块分配的。 */
 #if (CHIP == INTEL)
-#define CLICK_SIZE      1024u	/* 分配内存的单位 */
-#define CLICK_SHIFT       10u	/* log2 of CLICK_SIZE ：内存块位数，用于移位 */
+#define CLICK_SIZE      1024	/* 分配内存的单位 */
+#define CLICK_SHIFT       10	/* log2 of CLICK_SIZE ：内存块位数，用于移位 */
 #endif
 
 #endif //_FLYANX_CONST_H

@@ -9,13 +9,19 @@
 # ===============================================
 # 所有的变量
 
-# 目录
+# 头文件目录
 u = /usr
 i = include
 h = $i/flyanx
 s = $i/sys
 b = $i/ibm
 l = $i/lib
+
+# c文科目录
+t = target
+tb = $t/boot
+tk = $t/kernel
+tl = $t/lib
 
 # FlyanxOS　的内存装载点
 # 这个值必须存在且相等在文件"load.inc"中的 'KernelEntryPointPhyAddr'！
@@ -37,7 +43,7 @@ CC 				= gcc
 LD				= ld
 ASMFlagsOfBoot	= -I src/boot/include/
 ASMFlagsOfKernel= -f elf -I src/kernel/
-CFlags			= -o2 -I$i -c -fno-builtin
+CFlags			= -I$i -c -fno-builtin
 LDFlags			= -s -Ttext $(ENTRYPOINT)
 DASMFlags		= -u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 
@@ -52,24 +58,29 @@ lib = $i/lib.h $h/common.h $h/syslib.h
 # ===============================================
 # 目标程序以及编译中间文件
 
-FlyanxBoot		= target/boot/boot.bin target/boot/loader.bin
-FlyanxKernel	= target/kernel/kernel.bin
-FlyanxKernelHead = target/kernel/kernel.o
+FlyanxBoot		= $(tb)/boot.bin $(tb)/loader.bin
+FlyanxKernel	= $(tk)/kernel.bin
+FlyanxKernelHead = $(tk)/kernel.o
 
-KernelObjs      = target/kernel/start.o target/kernel/protect.o target/kernel/kernel_386_lib.o \
-                  target/kernel/table.o target/kernel/main.o target/kernel/exception.o \
-                  target/kernel/system.o  target/kernel/i8259.o target/kernel/clock.o \
-                  target/kernel/console.o target/kernel/message.o target/kernel/process.o
+KernelObjs      = $(tk)/start.o $(tk)/protect.o $(tk)/kernel_386_lib.o \
+                  $(tk)/table.o $(tk)/main.o $(tk)/process.o \
+                  $(tk)/message.o $(tk)/exception.o $(tk)/system.o \
+                  $(tk)/clock.o $(tk)/tty.o $(tk)/keyboard.o \
+                  $(tk)/console.o $(tk)/i8259.o  $(tk)/dmp.o \
+                  $(tk)/misc.o
 
-LibObjs         = target/lib/syslib/string.o target/lib/syslib/kernel_debug.o target/lib/syslib/kprintf.o
+LibObjs         = $(tl)/i386/message.o \
+                  $(tl)/syslib/string.o $(tl)/syslib/kernel_debug.o $(tl)/syslib/kprintf.o
 Objs			= $(FlyanxKernelHead) $(KernelObjs) $(LibObjs)
 
 DASMOutPut		= kernel.bin.asm
 
 # ===============================================
 # 默认选项，编译全部
-all: realclean everything clean
-	@echo "正在编译生成 Flyanx OS 内核..."
+all: everything
+	@echo "已经编译并生成 Flyanx OS 内核！！！"
+# 只编译链接内核
+kernel: $(FlyanxKernel)
 # 所有的伪命令，将不会被识别为文件
 .PHONY : all everything image debug run realclean clean
 
@@ -78,11 +89,13 @@ all: realclean everything clean
 
 everything: $(FlyanxBoot) $(FlyanxKernel)
 
+only_kernel: $(FlyanxKernel)
+
 # 将生成 boot sector　和　kernel　二进制文件写入系统软盘镜像中
 image: $(OSImage) $(FlyanxBoot)
-	dd if=target/boot/boot.bin of=$(OSImage) bs=512 count=1 conv=notrunc
+	dd if=$(tb)/boot.bin of=$(OSImage) bs=512 count=1 conv=notrunc
 	sudo mount -o loop $(OSImage) $(FloppyMountPoint)
-	sudo cp -fv target/boot/loader.bin $(FloppyMountPoint)
+	sudo cp -fv $(tb)/loader.bin $(FloppyMountPoint)
 	sudo cp -fv $(FlyanxKernel) $(FloppyMountPoint)
 	sudo umount $(FloppyMountPoint)
 
@@ -111,122 +124,162 @@ $(OSImage):
 	mkfs.fat $(OSImage)
 
 # BootLoader
-target/boot/boot.bin: src/boot/include/load.inc
-target/boot/boot.bin: src/boot/include/fat12hdr.inc
-target/boot/boot.bin : src/boot/boot.asm
+$(tb)/boot.bin: src/boot/include/load.inc
+$(tb)/boot.bin: src/boot/include/fat12hdr.inc
+$(tb)/boot.bin : src/boot/boot.asm
 	$(ASM) $(ASMFlagsOfBoot) -o $@ $<
 
-target/boot/loader.bin : src/boot/loader.asm src/boot/include/load.inc src/boot/include/fat12hdr.inc src/boot/include/pm.inc
+$(tb)/loader.bin : src/boot/loader.asm src/boot/include/load.inc src/boot/include/fat12hdr.inc src/boot/include/pm.inc
 	$(ASM) $(ASMFlagsOfBoot) -o $@ $<
 
 # 内核
 $(FlyanxKernel): $(Objs)
 	$(LD) $(LDFlags) -o $(FlyanxKernel) $(Objs)
 
-target/kernel/kernel.o: src/kernel/kernel.asm
+$(tk)/kernel.o: src/kernel/kernel.asm
 	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
 
-target/kernel/start.o: $a
-target/kernel/start.o: src/kernel/protect.h
-target/kernel/start.o: src/kernel/start.c
+$(tk)/start.o: $a
+$(tk)/start.o: src/kernel/protect.h
+$(tk)/start.o: src/kernel/start.c
 	$(CC) $(CFlags) -o $@ $<
 
-target/kernel/i8259.o: $a
-target/kernel/i8259.o: src/kernel/i8259.c
+$(tk)/i8259.o: $a
+$(tk)/i8259.o: src/kernel/i8259.c
 	$(CC) $(CFlags) -o $@ $<
 
-target/kernel/main.o: $a
-target/kernel/main.o: $i/unistd.h
-target/kernel/main.o: $i/signal.h
-target/kernel/main.o: $i/a.out.h
-target/kernel/main.o: $h/callnr.h
-target/kernel/main.o: $h/common.h
-target/kernel/main.o: src/kernel/process.h
-target/kernel/main.o: src/kernel/main.c
+$(tk)/main.o: $a
+$(tk)/main.o: $i/unistd.h
+$(tk)/main.o: $i/signal.h
+$(tk)/main.o: $i/a.out.h
+$(tk)/main.o: $h/callnr.h
+$(tk)/main.o: $h/common.h
+$(tk)/main.o: src/kernel/process.h
+$(tk)/main.o: src/kernel/main.c
 	$(CC) $(CFlags) -o $@ $<
 
-target/kernel/protect.o: $a
-target/kernel/protect.o: src/kernel/process.h
-target/kernel/protect.o: src/kernel/protect.h
-target/kernel/protect.o: src/kernel/protect.c
+$(tk)/protect.o: $a
+$(tk)/protect.o: src/kernel/process.h
+$(tk)/protect.o: src/kernel/protect.h
+$(tk)/protect.o: src/kernel/protect.c
 	$(CC) $(CFlags) -o $@ $<
 
-target/kernel/kernel_386_lib.o: src/kernel/kernel_386_lib.asm
+$(tk)/kernel_386_lib.o: src/kernel/kernel_386_lib.asm
 	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
 
-target/lib/syslib/string.o: src/lib/syslib/string.asm
+$(tl)/syslib/string.o: src/lib/syslib/string.asm
 	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
 
-target/lib/syslib/kernel_debug.o: $(lib)
-target/lib/syslib/kernel_debug.o: src/lib/syslib/kernel_debug.c
+$(tl)/syslib/kernel_debug.o: $(lib)
+$(tl)/syslib/kernel_debug.o: src/lib/syslib/kernel_debug.c
 	$(CC) $(CFlags) -o $@ $<
 
-target/kernel/exception.o: $a
-target/kernel/exception.o: $i/signal.h
-target/kernel/exception.o: src/kernel/process.h
-target/kernel/exception.o: src/kernel/exception.c
+$(tk)/exception.o: $a
+$(tk)/exception.o: $i/signal.h
+$(tk)/exception.o: src/kernel/process.h
+$(tk)/exception.o: src/kernel/exception.c
 	$(CC) $(CFlags) -o $@ $<
 
-target/kernel/system.o: $a
-target/kernel/system.o:	$i/stdlib.h
-target/kernel/system.o:	$i/signal.h
-target/kernel/system.o:	$i/unistd.h
-# target/kernel/system.o:	$s/sigcontext.h
-# target/kernel/system.o:	$s/ptrace.h
-# target/kernel/system.o:	$s/svrctl.h
-target/kernel/system.o:	$h/callnr.h
-target/kernel/system.o:	$h/common.h
-target/kernel/system.o:	src/kernel/process.h
-target/kernel/system.o:	src/kernel/protect.h
-# target/kernel/system.o:	src/kernel/assert.h
-target/kernel/system.o: src/kernel/system.c
+$(tk)/system.o: $a
+$(tk)/system.o:	$i/stdlib.h
+$(tk)/system.o:	$i/signal.h
+$(tk)/system.o:	$i/unistd.h
+# $(tk)/system.o:	$s/sigcontext.h
+# $(tk)/system.o:	$s/ptrace.h
+# $(tk)/system.o:	$s/svrctl.h
+$(tk)/system.o:	$h/callnr.h
+$(tk)/system.o:	$h/common.h
+$(tk)/system.o:	src/kernel/process.h
+$(tk)/system.o:	src/kernel/protect.h
+# $(tk)/system.o:	src/kernel/assert.h
+$(tk)/system.o: src/kernel/system.c
 	$(CC) $(CFlags) -o $@ $<
 
-target/kernel/table.o:	$a
-target/kernel/table.o:	$i/stdlib.h
-# target/kernel/table.o:	$i/termios.h
-target/kernel/table.o:	$h/common.h
-target/kernel/table.o:	src/kernel/process.h
-# target/kernel/table.o:	src/kernel/tty.h
-target/kernel/table.o:	$b/int86.h
-target/kernel/table.o: src/kernel/table.c
+$(tk)/table.o:	$a
+$(tk)/table.o:	$i/stdlib.h
+# $(tk)/table.o:	$i/termios.h
+$(tk)/table.o:	$h/common.h
+$(tk)/table.o:	src/kernel/process.h
+# $(tk)/table.o:	src/kernel/tty.h
+$(tk)/table.o:	$b/int86.h
+$(tk)/table.o: src/kernel/table.c
 	$(CC) $(CFlags) -o $@ $<
 
-target/kernel/clock.o: $a
-target/kernel/clock.o: $i/signal.h
-target/kernel/clock.o: $h/callnr.h
-target/kernel/clock.o: $h/common.h
-target/kernel/clock.o: src/kernel/clock.c
+$(tk)/clock.o: $a
+$(tk)/clock.o: $i/signal.h
+$(tk)/clock.o: $h/callnr.h
+$(tk)/clock.o: $h/common.h
+$(tk)/clock.o: src/kernel/clock.c
 	$(CC) $(CFlags) -o $@ $<
 
-target/kernel/process.o: $a
-target/kernel/process.o: $h/callnr.h
-target/kernel/process.o: $h/common.h
-target/kernel/process.o: src/kernel/process.h
-target/kernel/process.o: src/kernel/process.c
+$(tk)/process.o: $a
+$(tk)/process.o: $h/callnr.h
+$(tk)/process.o: $h/common.h
+$(tk)/process.o: src/kernel/process.h
+$(tk)/process.o: src/kernel/process.c
 	$(CC) $(CFlags) -o $@ $<
 
-target/kernel/process.o: $a
-target/kernel/process.o: $h/callnr.h
-target/kernel/process.o: $h/common.h
-target/kernel/process.o: src/kernel/process.h
-target/kernel/message.o: src/kernel/message.c
+$(tk)/process.o: $a
+$(tk)/process.o: $h/callnr.h
+$(tk)/process.o: $h/common.h
+$(tk)/process.o: src/kernel/process.h
+$(tk)/message.o: src/kernel/message.c
 	$(CC) $(CFlags) -o $@ $<
 
-target/kernelconsole.o:	$a
-# target/kernelconsole.o:	$i/termios.h
-target/kernelconsole.o:	$h/callnr.h
-target/kernelconsole.o:	$h/com.h
-target/kernelconsole.o:	protect.h
-# target/kernelconsole.o:	tty.h
-target/kernel/process.o: src/kernel/process.h
-target/kernel/console.o: src/kernel/console.c
+$(tk)/console.o: $a
+$(tk)/console.o: $i/termios.h
+$(tk)/console.o: $h/callnr.h
+$(tk)/console.o: $h/common.h
+$(tk)/console.o: src/kernel/protect.h
+$(tk)/console.o: src/kernel/tty.h
+$(tk)/console.o: src/kernel/process.h
+$(tk)/console.o: src/kernel/console.c
 	$(CC) $(CFlags) -o $@ $<
 
-target/lib/syslib/kprintf.o: $i/stdarg.h
-target/lib/syslib/kprintf.o: $i/stddef.h
-target/lib/syslib/kprintf.o: $i/limits.h
-target/lib/syslib/kprintf.o: src/lib/syslib/kprintf.c
+$(tk)/keyboard.o: $a
+$(tk)/keyboard.o: $i/termios.h
+$(tk)/keyboard.o: $i/signal.h
+$(tk)/keyboard.o: $i/unistd.h
+$(tk)/keyboard.o: $h/callnr.h
+$(tk)/keyboard.o: $h/common.h
+$(tk)/keyboard.o: $h/keymap.h
+$(tk)/keyboard.o: src/kernel/tty.h
+$(tk)/keyboard.o: src/kernel/keymaps/us-std.src
+$(tk)/keyboard.o: src/kernel/keyboard.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tk)/tty.o: $a
+$(tk)/tty.o: $i/termios.h
+$(tk)/tty.o: $s/ioctl.h
+$(tk)/tty.o: $i/signal.h
+$(tk)/tty.o: $h/callnr.h
+$(tk)/tty.o: $h/common.h
+$(tk)/tty.o: $h/keymap.h
+$(tk)/tty.o: src/kernel/tty.h
+$(tk)/tty.o: src/kernel/process.h
+$(tk)/tty.o: src/kernel/tty.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tk)/dmp.o: $a
+$(tk)/dmp.o: $h/common.h
+$(tk)/dmp.o: src/kernel/process.h
+$(tk)/dmp.o: src/kernel/dmp.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tk)/misc.o: $a
+$(tk)/misc.o: src/kernel/assert.h
+$(tk)/misc.o: $i/stdlib.h
+$(tk)/misc.o: $h/common.h
+$(tk)/misc.o: src/kernel/misc.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/i386/message.o: src/lib/i386/message.asm
+	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
+
+$(tl)/syslib/kprintf.o: $i/stdarg.h
+$(tl)/syslib/kprintf.o: $i/stddef.h
+$(tl)/syslib/kprintf.o: $i/limits.h
+$(tl)/syslib/kprintf.o: src/lib/syslib/kprintf.c
 	$(CC) $(CFlags) -o $@ $<
 
 # ===============================================

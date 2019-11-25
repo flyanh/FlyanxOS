@@ -20,16 +20,40 @@ typedef struct exception_s{
    int sig_num;         /* 异常处理信号（发送给用户进程） */
 } Exception;
 
+static Exception ex_data[] = {
+        "#DE Divide Error", SIGKILL,
+        "#DB RESERVED", SIGKILL,
+        "—  NMI Interrupt", SIGKILL,
+        "#BP Breakpoint", SIGKILL,
+        "#OF Overflow", SIGKILL,
+        "#BR BOUND Range Exceeded", SIGKILL,
+        "#UD Invalid Opcode (Undefined Opcode)", SIGKILL,
+        "#NM Device Not Available (No Math Coprocessor)", SIGKILL,
+        "#DF Double Fault", SIGKILL,
+        "    Coprocessor Segment Overrun (reserved)", SIGKILL,
+        "#TS Invalid TSS", SIGKILL,
+        "#NP Segment Not Present", SIGKILL,
+        "#SS Stack-Segment Fault", SIGKILL,
+        "#GP General Protection", SIGKILL,
+        "#PF Page Fault", SIGKILL,
+        "—  (Intel reserved. Do not use.)", SIGKILL,
+        "#MF x87 FPU Floating-Point Error (Math Fault)", SIGKILL,
+        "#AC Alignment Check", SIGKILL,
+        "#MC Machine Check", SIGKILL,
+        "#XF SIMD Floating-Point Exception", SIGKILL,
+};
+
 /*==========================================================================*
  *				exception_handler				    *
  *				异常处理
+ *
+ * unsigned vec_nr;         异常向量
+ * int errno;              异常代码
+ * int eip;               发生异常后的eip
+ * int cs;                cs，同上
+ * int eflags;             eflags，同上
  *==========================================================================*/
-PUBLIC void exception_handler(vec_nr, errno, eip, cs , eflags)
-unsigned vec_nr;        /* 异常向量 */
-int errno;              /* 异常代码 */
-int eip;                /* 发生异常后的eip */
-int cs;                 /* cs，同上 */
-int eflags;             /* eflags，同上 */
+PUBLIC void exception_handler(int vec_nr, int errno)
 {
     /* 处理所有的异常
     *
@@ -38,32 +62,7 @@ int eflags;             /* eflags，同上 */
     * 作系统本身引起的异常则表明发生了严重错误，并产生了不可恢复的故障,这时可以panic宕机。
     */
 
-    int i;
-    int text_color = 0x74;      /* 灰底红字 */
-
     /* ex_data数组存放当发生严重错误时应打印的错误信息和对每种异常应向用户进程发送的信号。 @TODO 发送的信号未完成 */
-    static Exception ex_data[] = {
-            "#DE Divide Error", SIGKILL,
-            "#DB RESERVED", SIGKILL,
-            "—  NMI Interrupt", SIGKILL,
-            "#BP Breakpoint", SIGKILL,
-            "#OF Overflow", SIGKILL,
-            "#BR BOUND Range Exceeded", SIGKILL,
-            "#UD Invalid Opcode (Undefined Opcode)", SIGKILL,
-            "#NM Device Not Available (No Math Coprocessor)", SIGKILL,
-            "#DF Double Fault", SIGKILL,
-            "    Coprocessor Segment Overrun (reserved)", SIGKILL,
-            "#TS Invalid TSS", SIGKILL,
-            "#NP Segment Not Present", SIGKILL,
-            "#SS Stack-Segment Fault", SIGKILL,
-            "#GP General Protection", SIGKILL,
-            "#PF Page Fault", SIGKILL,
-            "—  (Intel reserved. Do not use.)", SIGKILL,
-            "#MF x87 FPU Floating-Point Error (Math Fault)", SIGKILL,
-            "#AC Alignment Check", SIGKILL,
-            "#MC Machine Check", SIGKILL,
-            "#XF SIMD Floating-Point Exception", SIGKILL,
-    };
     register Exception *ep;
     Process *saved_proc;
 
@@ -79,21 +78,23 @@ int eflags;             /* eflags，同上 */
     }
 
     /* 如果没发生中断重入，且当前运行的进程是用户进程，我们发一个信号给它@TODO */
-    if(kernel_reenter == 0 && is_user_proc(saved_proc)){
-//        interrupt_unlock(); /* 这个调用是受保护的就像sys_call() */
-        return;
-    }
+//    if(kernel_reenter == 0 && is_user_proc(saved_proc)){
+////        interrupt_unlock(); /* 这个调用是受保护的就像sys_call() */
+//        return;
+//    }
 
     /* 如果上面两个条件都没有满足，说明这是内核代码的的异常，它不应该发生的...
      * 但没办法，我们打印这些异常信息，最后使用panic结束内核的运行。
      */
     if(ep->msg == NIL_PTR){
         printf("\nException %d no exist...\n", vec_nr);
-    } else printf("\n%s\n", ep->msg);
+    } else {
+        printf("\n%s\n", ep->msg);
+    }
     printf("Process number %d, pc = 0x%04x:0x%08x\n",
            saved_proc->nr,
-           cs,
-           eip);
+           (unsigned) saved_proc->regs.cs,
+           (unsigned) saved_proc->regs.pc);
     if(errno != 0xFFFFFFFF){
         printf("ERROR CODE: %d\n", errno);
     }

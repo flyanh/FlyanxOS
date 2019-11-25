@@ -25,11 +25,16 @@ typedef struct process_s {
 
     int nr;                         /* 进程索引号，主要用于快速访问 */
 
-    /* p_flags域中的标志位定义了表项的状态。如果其中任一位被置位,则进程将无法运行。
-     * 各种标志被定义和描述在本文件后边，如果该表项未被使用,则P_SLOT_FREE被置位。
+    char int_blocked;               /* 被置位，当目标进程有一条中断消息被繁忙的任务堵塞了 */
+    char int_held;                  /* 被置位，当目标进程有一条中断消息被繁忙的系统调用挂起保留了 */
+    struct process_s *next_held;    /* 被挂起保留的中断过程队列 */
+
+    /* p_flags域中的标志位定义了表项的状态。如果其中任一位被置位,则进程将被堵塞
+     * 无法运行。各种标志被定义和描述在后边，如果该表项未被使用,则P_SLOT_FREE被
+     * 置位。
      */
     int flags;
-//    struct mem_map p_map[NR_SEGS];/* memory map ：内存映象 */
+    MemoryMap map[NR_SEGS]; /* memory map ：内存映象 */
     pid_t pid;              /* 进程号，用户可见的 */
     int priority;           /* 权限分为(任务，服务，或用户进程) */
 
@@ -40,8 +45,15 @@ typedef struct process_s {
     clock_t child_sys_time;     /* 子进程累积的系统时间 */
     clock_t alarm;              /* 进程下一次闹钟(警报)的时间 */
 
-    struct process_s *caller_queue;     /* 指向一个队列：当发送消息进程由于目标进程未处在等待状态而无法完成一个SEND操作时,它被送到一个队列中。 */
-    struct process_s *send_link;        /* 当目标进程最终执行RECEIVE操作时,它很容易找到等待向其发送消息的所有进程。p_sendlink域用于将队列中的成员链接起来。 */
+    /* 等待队列的头：当发送消息进程由于目标进程未处在等待状态而无法完成一个SEND操作时,它被送到一个队列中。
+     *
+     * 简单来说，这个等待队列，是想发消息给我的其他人的一个队列。举个例子，我是女神，每天给我送花可以提高
+     * 好感度，但是我一次只能收一朵花，所以追我的人，必须得排成一个队伍，我就可以一个一个收花了。
+     */
+    struct process_s *caller_head;
+    /* 上面所有等待队列的后继节点 */
+    struct process_s *caller_link;
+    Message *message;       /* 进程的消息缓冲区 */
     int get_form;           /* 当一个进程执行RECEIVE操作,但是没有任何消息在等待它接收时,该进程将阻塞,同时将它期望接收消息的源进程序号保存在p_getfrom中。 */
     int send_to;            /* 消息需要发送给谁？ */
 
@@ -65,12 +77,12 @@ typedef struct process_s {
  * PENDING和SIG_PENDING：前者：正在等待一个信号；后者：一个进程正在发送信号
  * P_STOP：在调试期间为跟踪提供支持。
  */
-#define NO_MAP		0x01	/* keeps unmapped forked child from running */
-#define SENDING		0x02	/* set when process blocked trying to send */
-#define RECEIVING	0x04	/* set when process blocked trying to recv */
-#define PENDING		0x08	/* set when inform() of signal pending */
-#define SIG_PENDING	0x10	/* keeps to-be-signalled proc from running */
-#define P_STOP		0x20	/* set when process is being traced */
+#define NO_MAP		    0x01	/* keeps unmapped forked child from running */
+#define SENDING		    0x02	/* set when process blocked trying to send */
+#define RECEIVING	    0x04	/* set when process blocked trying to recv */
+#define PENDING		    0x08	/* set when inform() of signal pending */
+#define SIG_PENDING	    0x10	/* keeps to-be-signalled proc from running */
+#define PROC_STOP		0x20	/* set when process is being traced */
 
 /* 进程权限定义 */
 #define PROC_PRI_NONE	0	/* 插槽未使用 */
@@ -80,18 +92,18 @@ typedef struct process_s {
 #define PROC_PRI_IDLE	4	/* 空闲进程 */
 
 /* 对过程表地址操作的一些宏定义。 */
-#define BEG_PROC_ADDR (&process[0])
-#define END_PROC_ADDR (&process[NR_TASKS + NR_PROCS])
-#define END_TASK_ADDR (&process[NR_TASKS])
-#define BEG_SERV_ADDR (&process[NR_TASKS])
-#define BEG_USER_ADDR (&process[NR_TASKS + LOW_USER])
+#define BEG_PROC_ADDR       (&process[0])
+#define END_PROC_ADDR       (&process[NR_TASKS + NR_PROCS])
+#define END_TASK_ADDR       (&process[NR_TASKS])
+#define BEG_SERVER_ADDR     (&process[NR_TASKS])
+#define BEG_USER_PROC_ADDR  (&process[NR_TASKS + LOW_USER])
 
 #define NIL_PROC          ((Process *) 0)   /* 空进程指针 */
-#define isidlehardware(n) ((n) == IDLE_TASK || (n) == HARDWARE)
-#define isokprocn(n)      ((unsigned) ((n) + NR_TASKS) < NR_PROCS + NR_TASKS)
-#define isoksrc_dest(n)   (isokprocn(n) || (n) == ANY)
-#define isrxhardware(n)   ((n) == ANY || (n) == HARDWARE)
-#define issysentn(n)      ((n) == FS_PROC_NR || (n) == MM_PROC_NR)  /*  */
+#define is_idle_hardware(n) ((n) == IDLE_TASK || (n) == HARDWARE)
+#define is_ok_procn(n)      ((unsigned) ((n) + NR_TASKS) < NR_PROCS + NR_TASKS)
+#define is_ok_src_dest(n)   (is_ok_procn(n) || (n) == ANY)
+#define is_any_hardware(n)   ((n) == ANY || (n) == HARDWARE)
+#define is_sys_server(n)      ((n) == FS_PROC_NR || (n) == MM_PROC_NR || (n) == FLY_PROC_NR)      /* 是系统服务？ */
 #define is_empty_proc(p)       ((p)->priority == PROC_PRI_NONE)          /* 是个空进程？ */
 #define is_task_proc(p)        ((p)->priority == PROC_PRI_TASK)          /* 是个系统任务进程？ */
 #define is_serv_proc(p)        ((p)->priority == PROC_PRI_SERVER)        /* 是个系统服务进程？ */
@@ -106,7 +118,7 @@ typedef struct process_s {
 #define proc_addr(n)      (p_process_addr + NR_TASKS)[(n)]  /* 得到进程的指针 */
 #define cproc_addr(n)     (&(process + NR_TASKS)[(n)])      /* 得到进程的地址 */
 #define proc_vir2phys(p, vir) \
-			  (((phys_bytes)(p)->p_map[D].mem_phys << CLICK_SHIFT) \
+			  (((phys_bytes)(p)->map[DATA].virtual << CLICK_SHIFT) \
 							+ (vir_bytes) (vir))
 
 

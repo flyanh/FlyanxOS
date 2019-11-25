@@ -49,17 +49,83 @@ int task;           /* 要开始的任务号 */
      */
     register Process *proc; /* 进程指针，指向任务进程表项 */
 
-    printf("interrupt(%d)\n", task);
-
     /* 得到目标任务的进程项 */
+    proc = proc_addr(task);
+//    printf("%s interrupt\n", proc->name);
 
+    /* 通过变量kernel_reenter检查在接收当前中断时是否已经有一个中断在处理
+     * 若是，则将当前中断加入排队，函数到此结束，当前挂起的中断将在以后调用
+     * unhold时再处理。
+     */
+    if(kernel_reenter != 0 || switching){
+        interrupt_lock();
+        /* 如果进程没有中断被挂起正在处理才继续
+         * 这样做是为了保证一个任务的中断不会重复的被挂起，因为这是无用功，
+         * 最重要的是让任务尽快完成第一次挂起的中断。
+         */
+        if(!proc->int_held){
+            proc->int_held = TRUE;
+            if(held_head != NIL_PROC) {
+                held_tail->next_held = proc;
+            } else {
+                held_head = proc;
+            }
+            held_tail = proc;
+            proc->next_held = NIL_PROC;
+        }
+        interrupt_unlock();
+        return;
+    }
 
+    /* 现在检查任务是否正在等待一个中断，如果任务未做好接收中断准备，则其int_blocked
+     * 标志被置位-在message.c文件中的flyanx_receive接收消息例程中我们将看到这将使得
+     * 丢失的中断可能被恢复，并且不需要发送消息。
+     */
+    if( (proc->flags & (RECEIVING | SENDING)) != RECEIVING ||   /* 不处于接收消息的状态 */
+        !is_any_hardware(proc->get_form)){
+        proc->int_blocked = TRUE;       /* 中断被堵塞 */
+        return;
+    }
+
+    /* 通过上面的测试，现在被中断的系统任务可以接收一条服务了
+     * 我们我们开始向其发送消息。
+     * 从HARDWARE(代表计算机硬件)向系统任务发送消息是很简单的，因为任何和核心是编译到同一个文件
+     * 中的，因此可以访问相同的数据区域。
+     *
+     * 这里我向一些小白解释一下两个非常容易弄混的名词，因为我刚开始学汇编和C语言时，也经常被搞懵逼...
+     * 它们就是 <置位> 和 <复位> ，这两个名词是相对于二进制位来说的
+     * 置位：将某个二进制位设置成 1，记住，是二进制位！
+     * 复位：将某个二进制为复原成 0，记住，是二进制位！重要的事情说三遍...
+     * 这两个名词在汇编和C语言中很常见，你可以简单理解为置位就是Java中的将一个布尔值设置为TRUE，
+     * 而复位则是将一个布尔值设置为FALSE，为什么汇编和C语言要这么麻烦？因为它们都比较底层，所以
+     * 跟二进制打交道比较多，可以这样去模拟布尔运算，高级语言也是这么去实现的，只不过它们封装了
+     * 而已！
+     */
+    proc->message->source = HARDWARE;   /* 发送者：硬件（也被定义成系统任务） */
+    proc->message->type = HARD_INT;     /* 消息类型：硬件中断 */
+    proc->flags &= ~RECEIVING;          /* 状态：解除正在接收消息 */
+    proc->int_blocked = FALSE;          /* 解除目标进程的中断堵塞状态 */
+
+    /* 进程就绪例程ready例程的在线替换
+     * 因为从中断产生的消息只会发送到系统任务，这样便无需确定操作的进程队列了。
+     */
+    if(ready_head[TASK_QUEUE] != NIL_PROC){     /* 首先我们得知道，就绪队列已经有进程否？ */
+        /* 就绪队列非空，挂到队尾 */
+        ready_tail[TASK_QUEUE]->next_ready = proc;
+    } else {
+        /* 就绪队列是空的，那么这个进程直接就可以运行，并挂在就绪队列头上 */
+        curr_proc = ready_head[TASK_QUEUE] = proc;
+    }
+    // 队尾指针指向新就绪的进程
+    ready_tail[TASK_QUEUE] = proc;      /* 队尾指针-->新就绪的进程 */
+    proc->next_ready = NIL_PROC;        /* 新条目没有后继就绪进程 */
 }
 
 /*===========================================================================*
  *				     hunter   				     *
  *				     狩猎进程以用下次执行
  *===========================================================================*/
+//status_t first = TRUE;
 PRIVATE void hunter(){
     /* 从进程表中抓出一个作为下次运行的进程
      *
@@ -74,15 +140,21 @@ PRIVATE void hunter(){
      */
     register Process *prey;      /* 准备运行的进程 */
 
+//    if(first){
+//        first = FALSE;
+//    }
+
     /* 就绪任务进程队列使我们狩猎的第一个目标 */
     if( (prey = ready_head[TASK_QUEUE]) != NIL_PROC){
         curr_proc = prey;
+//        if(!first) printf("%s process was caught by the hunter.\n", prey->name);
         return;
     }
 
     /* 寻找第二目标：就绪服务进程队列 */
     if( (prey = ready_head[SERVER_QUEUE]) != NIL_PROC ){
         curr_proc = prey;
+//        printf("%s process was caught by the hunter.\n", prey->name);
         return;
     }
 
@@ -93,12 +165,13 @@ PRIVATE void hunter(){
     if( (prey = ready_head[USER_QUEUE]) != NIL_PROC){
         curr_proc = prey;
         bill_proc  = prey;
+//        printf("%s process was caught by the hunter.\n", prey->name);
         return;
     }
     /* 咳咳，本次狩猎失败了，那么只能狩猎IDLE闲置进程了，但这种情况较少发生 */
     prey = proc_addr(IDLE_TASK);
     bill_proc = curr_proc = prey;
-//    printf("hunter --> %s\n", prey->name);
+//    if(!first) printf("%s process was caught by the hunter.\n", prey->name);
     /* 本例程只负责狩猎，狩猎到一个可以执行的进程，而进程执行完毕后的删除或更改在队列中的位置
      * 这种事情我们安排在其他地方去做。
      */
@@ -108,11 +181,12 @@ PRIVATE void hunter(){
  *				ready					     *
  *				进程就绪
  *===========================================================================*/
-PRIVATE void ready(proc)
+PUBLIC void ready(proc)
 register Process *proc;      /* 就绪的进程 */
 {
     /* 将一个可运行的进程挂入就绪队列，它直接将进程追加到队列的尾部 */
 
+//    printf("%s ready\n", proc->name);
     if(is_task_proc(proc)){     /* 系统任务？ */
         // 首先我们得知道，就绪队列已经有进程否？
         if(ready_head[TASK_QUEUE] != NIL_PROC){
@@ -153,7 +227,7 @@ register Process *proc;      /* 就绪的进程 */
 /*===========================================================================*
  *				unready					     *
  *===========================================================================*/
-PRIVATE void unready(proc)
+PUBLIC void unready(proc)
 register Process *proc;     /* 未就绪的进程 */
 {
     /**
@@ -164,7 +238,8 @@ register Process *proc;     /* 未就绪的进程 */
      */
      register Process *xp;
 
-     if(is_task_proc(proc)){        /* 系统任务？ */
+//    printf("%s unready\n", proc->name);
+    if(is_task_proc(proc)){        /* 系统任务？ */
          /* 如果系统任务的堆栈已经不完整，内核出错。 */
          if(*proc->stack_guard_word != SYS_TASK_STACK_GUARD){
              panic("stack over run by task", proc->nr);
@@ -285,7 +360,7 @@ PUBLIC void lock_hunter(){
 PUBLIC void lock_ready(proc)
 Process *proc;
 {
-    printf("process %s ready.\n",proc->name);
+//    printf("process %s ready.\n",proc->name);
     switching = TRUE;
     ready(proc);
     switching = FALSE;
@@ -313,6 +388,30 @@ PUBLIC void lock_schedule()
     schedule();
     switching = FALSE;
 }
+
+/*==========================================================================*
+ *				unhold					    *
+ *==========================================================================*/
+PUBLIC void unhold(){
+    /* 遍历被挂起的中断队列，使用interrupt函数去处理每个中断，
+     * 其目的是在另一个进程被允许运行之前将每一条挂起的中断转换
+     * 成一个消息处理掉。
+     */
+
+    register Process *proc; /* 用于指向挂起的中断队列 */
+
+    if(switching) return;   /* 如果进程正在切换中，下次再说 */
+    proc = held_head;
+    do{
+        held_head = proc->next_held;    /* 得到挂起队列的下一个进程 */
+        if( held_head == NIL_PROC ) held_tail = NIL_PROC;   /* 找到结尾了，设置队列尾为空进程 */
+        proc->int_held = FALSE;         /* 准备处理，预先将中断挂起标志复位 */
+        interrupt_lock();
+        interrupt(proc->nr);            /* 处理它 */
+        interrupt_unlock();
+    } while ( (proc = held_head) != NIL_PROC );
+}
+
 
 
 

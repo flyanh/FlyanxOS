@@ -12,17 +12,25 @@
 ; 导入变量
 extern  display_position    ; 显示位置（不同于光标哦）
 extern  level0_func         ; 导入提权函数
+extern  video_size          ; 视频存储器大小
+extern  video_mask          ; 视频存储器的大小索引
+extern  blank_color         ; 空白显示颜色码
+
+; 导入c语言函数
+extern  simple_brk_point           ; 简单断点
 
 ;================================================================================================
 ; 库函数开始
 [SECTION .lib]
 
-; 导出库函数,有关函数的作用,可以查阅prototype.h文件;详细信息请往下查阅其函数代码
-global  copy_msg
+; 导出库函数
+global  phys_copy
 global  disp_str
 global  disp_color_str
 global  out_byte
 global  in_byte
+global  out_word
+global  in_word
 global  enable_irq
 global  disable_irq
 global  interrupt_lock
@@ -30,27 +38,45 @@ global  interrupt_unlock
 global  level0
 
 ;*===========================================================================*
-;*				copy_msg					     *
-;*              复制消息
+;*				phys_copy				     *
 ;*===========================================================================*
-;* 尽管用phys_copy就可以完成消息的拷贝（在下面），然而这是一个更快的专门过程
-;* copy_msg被用作消息拷贝的目的
-;* 函数原型：copy_msg (int src,phys_clicks src_clicks,vir_bytes src_offset,
-;*                 		phys_clicks dst_clicks, vir_bytes dst_offset );
-;* 各参数意义：
-;* source: 发送者的进程号，它将被拷贝到接收者缓冲区的m_source域
-;* src_clicks: 源数据的段基地址
-;* dst_clicks: 目的地的段基址
-;* src_offset: 源数据的偏移
-;* dst_offset: 目的地的偏移
-;* 使用块和偏移指定源和目标的方式比phys_copy所用的32位物理地址更加的高效。
+; PUBLIC void phys_copy(phys_bytes source, phys_bytes destination,
+;			phys_bytes bytecount);
+;* 将物理内存中任意处的一个数据块拷贝到任意的另外一处 *
+;* 参数中的两个地址都是绝对地址，也就是地址0确实表示整个地址空间的第一个字节， *
+;* 并且三个参数均为无符号长整数 *
+PC_ARGS     equ     16    ; 用于到达复制的参数堆栈的栈顶
+align 16
+phys_copy:
+    push esi
+    push edi
+    push es
 
-; CM_ARGS db =
-copy_msg:
+    ; 获得所有参数
+    mov esi, [esp + PC_ARGS]            ; source
+    mov edi, [esp + PC_ARGS + 4]        ; destination
+    mov ecx, [esp + PC_ARGS + 4 + 4]    ; bytecoun
+    ; 注：因为得到的就是物理地址，所以esi和edi无需再转换，直接就表示一个真实的位置。
+phys_copy_start:
+    cmp ecx, 0              ; 判断bytecount
+    jz phys_copy_end        ; if( bytecount == 0 ); jmp phys_copy_end
 
+    mov al, [esi]
+    inc esi
 
+    mov byte [edi], al
+    inc edi
+
+    dec ecx                 ; bytecount--
+    jmp phys_copy_start
+phys_copy_end:
+    pop es
+    pop edi
+    pop esi
+    ret
 ;================================================================================================
 ;                  void disp_str(char * info);	显示一个黑底白字的字符串
+align 16
 disp_str:
     push ebp
     mov ebp, esp
@@ -87,6 +113,7 @@ disp_str:
 
 ;================================================================================================
 ;                  void disp_color_str(char * string, int color);	显示有颜色属性的字符串
+align 16
 disp_color_str:
     push	ebp
 	mov	ebp, esp
@@ -121,8 +148,10 @@ disp_color_str:
 
 	pop	ebp
 	ret
+
 ;================================================================================================
-;                  void out_byte(u16_t port, u8_t value) ;	向端口输出数据
+;                  void out_byte(port_t port, U8_t value) ;	向端口输出数据
+align 16
 out_byte:
     mov	edx, [esp + 4]		; port
 	mov	al, [esp + 4 + 4]	; value
@@ -132,7 +161,8 @@ out_byte:
 	ret
 
 ;================================================================================================
-;                  PUBLIC unsigned in_byte(port_t port);	从端口拿取数据
+;                  PUBLIC U8_t in_byte(port_t port);	从端口拿取数据
+align 16
 in_byte:
     mov	edx, [esp + 4]		; port
 	xor	eax, eax
@@ -141,8 +171,33 @@ in_byte:
 	nop
 	ret
 
+;*===========================================================================*
+;*				out_word				     *
+;*===========================================================================*
+;* PUBLIC void out_word(Port_t port, U16_t value);
+;* 写一个字到某个i/o端口上 *
+align 16
+out_word:
+    mov edx, [esp + 4]      ; 得到端口
+    mov eax, [esp + 4 + 4]  ; 得到值
+    out dx, ax              ; 输出一个字
+    ret
+
+;*===========================================================================*
+;*				in_word					     *
+;*===========================================================================*
+; PUBLIC U16_t in_word(port_t port);
+;* 读一个字从某个i/o端口并返回它 *
+align 16
+in_word:
+    mov edx, [esp + 4]      ; 端口
+    xor eax, eax
+    in ax, dx               ; 读一个字
+    ret
+
 ;================================================================================================
 ;                  void disable_irq(int intRequest);	关闭一个特定的中断
+align 16
 disable_irq:
     mov ecx, [esp + 4]		; get param --> intRequest
 	pushf
@@ -176,6 +231,7 @@ dis_already:
 
 ;================================================================================================
 ;                  void enable_irq(int intRequest);	启用一个特定的中断
+align 16
 enable_irq:
     mov ecx, [esp + 4]		; get intRequest
 	pushf
@@ -199,12 +255,14 @@ enable_8:
 
 ;================================================================================================
 ;                  interrupt_lock	锁中断
+align 16
 interrupt_lock:
     cli
 	ret
 
 ;================================================================================================
 ;                  interrupt_unlock	解锁中断
+align 16
 interrupt_unlock:
     sti
     ret
@@ -213,6 +271,7 @@ interrupt_unlock:
 ;                  void level0(void (*func)(void))	解锁中断
 ; 将任务提权到最高特权级 - 0级
 ; 它主要用于这样的操作，如复位CPU、或访问PC的ROM BIOS例程。
+align 16
 level0:
     mov eax, [esp + 4]
     mov [level0_func], eax

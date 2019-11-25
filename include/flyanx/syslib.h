@@ -16,16 +16,16 @@
 #include <sys/types.h>
 #endif
 
-/* 隐藏名称以避免名称空间被污染 */
-#define sendrec		_sendrec
-#define receive		_receive
-#define send		_send
-
 /* Flyanx 用户和系统双用库 */
+_PROTOTYPE( int send_receive, (int src_dest, Message *message_ptr) );
 _PROTOTYPE( int printf, (const char *_fmt, ...)				);
 _PROTOTYPE( void putk, (int c)						);
 _PROTOTYPE(void disp_str, (char* string));   /* 显示一个字符串 */
 _PROTOTYPE(void disp_color_str, (char *string, int color));   /* 显示一个带颜色的字符串 */
+
+/* Flyanx系统库 */
+_PROTOTYPE( int receive, (int src, Message *message_ptr)			);
+_PROTOTYPE( int send, (int dest, Message *message_ptr)			);
 
 
 

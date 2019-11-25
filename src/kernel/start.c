@@ -21,21 +21,18 @@ PRIVATE char k_environment[128 * sizeof(char *)];
 
 /*==========================================================================*
  *				cstart					                                    *
- *				进入内核主函数前做一些准备工作                                  *
+ *			进入内核主函数前做一些准备工作                                  *
  *==========================================================================*/
-PUBLIC void cstart()
-//U16_t kss;                      /* 内核堆栈段 */
-//U16_t parm_offset, parm_size;	/* boot parameters offset and length */
+PUBLIC void cstart(void)
 {
-//    clear_screen();
+    register char* p_env;
 
-    /* 记录内核的位置。 */
+    /* 记录内核的代码、数据段位置。 */
     code_base = seg2phys(SELECTOR_KERNEL_CS);
     data_base = seg2phys(SELECTOR_KERNEL_DS);
 
     // 调用prot_init来建立CPU的保护机制和中断表。
     protect_init();
-
 
     //@TODO 得到引导参数
 

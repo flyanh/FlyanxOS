@@ -5,7 +5,7 @@
  * QQ-Group:909830414
  * gitee: https://gitee.com/flyanh/
  *
- * 包含时钟相关，最主要的是时钟系统任务（时钟驱动程序）
+ * 包含时钟相关，最主要的是时钟系统任务（同时也是时钟驱动程序）
  * 时钟任务接收留个参数的消息类型：
  *  1.HARD_INT
  *  2.GET_UPTIME（获取时钟的运行时间（滴答））
@@ -51,12 +51,14 @@
 #define CLOCK_ACK_BIT	    0x80	        /* PS/2 clock interrupt acknowledge bit */
 
 /* 时钟任务变量 */
-PRIVATE clock_t realticks;      /* 系统开机后运行的时间(滴答数)，也是开机后时钟运行的时间 */
-PRIVATE time_t realtime;       /* 系统开机后运行的时间(s)，也是开机后时钟运行的时间 */
+PRIVATE clock_t ticks;          /* 系统开机后运行的时间(滴答数)，也是开机后时钟运行的时间 */
+PRIVATE time_t realtime;        /* 系统开机后运行的时间(s)，也是开机后时钟运行的时间 */
 PRIVATE time_t boot_t;          /* 系统启动时间(s) */
-PRIVATE clock_t next_alarm;     /* 下一个信号或闹钟发生的时刻 */
+PRIVATE clock_t next_alarm;     /* 下一个信号或闹钟发生的时刻，称之为任务闹钟 */
 PRIVATE Message msg;            /* 发送和接收的消息缓冲区 */
-PRIVATE int watchdog_proc;      /* 看门狗：存放闹钟需要调用的函数数组 */
+PRIVATE int watchdog_proc;      /* 存放触发了喂狗动作的进程 */
+/* 看门狗，存放闹钟需要调用的函数数组 */
+PRIVATE WatchDog watch_dog[NR_TASKS + NR_PROCS];
 
 /* 由中断处理程序更改的变量 */
 PRIVATE clock_t  pending_ticks; /* 中断挂起的时间 */
@@ -65,6 +67,13 @@ PRIVATE Process *prev_proc;     /* 最后使用时钟任务的用户进程 */
 
 /* 本地函数原型 */
 FORWARD _PROTOTYPE( void init_clock, (void) );
+FORWARD _PROTOTYPE( void do_default, (Message *message) );
+FORWARD _PROTOTYPE( void do_set_sync_alarm, (Message *msg) );
+FORWARD _PROTOTYPE( void do_set_alarm, (Message *msg) );
+FORWARD _PROTOTYPE( void do_set_time, (Message *msg) );
+FORWARD _PROTOTYPE( void do_get_time, (void) );
+FORWARD _PROTOTYPE( void do_get_uptime, (void) );
+FORWARD _PROTOTYPE( void do_clock_int, (void) );
 
 /*===========================================================================*
  *				clock_task				     *
@@ -79,27 +88,115 @@ PUBLIC void clock_task(){
      * 时，时间永远是准确的。如果你的手表当你看它的时候是准时的，而当你不看它的时候，它却
      * 不准时，这有关系吗？
      */
-    printf("Clock task start runing...\n");
-
     int mess_type;      /* 消息类型，通过其判断用户需要什么服务 */
 
-    /* 初始化时钟任务 */
+    /* 初始化时钟 */
     init_clock();
-    int i = 0;
+
+    /* 测试发送消息 */
+    msg.type = 3;
+    int status = send_receive(TTY_TASK, &msg);
+    if(status == OK){
+        printf("clock send_receive a msg.\n");
+        printf("type: %d\n", msg.type);
+    } else {
+        printf("clock send_receive a msg failed.\n");
+    }
+
     /* 时钟任务主循环，一直得到工作，处理工作，回复处理结果 */
     while (TRUE){
+
         /* 从外界得到一条消息 */
+        receive(ANY, &msg);
+
+        /* 提取消息类型 */
+        mess_type = msg.type;
 
         /* 已经得到用户发来的消息请求，现在开始校准时间，记得先锁住中断 */
         interrupt_lock();
-        realticks += pending_ticks;  /* 加上从上次计时后过去的滴答数到realtime上 */
-        realtime = realticks / ONE_SEC_TICKS;   /* 计算按秒数计算的真实时间 */
-        pending_ticks ^= pending_ticks; /* 好了，上次计时后过去的滴答数可以清零了 */
+        ticks += pending_ticks;             /* 加上从上次计时后过去的滴答数到真实时间ticks上 */
+        realtime = ticks / ONE_SEC_TICKS;   /* 计算按秒数计算的真实时间 */
+        pending_ticks = 0;                  /* 好了，上次计时后过去的滴答数可以清零了 */
         interrupt_unlock();
 
+        /* 根据消息类型提供不同的功能服务 */
+        switch (mess_type){
+            case HARD_INT:      do_clock_int();             break;      /* 时钟产生的硬件中断，强制，不能忽略  */
+            case GET_UPTIME:    do_get_uptime();	        break;      /* 获取从启动开始后的时钟滴答数时间 */
+            case GET_TIME:      do_get_time();              break;      /* 获取系统时间（时间戳） */
+            case SET_TIME:	    do_set_time(&msg);	        break;      /* 设置系统时间 */
+            case SET_ALARM:	    do_set_alarm(&msg);	        break;      /* 设置定时器 */
+            case SET_SYNC_ALARM:do_set_sync_alarm(&msg);    break;      /* 设置同步闹钟 */
+            default: panic("Clock task got bad message", msg.type);  /* 当然了，获取到不识别的操作就宕机 */
+        }
     }
 
 }
+
+/*===========================================================================*
+ *				do_clock_int				     *
+ *				  处理时钟中断
+ *===========================================================================*/
+PRIVATE void do_clock_int() {
+    /* 尽管这个例程叫做这个名字，但要注意的一点是，并不是在每次时钟中断都会调用
+     * 这个例程的。当中断处理程序确定有一些重要的工作不得不做时才会通知时钟任务
+     * 让时钟任务来调用本例程。@TODO
+     */
+    register Process *proc;
+    register int proc_nr;
+
+    if(next_alarm <= ticks){    /* 任务闹钟是否已经响起？ */
+        next_alarm = LONG_MAX;  /* 开始计算下次的任务闹钟时间，这期间先设置一个很大的值 */
+        /* 虽然闹钟已经响起，但是有的任务喂狗函数可能已经不存在，所以要检查一下 */
+        for(proc = BEG_PROC_ADDR; proc < END_PROC_ADDR; proc++){
+            if(proc->alarm != 0){
+                /* 进程的闹钟已经响起
+                 *
+                 * 如果是用户进程，给它发个信号；如果是个系统任务，则调用看门狗数组
+                 * 中保存的以前的由任务指定的函数。也就是喂骨头时间到了，该喂骨头了。
+                 */
+                if(proc->alarm <= ticks){
+                    proc_nr = proc->nr;
+                    if(watch_dog[proc_nr + NR_TASKS]){      /* 去看门狗数组中看看被闹钟吵醒的任务还存不存在看门狗函数 */
+                        watchdog_proc = proc_nr;            /* 存放触发喂狗函数的进程索引号 */
+                        (*watch_dog[proc_nr + NR_TASKS])(); /* 执行喂狗函数（任务指定的函数） */
+                    } else {
+                        /* 如果看门狗数组中不存在该进程的喂狗函数，说明该进程是个用户进程，发送信号给它 */
+//                        cause_signal(proc_nr, SIGALRM);
+                    }
+                    proc->alarm = 0;
+                }
+
+                /* 确定下一个即将发生的闹钟 */
+                if(proc->alarm != 0 && proc->alarm < next_alarm){
+                    next_alarm = proc->alarm;
+                }
+            }
+        }
+    }
+}
+
+PRIVATE void do_get_uptime() {
+    printf("do_get_uptime\n");
+}
+
+PRIVATE void do_get_time() {
+
+}
+
+PRIVATE void do_set_time(Message *msg) {
+
+}
+
+PRIVATE void do_set_alarm(Message *msg) {
+
+}
+
+PRIVATE void do_set_sync_alarm(Message *msg) {
+
+}
+
+
 
 /*==========================================================================*
  *				milli_delay				    *
@@ -125,12 +222,11 @@ time_t millisec;
      * 解决。
      */
 
-    // 首先，我们得到当前的时钟滴答数
-    unsigned long ticks = realticks;
-    unsigned long enter_millis = 0;       /* 进入延迟函数的总时间 */
-    while( enter_millis < millisec ){     /* 只要还没达到延迟时间的要求，就继续循环 */
-        enter_millis = (realticks - ticks) * 10;
-    }
+    // 得出退出循环的时间
+//    clock_t end_ticks = ticks + millisec / ONE_TICK_MILLISECOND;
+//    clock_t enter_millis = 0;       /* 进入延迟函数的总时间 */
+//    next_alarm = end_ticks;
+
 }
 
 /*===========================================================================*
@@ -150,7 +246,7 @@ int irq;
      * 比，按这种方式工作可以提高15%的速度。
      */
      register Process *proc;
-     register u16_t ticks;
+     register u16_t one_ticks;
      clock_t now;
      if(ps_mca){
          /* 确认 PS/2 时钟中断 */
@@ -167,37 +263,38 @@ int irq;
      if(kernel_reenter != 0) {
          // 如果发生了中断冲入，说明当前进程是硬件中断触发的核心代码（中断处理程序）
          proc = proc_addr(HARDWARE);
-     } else{
+     } else {
          // 没发生中断冲入，当前进程就是curr_proc指向的进程
          proc = curr_proc;
      }
-     ticks = lost_ticks + 1;    /* 时钟滴答数，等于时钟任务外的时钟滴答数 + 本次的滴答数(1) */
+     one_ticks = lost_ticks + 1;    /* 时钟滴答数，等于时钟任务外的时钟滴答数 + 本次的滴答数(1) */
      lost_ticks = 0;            /* 时钟任务外的时钟滴答数归零 */
-     proc->user_time += ticks;  /* 充电 */
+     proc->user_time += one_ticks;  /* 充电 */
      /* 如果不可计费，给bill_proc指向的进程的系统时间充电 */
      if(proc != bill_proc && proc != proc_addr(IDLE_TASK)) bill_proc->sys_time += ticks;
-     pending_ticks += ticks;    /* 对中断挂起滴答时间充电 */
-     now = realticks + pending_ticks;    /* 当前实际时间 = 开机运行时间 + 中断挂起滴答时间 */
+     pending_ticks += one_ticks;    /* 对中断挂起滴答时间充电 */
+     now = one_ticks + pending_ticks;    /* 当前实际时间 = 开机运行时间 + 中断挂起滴答时间 */
 
-     /* 闹钟时间到了？ 或者 到了应该进行时钟任务调度的时候
-      * 产生一个时钟中断，激活时钟任务
-      * @TODO 闹钟机制还未实现
-      */
-//     if(next_alarm <= now ||
-//             (schedule_ticks == 1 && bill_proc == prev_proc && ready_head[USER_QUEUE] != NIL_PROC) ){
-//         interrupt(CLOCK_TASK);
-//         return 1;  /* 使其再能发生时钟中断 */
-//     }
+     /* 好了，如果终端任务的触发时间到了，唤醒其 */
+     if(tty_wake_time <= now){
+         tty_wakeup(now);
+     }
+
+     /* 任务闹钟时间到了？产生一个时钟中断，唤醒时钟任务 */
+     if(next_alarm <= now){
+         interrupt(CLOCK_TASK);
+         return 1;  /* 使其再能发生时钟中断 */
+     }
 
      /* 调度时间到了？ */
-     if(--schedule_ticks == 0){
+     if(--schedule_ticks == 0 && bill_proc == prev_proc && ready_head[USER_QUEUE] != NIL_PROC) {
          /* 如果消费进程等于最后使用时钟任务的进程，重新调度 */
          if(bill_proc == prev_proc) lock_schedule();
          schedule_ticks = SCHEDULE_TICKS;   /* 调度时间计数重置 */
          prev_proc = bill_proc;             /* 设置最后使用时钟任务的用户进程为消费进程 */
      }
 
-    return 1;       /* 返回1，使其再能发生时钟中断 */
+    return ENABLE;       /* 返回ENABLE，使其再能发生时钟中断 */
 }
 
 #if (CHIP == INTEL)

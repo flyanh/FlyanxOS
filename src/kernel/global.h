@@ -18,28 +18,38 @@
 #endif
 
 /* 内核内存 */
-EXTERN phys_bytes code_base;	/* base of kernel code ： 核心代码段基地址 */
-EXTERN phys_bytes data_base;	/* base of kernel data ： 核心数据段基地址 */
-EXTERN phys_bytes aout;		    /* address of a.out headers ： a.out可执行文件头文件的地址 */
+EXTERN phys_bytes code_base;	/* 内核代码段基地址 */
+EXTERN phys_bytes data_base;	/* 内核数据段基地址 */
+EXTERN phys_bytes aout;		    /* a.out可执行文件的头信息文件的地址 */
+
+/* 系统内存信息 */
+EXTERN u32_t total_memory_size;       /* 内存大小 */
+EXTERN phys_bytes ards_phys;    /* 地址范围描述符数组的物理地址 */
+EXTERN ARDS ards[NR_MEMORY_CLICK];            /* 地址范围描述符数组，存放启动时内存检查的内存的分布结构 */
 
 /* GDT 和 IDT 以及显示位置 */
-EXTERN u8_t display_position;       /* 256显示模式下，文字显示位置，注意：这不是光标 */
+EXTERN u16_t display_position;       /* 256显示模式下，文字显示位置，注意：这不是光标，
+                                        且只使用在没有完成终端的时候进行调试编译 */
+extern SegDescriptor gdt[];         /* 全局描述符表 */
 EXTERN u8_t gdt_ptr[6];             /* GDT指针，0~15：Limit 16~47：Base */
 EXTERN u8_t idt_ptr[6];             /* IDT指针，同上 */
+
+/* held_head 和 held_tail是指向挂起中断队列的头尾指针 */
+EXTERN struct process_s *held_head;
+EXTERN struct process_s *held_tail;
 
 EXTERN unsigned char kernel_reenter;	/* 记录内核中断重入的次数 */
 
 extern struct tss_s tss;                            /* 任务状态段 */
 EXTERN struct process_s *curr_proc;	                /* 当前运行进程的指针 */
 
-/* 在别处初始化的变量在这里只是extern。 */
-extern SegDescriptor gdt[];     /* 全局描述符表 */
-
-extern char *task_stack[];		/* 系统任务栈task_stack，每个任务在task_stack中都有其自己的堆栈 */
-
 /* 其他 */
-extern TaskTab tasktab[];   /* 系统任务表 */
-EXTERN unsigned lost_ticks;	/* 时钟滴答在时钟任务之外的计数 */
+extern TaskTab tasktab[];               /* 系统任务表 */
+extern char *task_stack[];		        /* 系统任务栈task_stack，每个任务在task_stack中都有其自己的堆栈 */
+EXTERN unsigned int lost_ticks;	        /* 时钟滴答在时钟任务之外的计数 */
+EXTERN clock_t tty_wake_time;           /* 终端任务下一次被唤醒的时刻，如果到了，将是时候唤醒终端任务了 */
+EXTERN unsigned int current_console_nr; /* 当前控制台号 */
+EXTERN status_t break_point;            /* 一个简单调试断点，如果为TRUR，则断点被打开，程序将停止在断点处，直到点击任意键。 */
 
 /* 机器状态 */
 EXTERN int pc_at;		/* PC-AT兼容硬件接口 */
@@ -50,6 +60,10 @@ EXTERN int protected_mode;	/* 如果以Intel保护模式运行，则为非零 */
 #else
 #define protected_mode	1	/* 386模式暗含保护模式 */
 #endif
+
+/* 视频卡类型。 */
+EXTERN int ega;			/* 视频卡是EGA */
+EXTERN int vga;			/* 视频卡是VGA */
 
 /* 其他 */
 EXTERN irq_handler_t  int_request_table[NR_IRQ_VECTORS];    /* 中断请求处理程序表 */

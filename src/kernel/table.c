@@ -19,10 +19,10 @@
 
 #include "kernel.h"
 #include <stdlib.h>
-//#include <termios.h>
+#include <termios.h>
 #include <flyanx/common.h>
 #include "process.h"
-//#include "tty.h"
+#include "tty.h"
 #include <ibm/int86.h>
 
 /* 下面从系统任务号从小到大给出每个系统任务的启动例程。此处的名称循序
@@ -52,14 +52,15 @@
 
 /* 为系统任务表的所有表象分配空间 */
 PUBLIC TaskTab tasktab[] = {
-        /* 终端任务，必须存在 @TODO 未完成 */
+        /* 终端任务，必须存在 */
+        { tty_task, TTY_TASK_STASK, "TTY_TASK"  },
 
         /* 闲置任务 */
         { idle_task, IDLE_TASK_STACK, "IDLE_TASK" },
 
         /* 时钟任务 */
         { clock_task, CLOCK_TASK_STACK, "CLOCK_TASK" },
-        /* 硬件任务 - 用作中断 */
+        /* 硬件任务，没有任何数据和正文，占个位置 - 用作判断中断 */
         { 0, HARDWARE_STACK, "HARDWARE" },
 
 //        /* 内存管理器 */
@@ -70,11 +71,6 @@ PUBLIC TaskTab tasktab[] = {
 //        { 0,			0,		"FLY"		},
 //        /* 起源进程 */
         { 0,			0,		"ORIGIN"		},
-};
-
-/* 系统调用表 */
-EXTERN flyanx_syscall_t syscall_table[NR_SYS_CALL] = {
-        bad_syscall, bad_syscall
 };
 
 /* 所有系统任务堆栈的堆栈空间。 （声明为（char *）使其对齐。） */

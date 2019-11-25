@@ -93,9 +93,9 @@ PUBLIC void protect_init(void)
     init_gate(INT_VECTOR_IRQ8 + 6,	DA_386IGate, hwint14,			KERNEL_PRIVILEGE);
     init_gate(INT_VECTOR_IRQ8 + 7,	DA_386IGate, hwint15,			KERNEL_PRIVILEGE);
 #if _WORD_SIZE == 2     /* 初始化286系统调用中断门 */
-    init_gate(INT_VECTOR_SYS286_CALL, 	DA_386IGate, flyanx_286_syscall, 	USER_PRIVILEGE);
+    init_gate(INT_VECTOR_SYS_CALL, 	DA_386IGate, flyanx_286_syscall, 	USER_PRIVILEGE);
 #else                   /* 初始化386系统调用中断门 */
-    init_gate(INT_VECTOR_SYS386_CALL, 	DA_386IGate, flyanx_386_syscall, 	USER_PRIVILEGE);
+    init_gate(INT_VECTOR_SYS_CALL, 	DA_386IGate, flyanx_386_syscall, 	USER_PRIVILEGE);
 #endif
     // 初始化系统任务提权调用中断门
     init_gate(INT_VECTOR_LEVEL0, 	DA_386IGate, level0_call, 	TASK_PRIVILEGE);
@@ -104,10 +104,9 @@ PUBLIC void protect_init(void)
      * 我们只使用了某些域的信息，这些域定义了当发生中断时在何处建立新堆栈。
      * 下面init_dataseg的调用保证它可以用GDT进行定位。
      */
-    memset(&tss, 0, sizeof(tss));
     tss.ss0 = SELECTOR_KERNEL_DS;
     init_seg_desc(&gdt[TSS_INDEX],
-                vir2phys(seg2phys(SELECTOR_KERNEL_DS), &tss),
+                vir2phys(data_base, &tss),
                 sizeof(tss) - 1,
                 DA_386TSS);
 #if _WORD_SIZE == 4
@@ -124,13 +123,12 @@ PUBLIC void protect_init(void)
     for(proc = BEG_PROC_ADDR, ldt_index = LDT_FIRST_INDEX;
         proc < END_PROC_ADDR; ++proc, ldt_index++){
         init_seg_desc(&gdt[ldt_index],
-                      vir2phys(seg2phys(SELECTOR_KERNEL_DS), proc->ldt),
+                      vir2phys(data_base, proc->ldt),
                       LDT_SIZE * DESCRIPTOR_SIZE,
                       DA_LDT);
         gdt[ldt_index].access = 0x82;
         proc->ldt_selector = ldt_index * DESCRIPTOR_SIZE;
     }
-    printf("Enter protection mode                                  [ OK ]\n");
 }
 
 /*=========================================================================*
@@ -180,11 +178,26 @@ u8_t privilege;
  *				seg2phy				   *
  *				由段名求其在内存中的绝对地址
  *=========================================================================*/
-PUBLIC vir_bytes seg2phys(seg)
-u8_t seg;
+PUBLIC phys_bytes seg2phys(U16_t seg)
 {
     SegDescriptor* p_dest = &gdt[seg >> 3];
     return (p_dest->base_high << 24 | p_dest->base_middle << 16 | p_dest->base_low);
 }
+
+/*=========================================================================*
+ *				phys2seg				   *
+ *			通过段基址得到对应的段描述符
+ *=========================================================================*/
+PUBLIC void phys2seg(
+        u16_t *seg,
+        vir_bytes *off,
+        phys_bytes phys
+){
+#if _WORD_SIZE == 4
+    *seg = SELECTOR_KERNEL_DS;
+    *off = phys;
+#endif
+}
+
 
 
