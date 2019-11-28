@@ -1,4 +1,11 @@
-
+; Copyright (C) 2007 Free Software Foundation, Inc.
+; See the copyright notice in the file /usr/LICENSE.
+; Created by flyan on 2019/11/9.
+; QQ: 1341662010
+; QQ-Group:909830414
+; gitee: https://gitee.com/flyanh/
+;
+;
 
 ; LOADER.BIN 被加载的位置　--- 段地址
 BaseOfLoader        equ 09000h
@@ -21,4 +28,13 @@ KernelEntryPointPhyAddr	equ	030400h
 ; 页目录开始地址:		2M
 PageDirBase		equ	200000h	
 ; 页表开始地址:			2M + 4K
-PageTblBase		equ	201000h	
+PageTblBase		equ	201000h
+
+; 注意：
+;   以下的宏应该和C代码里的同步，它们在include/flyanx/config.h下
+BOOT_PARAM_ADDR     equ 0x700
+BOOT_PARAM_MAGIC    equ 0x3EA
+
+
+
+

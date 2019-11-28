@@ -26,7 +26,7 @@
  * 操作系统各部分的主控头文件定义了宏 _SYSTEM,但在一个用户程序被编译后 _SYSTEM 将并未定义。如果
  * _SYSTEM 被定义了,则_SIGN 定义为“-”,否则 _SIGN无定义。
  *
- * 从Minix中引入...
+ * 从Minix中引入...个人有些许修改
  */
 
 #ifndef _ERRNO_H		/* check if <errno.h> is already included */
@@ -51,7 +51,7 @@ extern int errno;		  /* place where the error numbers go */
 #define ESRCH         (_SIGN  3)  /* no such process */
 #define EINTR         (_SIGN  4)  /* interrupted function call ：函数调用中断 */
 #define EIO           (_SIGN  5)  /* input/output error */
-#define ENXIO         (_SIGN  6)  /* no such device or address */
+#define ENXIO         (_SIGN  6)  /* 没有这样的设备或地址 */
 #define E2BIG         (_SIGN  7)  /* arg list too long */
 #define ENOEXEC       (_SIGN  8)  /* exec format error */
 #define EBADF         (_SIGN  9)  /* bad file descriptor */
@@ -67,7 +67,7 @@ extern int errno;		  /* place where the error numbers go */
 #define ENODEV        (_SIGN 19)  /* no such device */
 #define ENOTDIR       (_SIGN 20)  /* not a directory */
 #define EISDIR        (_SIGN 21)  /* is a directory */
-#define EINVAL        (_SIGN 22)  /* invalid argument */
+#define EINVAL        (_SIGN 22)  /* 无效的参数 */
 #define ENFILE        (_SIGN 23)  /* too many open files in system */
 #define EMFILE        (_SIGN 24)  /* too many open files */
 #define ENOTTY        (_SIGN 25)  /* inappropriate I/O control operation */
@@ -111,6 +111,7 @@ extern int errno;		  /* place where the error numbers go */
 
 /* 以下错误代码由内核本身生成。 */
 #ifdef _SYSTEM
+#define ERROR_BAD_ELF      -6552    /* 错误的ELF文件头 */
 #define ERROR_BAD_DEST     -1001	/* 目的地址非法 */
 #define ERROR_BAD_SRC      -1002	/* 源地址非法 */
 #define ERROR_TRY_AGAIN    -1003	/* can't send-- tables full */

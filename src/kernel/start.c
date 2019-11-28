@@ -16,8 +16,8 @@
 #include <stdlib.h>
 #include "protect.h"
 
-/* 加载器传递的环境字符串。 */
-PRIVATE char k_environment[128 * sizeof(char *)];
+/* 加载器（LOADER）传递的启动参数 */
+PUBLIC BootParams bootParams;
 
 /*==========================================================================*
  *				cstart					                                    *
@@ -31,10 +31,11 @@ PUBLIC void cstart(void)
     code_base = seg2phys(SELECTOR_KERNEL_CS);
     data_base = seg2phys(SELECTOR_KERNEL_DS);
 
-    // 调用prot_init来建立CPU的保护机制和中断表。
+    /* 建立CPU的保护机制和中断表。 */
     protect_init();
 
-    //@TODO 得到引导参数
+     /* 得到引导（启动）参数 */
+     get_boot_params(&bootParams);
 
     /* 根据引导参数确定机器的各种信息：显示器的型号、内存大小、机器类型、处理器操作模式
      * (实模式还是保护模式)，以及是否可能返回到引导监控程序等。这些所有的信息都保存在适
@@ -44,23 +45,19 @@ PUBLIC void cstart(void)
 }
 
 /*==========================================================================*
- *				get_env					    *
- *		    在核心环境中查找数据项,该环境是引导参数的拷贝。
+ *				get_boot_params					    *
+ *		        获取启动参数
  *==========================================================================*/
-PUBLIC char *get_env(name)
-_CONST char *name;
+PUBLIC void get_boot_params(BootParams *bp)
 {
-    register _CONST char *namep;
-    register char *envp;
+    /* 得到引导参数 */
+    u32_t *p_bp = (u32_t*)BOOT_PARAM_ADDR;
+    /* 得到魔数 */
+    u32_t magic = p_bp[BP_MAGIC];
+    if(magic != BOOT_PARAM_MAGIC) return;   /* 坏的魔数 */
 
-    for (envp = k_environment; *envp != 0;) {
-        for (namep = name; *namep != 0 && *namep == *envp; namep++, envp++)
-            ;
-        if (*namep == '\0' && *envp == '=') return(envp + 1);
-        while (*envp++ != 0)
-            ;
-    }
-    return(NIL_PTR);
+    bp->memory_size = p_bp[BP_MEMOARY_SIZE];
+    bp->kernel_file = p_bp[BP_KERNEL_FILE];
 }
 
 

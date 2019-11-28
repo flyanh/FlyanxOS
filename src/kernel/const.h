@@ -20,8 +20,14 @@
 /* 内核栈大小，系统任务将使用这么大的栈空间 */
 #define K_STACK_BYTES   1024	/* 内核堆栈有多少字节 */
 
-#define INIT_PSW      0x0200	/* initial psw */
-#define INIT_TASK_PSW 0x1200	/* initial psw for tasks (with IOPL 1) */
+#define INIT_PSW      0x0202	/* initial psw :IF=1, bit 2 is always 1 */
+#define INIT_TASK_PSW 0x1202	/* initial psw for tasks (with IOPL 1) : IF=1, IOPL=1, bit 2 is always 1 */
+
+/* BIOS中断向量 和 保护模式下所需的中断向量 */
+#define INT_VECTOR_BIOS_IRQ0        0x00
+#define INT_VECTOR_BIOS_IRQ8        0x10
+#define	INT_VECTOR_IRQ0				0x20
+#define	INT_VECTOR_IRQ8				0x28
 
 /* 硬件中断数量 */
 #define NR_IRQ_VECTORS      16      /* 中断请求的数量 */
@@ -94,7 +100,7 @@
 /* 将内核空间中的地址转换为物理地址。这与umap(proc ptr, D, vir, sizeof(*vir))函数
  * 相同，但成本要低得多。
  */
-#define	vir2phys(seg_base, vir) ((phys_bytes)seg_base + (vir_bytes)(vir))
+#define	vir2phys(vir) (data_base + (vir_bytes)(vir))
 
 /* 秒转化为毫秒 */
 #define second2ms(s) (s * 1000)

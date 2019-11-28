@@ -119,7 +119,7 @@ typedef struct process_s {
 #define cproc_addr(n)     (&(process + NR_TASKS)[(n)])      /* 得到进程的地址 */
 #define proc_vir2phys(p, vir) \
 			  (((phys_bytes)(p)->map[DATA].virtual << CLICK_SHIFT) \
-							+ (vir_bytes) (vir))
+							    + (vir_bytes) (vir))
 
 /* process.c文件所需要的两个函数，发送消息和接收消息，放在这是因为这两个函数不需要全部人都知道。 */
 _PROTOTYPE( int flyanx_send, (struct process_s *caller_ptr, int dest, struct message_s *message_ptr) );

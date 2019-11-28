@@ -65,10 +65,10 @@
 
 /* The following are not system calls, but are processed like them. */
 /* 以下不是系统调用，但像它们一样进行处理。 */
-#define KSIG		  64	/* kernel detected a signal > 内核检测到信号 */
-#define UNPAUSE		  65	/* to MM or FS: check for EINTR > 到MM或FS：检查EINTR */
-#define REVIVE	 	  67	/* to FS: revive a sleeping process > 到FS：恢复睡眠进程 */
-#define TASK_REPLY	  68	/* to FS: reply code from tty task > 到FS：从tty任务回复执行代码 */
+#define KERNEL_SIG	    64	/* 内核检测到信号 */
+#define UNPAUSE		    65	/* 给MM或FS：检查EINTR */
+#define REVIVE	 	    67	/* 给FS：恢复睡眠进程 */
+#define TASK_REPLY	    68	/* 给FS：终端任务回复一个执行代码 */
 
 /* Posix signal handling. */
 /* Posix信号处理。 */

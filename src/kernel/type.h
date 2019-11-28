@@ -24,20 +24,15 @@ typedef struct tasktab_s {
     char    name[16];           /* 任务名称 */
 } TaskTab;
 
-/* 地址范围描述符结构
- * 用于系统启动时，存放内存检查的结果
- */
-typedef struct address_range_descriptor_s {
-    U32_t base_addr_low;
-    U32_t base_addr_high;
-    U32_t size_low;
-    U32_t size_high;
-    U32_t type;
-} ARDS;
-
 typedef struct memory_s {
 
 } Memory;
+
+/* 启动参数 */
+typedef struct boot_params_s {
+    u32_t memory_size;          /* 内存大小 */
+    phys_bytes kernel_file;     /* 内核所在绝对物理地址 */
+} BootParams;
 
 #if (CHIP == INTEL)
 /* 端口数据类型，用于访问I/O端口 */

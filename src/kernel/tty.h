@@ -13,7 +13,7 @@
 
 #define TTY_INPUT_BYTES     256     /* 终端输入队列大小 */
 #define TAB_SIZE            8       /* 制表符间距 */
-#define TAB_MASK            3       /* 计算制表符停止位置的掩码。 */
+#define TAB_MASK            7       /* 计算制表符停止位置的掩码。 */
 
 #define ESCAPE              '\33'   /* 转移字符 */
 
@@ -21,18 +21,20 @@
 #define O_NOCTTY            00400
 #define O_NONBLOCK          04000
 
-typedef _PROTOTYPE( void (*device_func_t), (struct tty_s *tp) );
-typedef _PROTOTYPE( void (*device_func_arg_t), (struct tty_s *tp, int c) );
+typedef _PROTOTYPE( void (*device_func_t), (struct tty_s *tty) );
+typedef _PROTOTYPE( void (*device_func_arg_t), (struct tty_s *tty, int c) );
 
 /* 终端结构 */
 typedef struct tty_s {
-    int events;     /* 标志：当某个中断引起变化需要终端任务来处理设备 */
+    int events;     /* 标志：当某个中断引起变化需要终端任务来处理设备
+                     * 分为读、写和io控制三种，其标志在本文件下面有说明。 */
 
     /* 输入队列，输入的字符将存在这里，直接被程序获取使用 */
-    u16_t *input_free;          /* 指向输入队列的下一个空闲点 */
-    u16_t *input_handle;        /* 指向应该被处理并返回给终端的扫描码 */
-    unsigned int input_count;   /* 队列中字符的计数 */
-    unsigned int eot_count;     /* 字符的行数计数 */
+    u32_t input_buffer[TTY_INPUT_BYTES];    /* 输入缓冲区 */
+    u32_t *input_free;          /* 指向输入队列的下一个空闲点 */
+    u32_t *input_handle;        /* 指向应该被处理并返回给终端的扫描码 */
+    int input_count;   /* 队列中字符的计数 */
+    int eot_count;     /* 字符的行数计数 */
     device_func_t device_read;  /* 执行设备读操作的指定例程的指针保存在这 */
     device_func_t input_cancel; /* 执行输入取消操作指定例程的指针保存在这 */
 
@@ -43,7 +45,7 @@ typedef struct tty_s {
      * 像上面那样设定，通过比较这两个变量就可以判断出一行是否准备
      * 好或者何时达到最小字符计数。
      */
-    unsigned int min;
+    int min;
     clock_t wake_time;          /* 终端应该被唤醒的时间，这个值决定了终端任务何时被时钟中断处理程序唤醒 */
     struct tty_s *next_wake;    /* 下一个会被唤醒的终端，头部永远是被唤醒了正在活动的终端 */
 
@@ -57,46 +59,51 @@ typedef struct tty_s {
     device_func_t device_break; /* 让设备发送一个中断 */
 
     /* 终端的参数和状态 */
-    unsigned int position;      /* 当前屏幕所处位置 */
-    status_t status_reprint;      /* 状态：当回显输入混乱时为1,否则为0 */
-    status_t status_escaped;      /* 状态：当看到LNEXT(^V，转义)时为1，否则为0 */
-    status_t status_inhibited;    /* 运行状态：当为1时就停止当前的所有处理 */
-    u8_t p_group;               /* 终端的控制进程(master)的进程号 */
-    u8_t open_count;            /* 终端被打开的次数 */
+    int position;          /* 当前屏幕所处位置 */
+    bool reprint;      /* 状态：当回显输入混乱时为1,否则为0 */
+    char status_escaped;      /* 状态：当看到LNEXT(^V，转义)时为1，否则为0 */
+    char status_inhibited;    /* 运行状态：当为1时就停止当前的所有处理 */
+    char p_group;               /* 终端的控制进程(master)的进程号 */
+    char open_count;            /* 终端被打开的次数 */
 
     /* 一些I/O请求相关的信息在这，首先是输入 */
     char in_reply_code;         /* 回复代码，TASK_REPLY(任务回复)或者REVIVE(恢复) */
     char in_caller;             /* 管理系统调用的系统服务进程（通常是文件系统） */
     char in_proc;               /* 想要从终端读取数据的进程 */
-    vir_bytes in_vir_addr;      /* 数据要到达的地方（虚拟地址） */
-    unsigned int in_left;       /* 还需要读取多少字符 */
-    unsigned int in_cum;        /* 已经读取了多少字符 */
+    vir_bytes in_vir;      /* 数据要到达的地方（虚拟地址） */
+    int in_left;       /* 还需要读取多少字符 */
+    int in_cum;        /* 已经读取了多少字符 */
 
     /* 输出(write)系统调用也需要以上类似的变量集 */
     char out_reply_code;        /* 回复代码，TASK_REPLY(任务回复)或者REVIVE(恢复) */
     char out_caller;            /* 管理系统调用的系统服务进程（通常是文件系统） */
     char out_proc;              /* 想要写入数据到终端的进程 */
     vir_bytes out_vir_addr;     /* 数据要到达的地方（虚拟地址） */
-    unsigned int out_left;      /* 还需要写入多少字符 */
-    unsigned int out_cum;       /* 已经写入了多少字符 */
+    int out_left;      /* 还需要写入多少字符 */
+    int out_cum;       /* 已经写入了多少字符 */
 
     /* IOCTL（输入输出控制）操作相关 */
-    device_func_t ioctl;        /* 设置设备的io速率等等 */
     char ioc_caller;            /* 管理终端io控制系统调用的系统服务进程（通常是文件系统） */
     char ioc_proc;              /* 想要对终端io进行控制操作的进程 */
     int ioc_request;            /* 终端io控制的请求代码 */
     vir_bytes ioc_vir_addr;     /* 终端io控制缓冲区的虚拟地址 */
 
     /* 其他用途 */
+    device_func_t ioctl;        /* 设置设备的io速率等等 */
     device_func_t close;                    /* 告诉设备终端已经关闭 */
-    void *console;                          /* 指向每个设备私有数据的指针，是一个控制台(console)结构 */
-    struct termios_s termios;               /* POSIX格式的终端控制结构 */
-    u16_t input_buffer[TTY_INPUT_BYTES];    /* 输入缓冲区 */
+    void *priv;                             /* 指向每个设备私有数据的指针 */
+    Termios termios;               /* POSIX格式的终端控制结构 */
     WinFrame win_frame;                     /* 窗口框架结构,用于描述终端的屏幕信息 */
 } TTY;
 
 /* 终端表，存储了系统所有的终端 */
 EXTERN TTY tty_table[NR_CONSOLES + NR_RS_LINES + NR_PTYS];
+
+/* events标志值 */
+#define EVENTS_READ         1       /* 终端设备需要处理读请求 */
+#define EVENTS_WRITE        2       /* 终端设备需要处理写请求 */
+#define EVENTS_IOCTL        4       /* 终端设备需要处理终端io控制 */
+#define EVENTS_ALL          7       /* 终端设备有多项工作要处理 */
 
 /* 字段值 */
 #define NOT_ESCAPED        0	/* 前一个字符不是LNEXT（^V），即转义 */

@@ -10,7 +10,7 @@
 
 #include "syslib.h"
 
-PUBLIC status_t break_point;
+PUBLIC bool break_point;
 
 /*==========================================================================*
  *				delay				    *

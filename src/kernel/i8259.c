@@ -39,15 +39,14 @@ int mine;           /* 中断初始化的模式 */
         /* 对参数mine进行测试，并将对Flyanx在BIOS ROM合适的数值写入该端口
          * 当退出内核时，可调用interrupt_init来恢复BIOS向量，这样便可以平滑的
          * 退回到引导监控程序。而mine参数是选择所使用的模式。
-         * @TODO 未保存BIOS的中断向量，被自定义的中断向量覆盖了，暂实现不了该功能
          */
         // Master and Slave 8259, ICW1
         out_byte(INT_M_CTL, 0x11);
         out_byte(INT_S_CTL, 0x11);
         // Master 8259, ICW2. 设置 '主8259'　的中断入口地址为 0x20.
-        out_byte(INT_M_CTLMASK, INT_VECTOR_IRQ0);
+        out_byte(INT_M_CTLMASK, mine ? INT_VECTOR_IRQ0 : INT_VECTOR_BIOS_IRQ0 );
         // Slave 8259, ICW2. 设置 '从8259'　的中断入口地址为 0x28.
-        out_byte(INT_S_CTLMASK, INT_VECTOR_IRQ8);
+        out_byte(INT_S_CTLMASK, mine ? INT_VECTOR_IRQ8 : INT_VECTOR_BIOS_IRQ8 );
         // Master 8259, ICW3. IR2 对应 '从8259'.
         out_byte(INT_M_CTLMASK,	0x4);
         // Slave  8259, ICW3. 对应 '主8259' 的 IR2.

@@ -72,14 +72,14 @@ PUBLIC TaskTab tasktab[] = {
         /* 硬件任务，没有任何数据和正文，占个位置 - 用作判断硬件中断 */
         { 0, HARDWARE_STACK, "HARDWARE" },
 
-//        /* 内存管理器 */
-//        { 0,			0,		"MM"		},
-//        /* 文件系统 */
-//        { 0,			0,		"FS"		},
-//        /* 飞彦扩展管理器 */
-//        { 0,			0,		"FLY"		},
-//        /* 起源进程 */
-//        { 0,			0,		"ORIGIN"		},
+        /* 内存管理器 */
+        { first_up,			SMALL_STACK,		"MM"		},
+        /* 文件系统 */
+        { 0,			0,		"FS"		},
+        /* 飞彦扩展管理器 */
+        { 0,			0,		"FLY"		},
+        /* 起源进程 */
+        { 0,			0,		"ORIGIN"		},
 };
 
 /* 所有系统任务堆栈的堆栈空间。 （声明为（char *）使其对齐。） */
@@ -103,8 +103,8 @@ PUBLIC void map_drivers(){
  *
  * 简单解释：减去的是MM、FS、FLY和ORIGIN，这些都不属于系统任务
  */
-//#define NKT (sizeof(tasktab) / sizeof(struct tasktab_s) - (ORIGIN_PROC_NR + 1))
-#define NKT ( sizeof(tasktab) / sizeof(struct tasktab_s) )
+#define NKT (sizeof(tasktab) / sizeof(struct tasktab_s) - (ORIGIN_PROC_NR + 1))
+//#define NKT ( sizeof(tasktab) / sizeof(struct tasktab_s) - 1 )
 
 extern int dummy_tasktab_check[NR_TASKS == NKT ? 1 : -1];
 

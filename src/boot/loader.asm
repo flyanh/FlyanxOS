@@ -367,14 +367,18 @@ LAB_PM_START:	; 程序开始
 	; 打印显示内存信息
 	call DispMemInfo
 	; 启动分页机制，分页机制能让我们将所有的物理地址看做是一维的线性空间
-    call SetupPaging
+    ;call SetupPaging
 	; 初始化内核
 	call InitKernel
 
-
     ; 进入内核代码前，我们将一些启动参数保存好，内核可以很方便的获取到它们
-    mov eax, [dwMemSize]            ; eax = 内存大小
-    mov ebx, MemChkBuf              ; ebx = 内存地址范围描述符数组的绝对地址
+    mov dword [BOOT_PARAM_ADDR], BOOT_PARAM_MAGIC ; 魔数
+    mov eax, [dwMemSize]
+    mov [BOOT_PARAM_ADDR + 4], eax  ; 内存大小
+    mov eax, BaseOfKernelFile
+    shl eax, 4
+    add eax, OffsetOfKernelFile
+    mov [BOOT_PARAM_ADDR + 8], eax  ; 内核所在的物理地址
 
 	; 正式进入内核，Loader将CPU控制权转交给内核，至此，Loader的使命也结束了！比Boot厉害吧！
 	; 从这里的函数运行成功后，我们才真正算是进入编写操作系统的门槛
@@ -424,6 +428,7 @@ LAB_PM_START:	; 程序开始
 	;              ┃■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■┃
 	;        7C00h ┃■■■■■■BOOT  SECTOR■■■■■■■■■■■■┃
 	;              ┣━━━━━━━━━━━━━━━━━━┫
+	;         700h ┃Boot Params（启动参数）         ┃
 	;              ┃                              ┃
 	;         500h ┃       F R E E space          ┃
 	;              ┣━━━━━━━━━━━━━━━━━━┫

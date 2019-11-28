@@ -30,7 +30,7 @@
  * 速度较慢。后期将会改进，因为现在还未实现物理块。
  */
 #define CopyMsg(src, src_msg, dest_msg) \
-    src_msg->source = src; phys_copy(vir2phys(data_base, src_msg), vir2phys(data_base, dest_msg), MESSAGE_SIZE)
+    src_msg->source = src; phys_copy(vir2phys(src_msg), vir2phys(dest_msg), MESSAGE_SIZE)
 #endif
 
 FORWARD _PROTOTYPE( void copy_msg, (int src, Message *src_msg, Message *dest_msg) );

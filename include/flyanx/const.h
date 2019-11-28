@@ -50,8 +50,7 @@
 #define FS_PROC_NR         1	/* 文件系统 */
 #define FLY_PROC_NR        2    /* FLY */
 #define ORIGIN_PROC_NR	   3	/* 初始化 -- 将会fork为多用户进程 */
-//#define LOW_USER  ORIGIN_PROC_NR	/* 第一个用户不是操作系统的一部分 */
-#define LOW_USER           -1
+#define LOW_USER    ORIGIN_PROC_NR  /* 第一个用户进程不是操作系统的一部分 */
 
 /* 其他 */
 #define BYTE            0xFF	/* 8位字节的掩码 */

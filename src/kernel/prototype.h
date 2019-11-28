@@ -18,16 +18,21 @@
 #define FLYANX_PROTOTYPE_H
 
 /* 结构体声明 */
+struct seg_descriptor_s;
 struct process_s;
 struct message_s;
 struct tty_s;
-struct console_s;
 
 /*================================================================================================*/
 /* kernel.asm */
 /*================================================================================================*/
 _PROTOTYPE( void restart, (void) );
 _PROTOTYPE( void idle_task, (void) );
+
+/*================================================================================================*/
+/* start.c */
+/*================================================================================================*/
+_PROTOTYPE( void get_boot_params, (BootParams *bp) );
 
 /*================================================================================================*/
 /* main.c */
@@ -37,12 +42,15 @@ _PROTOTYPE( void panic, (const char *msg, int errno)				);
 _PROTOTYPE(void raw_clear_screen, (void) );
 _PROTOTYPE( void idle_test_task, (void) );
 _PROTOTYPE( void ok_print, (char* msg, char* ok) );
+_PROTOTYPE( void first_up, (void) );
 
 /*================================================================================================*/
 /* protect.c */
 /*================================================================================================*/
 _PROTOTYPE( void protect_init, (void) );
 _PROTOTYPE( phys_bytes seg2phys, (U16_t seg) );
+_PROTOTYPE( void init_seg_desc,
+        (struct seg_descriptor_s *p_desc, vir_bytes base, vir_bytes limit, u16_t attribute) );
 _PROTOTYPE( void phys2seg, (u16_t *seg, vir_bytes *off, phys_bytes phys) );
 
 /*================================================================================================*/
@@ -61,13 +69,32 @@ _PROTOTYPE( clock_t get_uptime, (void) );
 /* tty.c */
 /*================================================================================================*/
 _PROTOTYPE( void tty_task, (void) );
-_PROTOTYPE( void handle_events, (struct tty_s *tty) );
+_PROTOTYPE( void handle_read, (struct tty_s *tty) );
+_PROTOTYPE( void handle_write, (struct tty_s *tty) );
+_PROTOTYPE( void handle_ioctl, (struct tty_s *tty) );
 _PROTOTYPE( void tty_wakeup, (clock_t now) );
 _PROTOTYPE( void tty_dev_nop, (struct tty_s *tty) );
 _PROTOTYPE( int input_handler, (struct tty_s *tty, char *buffer, int count) );
 _PROTOTYPE( void tty_reply, (int code, int reply_dest, int proc_nr, int status) );
 
 /*================================================================================================*/
+/* console.c */
+/*================================================================================================*/
+_PROTOTYPE( void console_init, (struct tty_s *tty) );
+_PROTOTYPE( void putk, (int ch) );
+_PROTOTYPE( void toggle_scroll, (void) );
+_PROTOTYPE( void console_stop, (void) );
+_PROTOTYPE( void switch_to, (int line) );
+_PROTOTYPE( void clear_screen, (struct tty_s *tty) );
+_PROTOTYPE( void screen_init, (void) );
+
+/*================================================================================================*/
+/* keyboard.c */
+/*================================================================================================*/
+_PROTOTYPE( void keyboard_init, (void) );
+_PROTOTYPE( int keyboard_loadmap, (phys_bytes user_phys) );
+_PROTOTYPE( void wreboot, (int how) );
+_PROTOTYPE( void keyboard_bind_tty, (struct tty_s *tty) );
 
 /*================================================================================================*/
 /* process.c */
@@ -93,13 +120,6 @@ _PROTOTYPE( void put_irq_handler, (int irq, irq_handler_t handler) );
 _PROTOTYPE( int spurious_irq, (int ) );
 
 /*================================================================================================*/
-/* keyboard.c */
-/*================================================================================================*/
-_PROTOTYPE( void keyboard_init, (struct tty_s *tty) );
-_PROTOTYPE( int keyboard_loadmap, (phys_bytes user_phys) );
-_PROTOTYPE( void wreboot, (int how) );
-
-/*================================================================================================*/
 /* kernel_386_lib.asm  */
 /*================================================================================================*/
 _PROTOTYPE( void phys_copy, (phys_bytes source, phys_bytes dest, phys_bytes count) );
@@ -112,6 +132,7 @@ _PROTOTYPE( void enable_irq, (u32_t intRequest) );
 _PROTOTYPE( void interrupt_lock, (void) );
 _PROTOTYPE( void interrupt_unlock, (void) );
 _PROTOTYPE( void level0, (void (*func)(void)) );
+_PROTOTYPE( void reset, (void) );
 
 /*================================================================================================*/
 /* system.c  */
@@ -126,15 +147,6 @@ _PROTOTYPE( void test_task, (void) );
 /* table.c */
 /*================================================================================================*/
 _PROTOTYPE( void map_drivers, (void)					);
-
-/*================================================================================================*/
-/* console.c */
-/*================================================================================================*/
-_PROTOTYPE( void putk, (int ch) );
-_PROTOTYPE( void toggle_scroll, (void) );
-_PROTOTYPE( void screen_init, (struct tty_s *tty) );
-_PROTOTYPE( void switch_console, (u16_t console_line) );
-_PROTOTYPE( void clear_srceen, (int line) );
 
 /*================================================================================================*/
 /* kernel_debug.c  */
@@ -152,6 +164,7 @@ _PROTOTYPE( void map_dmp, (void) );
 /* misc.c */
 /*================================================================================================*/
 _PROTOTYPE( void memory_init, (void) );
+_PROTOTYPE( int get_kernel_map, (vir_bytes *base, vir_bytes *limit) );
 
 /*================================================================================================*/
 /*  硬件中断处理程序。 */

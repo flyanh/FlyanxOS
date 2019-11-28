@@ -10,13 +10,16 @@
 
 #include "kernel.h"
 #include <signal.h>
+#include <unistd.h>
 #include <flyanx/callnr.h>
 #include <flyanx/common.h>
 
 PRIVATE Message msg;
 
 /* 本地函数声明 */
+FORWARD _PROTOTYPE( void power_test, (void) );
 FORWARD _PROTOTYPE(  void clock_test, (void) );
+FORWARD _PROTOTYPE( void tty_test, (void) );
 
 
 /*===========================================================================*
@@ -30,14 +33,85 @@ PUBLIC void test_task(void){
      * 当然了，你可以把一个功能的多个测试封装到一个函数里，然
      * 后在这里调用，封装的函数放在本文件是一个不错的选择。
      */
-    ok_print("Test task", "START TEST");
+//    ok_print("Test task", "START TEST");
 
     /* 好的，我们的单元测试代码从这里开始！ */
-    clock_test();
 
-    ok_print("Test task", "TEST PASS");
+    /* 电源模块测试 */
+//    power_test();
+
+    /* 时钟模块测试 */
+//    clock_test();
+
+    /* 终端任务模块测试 */
+//    tty_test();
+
+//    ok_print("Test task", "TEST PASS");
     /* 好了，现在可以阻塞自己了，不然系统将找不到运行下去的理由 */
     receive(ANY, &msg);
+}
+
+/*===========================================================================*
+ *				tty_test				     *
+ *			  终端任务模块测试
+ *===========================================================================*/
+PRIVATE void tty_test(void){
+    int status;
+    /* 测试终端打开 */
+    msg.type = DEVICE_OPEN;
+    status = send_receive(TTY_TASK, &msg);
+    if(status == OK){
+        printf("device open success: %d\n", msg.type);
+    } else {
+        printf("device open failed.\n");
+    }
+
+    /* 测试终端读取数据 */
+    msg.type = DEVICE_READ;
+    status = send_receive(TTY_TASK, &msg);
+    if(status == OK){
+        printf("device read success: %d\n", msg.type);
+    } else {
+        printf("device read failed.\n");
+    }
+
+    /* 测试终端写入数据 */
+    msg.type = DEVICE_WRITE;
+    status = send_receive(TTY_TASK, &msg);
+    if(status == OK){
+        printf("device write success: %d\n", msg.type);
+    } else {
+        printf("device write failed.\n");
+    }
+
+
+    /* 测试终端io控制 */
+    msg.type = DEVICE_IOCTL;
+    status = send_receive(TTY_TASK, &msg);
+    if(status == OK){
+        printf("device ioctl success: %d\n", msg.type);
+    } else {
+        printf("device ioctl failed.\n");
+    }
+
+    /* 测试终端关闭 */
+    msg.type = DEVICE_CLOSE;
+    status = send_receive(TTY_TASK, &msg);
+    if(status == OK){
+        printf("device close success: %d\n", msg.type);
+    } else {
+        printf("device close failed.\n");
+    }
+
+    /* 测试取消终端正在处理的任务 */
+    msg.type = CANCEL;
+    status = send_receive(TTY_TASK, &msg);
+    if(status == OK){
+        printf("device cancel success: %d\n", msg.type);
+    } else {
+        printf("device cancel failed.\n");
+    }
+
 }
 
 /*===========================================================================*
@@ -61,6 +135,7 @@ PRIVATE void clock_test(void){
     } else {
         printf("get uptime failed.\n");
     }
+
     /* 测试设置时钟运行时间（s）
      * 期望：status = OK
      */
@@ -72,6 +147,7 @@ PRIVATE void clock_test(void){
     } else {
         printf("set time failed.\n");
     }
+
     /* 测试得到时钟运行时间（s）
      * 期望：打印>get time success: 5
      */
@@ -82,6 +158,7 @@ PRIVATE void clock_test(void){
     } else {
         printf("get time failed.\n");
     }
+
     /* 测试闹钟功能好不好使
      * 期望：alarm_handler在3s后被调用
      */
@@ -96,6 +173,26 @@ PRIVATE void clock_test(void){
         printf("set alarm failed.\n");
     }
 
+    /* 测试给时钟任务一个错误的消息
+     * 期望：Flyanx系统宕机报错
+     */
+//    msg.type = 66;
+//    status = send(CLOCK_TASK, &msg);
+
+}
+
+/*===========================================================================*
+ *				power_test				     *
+ *			    电源模块测试
+ *===========================================================================*/
+PRIVATE void power_test(void){
+    /* 测试：内核发生故障 */
+//    panic("hello panic", NO_NUM);
+
+    /* 测试关机，即关闭电源 */
+//    printf("The system will shutdown after 3s...\n");
+//    milli_delay(second2ms(3));
+//    wreboot(RBT_HALT);
 }
 
 

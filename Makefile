@@ -52,8 +52,8 @@ DASMFlags		= -u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
 
 # 依赖关系
 a = $(sk)/kernel.h $h/config.h $h/const.h $h/type.h $h/syslib.h \
-    $s/types.h $i/string.h $i/limits.h $i/errno.h \
-    $(sk)/const.h $(sk)/type.h $(sk)/prototype.h $(sk)/global.h
+    $s/types.h $i/string.h $i/limits.h $i/errno.h $(sk)/const.h \
+    $(sk)/type.h $(sk)/prototype.h $(sk)/global.h
 
 lib = $i/lib.h $h/common.h $h/syslib.h
 
@@ -154,7 +154,6 @@ $(tk)/i8259.o: $(sk)/i8259.c
 $(tk)/main.o: $a
 $(tk)/main.o: $i/unistd.h
 $(tk)/main.o: $i/signal.h
-$(tk)/main.o: $i/a.out.h
 $(tk)/main.o: $h/callnr.h
 $(tk)/main.o: $h/common.h
 $(tk)/main.o: $(sk)/process.h

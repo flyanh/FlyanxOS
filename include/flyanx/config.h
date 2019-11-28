@@ -46,14 +46,24 @@
 
 /* 如果在不在32位机器上编译，报错 */
 #if _WORD_SIZE != 4
-#error 对不起，Flyanx暂时只支持32位机器！
+#error 对不起，Flyanx暂时只支持32位编译器和32位机器！
 #endif
+
+/* 引导参数相关信息
+ * 引导参数由加载程序存储，它们应该放在内核正在运行时也不应该去覆盖的地方，
+ * 因为内核可能随时使用它们。
+ */
+#define BOOT_PARAM_ADDR     0x700   /* 物理地址 */
+#define BOOT_PARAM_MAGIC    0x3EA   /* 引导参数魔数 */
+#define BP_MAGIC            0
+#define BP_MEMOARY_SIZE     1
+#define BP_KERNEL_FILE      2
 
 /* 是否打开测试任务，这可以帮助我们进行开发，如果需要编译一个发行版，请关闭它 */
 #define OPEN_TEST_TASK      1
 
 /* 进程表中的用户进程的槽数。 */
-#define NR_PROCS          0
+#define NR_PROCS          32
 
 /* 缓冲区高速缓存应尽可能地大。 */
 #if (MACHINE == IBM_PC && _WORD_SIZE == 2)

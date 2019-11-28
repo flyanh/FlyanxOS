@@ -86,6 +86,12 @@ typedef struct tss_s
 #define IDT_SIZE (INT_VECTOR_IRQ8 + 8)	    /* 只取最高的向量 */
 #define LDT_SIZE         4	                /* 包含CS, DS和两个额外的；否则应为2 */
 
+/* LDT索引 */
+#define LDT_TEXT_INDEX        0       /* cs对应的正文段 */
+#define LDT_DATA_INDEX        1       /* ds对应的数据段 */
+#define LDT_EX_0_INDEX        2       /* 拓展段1 */
+#define LDT_EX_1_INDEX        4       /* 拓展段2 */
+
 /*================================================================================================*/
 /* 固定的全局描述符。 */
 /*================================================================================================*/
@@ -164,6 +170,7 @@ typedef struct tss_s
 /*================================================================================================*/
 #define	DA_32			    0x4000	/* 32 位段			     */
 #define	DA_LIMIT_4K		    0x8000	/* 段界限粒度为 4K 字节	   */
+#define	LIMIT_4K_SHIFT	    12
 #define	DA_DPL0			    0x00	/* DPL = 0	内核级		    */
 #define	DA_DPL1			    0x20	/* DPL = 1				*/
 #define	DA_DPL2			    0x40	/* DPL = 2				*/
@@ -205,8 +212,5 @@ typedef struct tss_s
 #define	INT_VECTOR_PROTECTION		0xD
 #define	INT_VECTOR_PAGE_FAULT		0xE
 #define	INT_VECTOR_COPROC_ERR		0x10
-
-#define	INT_VECTOR_IRQ0				0x20
-#define	INT_VECTOR_IRQ8				0x28
 
 #endif //FLYANX_PROTECT_H

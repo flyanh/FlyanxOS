@@ -11,7 +11,6 @@
 global  send
 global  receive
 global  send_receive
-global  test_call
 
 extern	sys_call	        ; 系统调用函数
 

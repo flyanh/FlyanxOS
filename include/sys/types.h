@@ -67,15 +67,15 @@ typedef unsigned short bitchunk_t; /* 位图中的位集合 */
 
 typedef unsigned char   u8_t;	   /* 8位类型 == db */
 typedef unsigned short u16_t;	   /* 16位类型 == dw */
-typedef unsigned long  u32_t;	   /* 32位类型 == dd */
+typedef unsigned int   u32_t;	   /* 32位类型 == dd */
 
 typedef char            i8_t;      /* 8位有符号类型 */
 typedef short          i16_t;      /* 16位有符号类型 */
 typedef long           i32_t;      /* 32位有符号类型 */
 
-typedef u8_t           status_t;     /* 状态类型，只需要为0~N（没有负数）判断状态的类型 */
+typedef u8_t            bool;       /* 布尔值 */
 
-typedef struct { u32_t _[2]; } u64_t;
+typedef struct { u32_t _[2]; }  u64_t;
 
 /* The following types are needed because MINIX uses K&R style function
  * definitions (for maximum portability).  When a short, such as dev_t, is

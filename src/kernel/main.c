@@ -39,6 +39,7 @@ PUBLIC int main(){
      * 产生了一个中断，那么将会没有效果。
      */
     interrupt_init(1);
+    ttt = 0;
 
     /* 初始化内存空间
      * 初始化一个数组,该数组定义系统中每个可用内存块的地址和大小。和中断硬件的初始化一样,
@@ -71,10 +72,8 @@ PUBLIC int main(){
     u16_t ldt_selector = SELECTOR_LDT_FIRST;    /* LDT选择子 */
     u8_t		privilege;		/* CPU权限 */
     u8_t		rpl;			/* 段访问权限 */
-    int hdr_index;              /* a.out头的索引 */
-    struct exec exec_hdr;       /* a.out可执行文件头 */
     // 初始化进程表
-    for(t = -NR_TASKS; t <= LOW_USER;++t){
+    for(t = -NR_TASKS; t <= LOW_USER; ++t){
         proc = proc_addr(t);                /* t是进程插槽号 */
         p_task = &tasktab[t + NR_TASKS];    /* 得到任务 */
         strcpy(proc->name, p_task->name);	/* 进程名称 <-- 任务名称 */
@@ -87,37 +86,45 @@ PUBLIC int main(){
             /* 设置任务堆栈 */
             k_task_stack_base += p_task->stack_size;
             proc->regs.sp = k_task_stack_base;
-            /* 任务使用第一个a.out头 */
-            hdr_index = 0;
             /* 设置任务权限 */
             privilege = rpl = proc->priority = PROC_PRI_TASK;
+
+            /* 设置任务的LDT */
+            proc->ldt_selector = ldt_selector;
+            proc->ldt[LDT_TEXT_INDEX] = gdt[SELECTOR_KERNEL_CS >> 3];
+            proc->ldt[LDT_DATA_INDEX] = gdt[SELECTOR_KERNEL_DS >> 3];
+            /* 改变DPL */
+            proc->ldt[LDT_TEXT_INDEX].access = DA_C     | privilege << 5;
+            proc->ldt[LDT_DATA_INDEX].access = DA_DRW   | privilege << 5;
         } else {    /* 服务或用户进程 */
-            hdr_index = 1 + t;      /* MM、FS、FLY、ORIGIN的a.out头跟在内核后面 */
-            privilege = rpl = proc->priority;
+//            privilege = rpl = proc->priority = t < LOW_USER ? PROC_PRI_SERVER : PROC_PRI_USER;
+            privilege = rpl = proc->priority = PROC_PRI_USER;
+            /* 设置服务和用户进程的LDT */
+            vir_bytes kernel_base;
+            vir_bytes kernel_limit;
+            int rs = get_kernel_map(&kernel_base, &kernel_limit);
+            if(rs != OK) disp_str("get kernel map failed!\n");
+            init_seg_desc(&proc->ldt[LDT_TEXT_INDEX],
+                    0,  /* 入口点之前的字节对于服务或用户进程没有用（浪费），所以没关系 */
+                    (kernel_base + kernel_limit) >> LIMIT_4K_SHIFT,
+                    DA_32 | DA_LIMIT_4K | DA_C | privilege << 5
+            );
+            init_seg_desc(&proc->ldt[LDT_DATA_INDEX],
+                          0,  /* 入口点之前的字节对于服务或用户进程没有用（浪费），所以没关系 */
+                          (kernel_base + kernel_limit) >> LIMIT_4K_SHIFT,
+                          DA_32 | DA_LIMIT_4K | DA_DRW | privilege << 5
+            );
         }
 
-        // 设置进程的LDT
-        proc->ldt_selector = ldt_selector;
-        memcpy(&proc->ldt[0], &gdt[SELECTOR_KERNEL_CS >> 3], DESCRIPTOR_SIZE);
-        proc->ldt[0].access = DA_C | privilege << 5;    // 改变DPL
-        memcpy(&proc->ldt[1], &gdt[SELECTOR_KERNEL_DS >> 3], DESCRIPTOR_SIZE);
-        proc->ldt[1].access = DA_DRW | privilege << 5;  // 改变DPL
-
         /* 初始化寄存器值，上下文环境 */
-        proc->regs.cs   = (0 & SA_RPL_MASK & SA_TI_MASK) | SA_TIL | rpl;
-        proc->regs.ds	= (8 & SA_RPL_MASK & SA_TI_MASK) | SA_TIL | rpl;
-        proc->regs.es	= (8 & SA_RPL_MASK & SA_TI_MASK) | SA_TIL | rpl;
-        proc->regs.fs	= (8 & SA_RPL_MASK & SA_TI_MASK) | SA_TIL | rpl;
-        proc->regs.ss	= (8 & SA_RPL_MASK & SA_TI_MASK) | SA_TIL | rpl;
+        proc->regs.cs   = LDT_TEXT_INDEX << 3 | SA_TIL | rpl;
+        proc->regs.ds	=       /* 这里注意：ds es fs ss要相等，因为 */
+            proc->regs.es	=   /* C语言编译器看它们是等同的 */
+            proc->regs.fs	=
+            proc->regs.ss	= LDT_DATA_INDEX << 3 | SA_TIL | rpl;
         proc->regs.gs	= (SELECTOR_KERNEL_GS & SA_RPL_MASK) | rpl;
         proc->regs.pc   = (reg_t) p_task->initial_pc;
         proc->regs.psw = is_task_proc(proc) ? INIT_TASK_PSW : INIT_PSW;
-
-        /* 初始化服务器的堆栈指针，记下一个字。 */
-//        if(t > 0){
-//            proc->regs.sp = (proc->map[STACK].virtual + proc->map[STACK].length) << CLICK_SHIFT;
-//            proc->regs.sp -= sizeof(reg_t);
-//        }
 
         /* 如果进程不是IDLE或HARDWARE，就调用lock_ready()
          *
@@ -125,8 +132,9 @@ PUBLIC int main(){
          * IDLE是一个空循环,在系统中无其他进程就绪时就运行它。
          * HARDWARE进程用于计费-它记录中断服务所用的时间。
          */
-        if (!is_idle_hardware(t)) lock_ready(proc);	    /* 闲置任务, 硬件任务从不就绪，除非没有任何进程可以运行才会就绪闲置任务 */
-        proc->flags = 0;        /* 进程刚初始化，处于不堵塞状态，所以标志值是全0 */
+//        if (!is_idle_hardware(t)) lock_ready(proc);	    /* 闲置任务, 硬件任务从不就绪，除非没有任何进程可以运行才会就绪闲置任务 */
+        if(!is_idle_hardware(t) && t < FS_PROC_NR) lock_ready(proc);
+        proc->flags = 0;            /* 进程刚初始化，处于不堵塞状态，所以标志值是全0 */
 
         ldt_selector += DESCRIPTOR_SIZE;
     }
@@ -139,6 +147,7 @@ PUBLIC int main(){
     bill_proc = proc_addr(IDLE_TASK);
     proc_addr(IDLE_TASK)->priority = PROC_PRI_IDLE;
     lock_hunter();  /* 让我们看看，有什么进程那么幸运的被抓出来执行 */
+
 
     /* 最后,main的工作至此结束。在许多C程序中main是一个循环,但在Flyanx核心中,
      * 它的工作到初始化结束为止。restart的调用将启动第一个任务,控制权从此不再返回到main。
@@ -170,7 +179,7 @@ int errno;
         if(errno != NO_NUM) printf(" %d", errno);
         printf("\n");
     }
-    wreboot(RBT_PANIC);
+    wreboot(RBT_REBOOT);
 }
 
 /*===========================================================================*
@@ -205,6 +214,19 @@ PUBLIC void ok_print(char* msg, char* ok){
         printf(" ");
     }
     printf("[ %s ]", ok);
+}
+
+/*===========================================================================*
+ *                     first_up                          *
+ *                   第一个用户进程
+ *===========================================================================*/
+PUBLIC void first_up(void){
+    /* 本例程用于测试第一个运行在用户特权级别的进程
+     * 如果它成功了，那么flyanx将进入一个新的阶段。
+     */
+    ttt = 1;
+
+    while (1){  }
 }
 
 

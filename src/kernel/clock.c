@@ -226,10 +226,10 @@ PRIVATE void do_set_alarm(Message *m_ptr) {
 PRIVATE void do_set_sync_alarm(Message *m_ptr) {
     /* 暂时不打算实现同步闹钟，
      * 同步闹钟主要是解决到有了网络后各种应用间的同步问题，
-     * 但是网络我们暂时也没有支持，所以现在这个功能暂时搁
-     * 置。
+     * 但是网络我们暂时没有编写支持，所以现在这个功能暂时
+     * 搁置。
      */
-    panic("Clock task sync alarm not yet supported.", msg.type);  /* 当然了，获取到不识别的操作就宕机 */
+    panic("Clock task sync alarm not yet supported.", msg.type);  /* 当然了，提示不支持并宕机 */
 }
 
 /*===========================================================================*
@@ -368,7 +368,7 @@ int irq;
          return ENABLE;  /* 使其再能发生时钟中断 */
      }
 
-     /* 毫秒级休眠函数退出闹钟响了？为FALSE表示毫秒级休眠函数处于退出状态 */
+     /* 毫秒级休眠函数退出闹钟响了？ */
      if(milli_delay_alarm != FALSE && milli_delay_alarm <= now){
          /* ok，现在毫秒级休眠函数需要退出了 */
          milli_delay_alarm = FALSE;
