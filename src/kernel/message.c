@@ -21,6 +21,7 @@
 #include "kernel.h"
 #include <flyanx/callnr.h>
 #include <flyanx/common.h>
+#include "protect.h"
 #include "process.h"
 #include "message.h"
 
@@ -29,8 +30,8 @@
 /* 复制消息的宏，就是简单的调用了phys_copy例程，它通过物理地址复制，
  * 速度较慢。后期将会改进，因为现在还未实现物理块。
  */
-#define CopyMsg(src, src_msg, dest_msg) \
-    src_msg->source = src; phys_copy(vir2phys(src_msg), vir2phys(dest_msg), MESSAGE_SIZE)
+#define CopyMsg(src, src_msg, dest,  dest_msg) src_msg->source = src; \
+    phys_copy(proc_vir2phys(proc_addr(src), (vir_bytes)src_msg), proc_vir2phys(proc_addr(dest), (vir_bytes)dest_msg), MESSAGE_SIZE)
 #endif
 
 FORWARD _PROTOTYPE( void copy_msg, (int src, Message *src_msg, Message *dest_msg) );
@@ -53,12 +54,14 @@ Message *message_ptr;          /* 消息 */
     vir_bytes v_bytes;      /* 消息缓冲区指针的虚拟地址 */
     vir_clicks vlo, vhi;    /* 虚拟内存块包含要发送的消息 */
 
-    /* 如果试图发送给消息给系统服务，返回错误，这是禁止的操作 */
+    /* 如果用户试图绕过系统服务直接发送消息给系统任务，返回错误，这是禁止的操作 */
     if(is_user_proc(caller_ptr) && !is_sys_server(dest)) return ERROR_BAD_DEST;
     dest_proc = proc_addr(dest);       /* 得到目标进程实例 */
 
     /* 如果目标进程已经不是一个活跃进程，出错返回 */
     if(is_empty_proc(dest_proc)) return ERROR_BAD_DEST;
+
+//    printf("%s want to send message to %s\n", caller_ptr->name, dest_proc->name);
 
     /* 检查消息位置@TODO */
 
@@ -86,7 +89,7 @@ Message *message_ptr;          /* 消息 */
     if((dest_proc->flags & (RECEIVING | SENDING)) == RECEIVING  /* RECEIVING|SENDING是为了保证对方不处于SEND_REC调用上 */
         && (dest_proc->get_form == ANY || dest_proc->get_form == caller_ptr->nr)){
         /* 调用CopyMsg复制消息给对方 */
-        CopyMsg(caller_ptr->nr, message_ptr, dest_proc->message);
+        CopyMsg(caller_ptr->nr, message_ptr, dest_proc->nr, dest_proc->message);
         /* 好了，拿到了消息，解除对方接收消息堵塞的状态 */
         dest_proc->flags &= ~RECEIVING;
 
@@ -138,6 +141,13 @@ PUBLIC int flyanx_receive(
     register Process *sender_proc;
     register Process *previous_proc;
 
+//    if(src == ANY){
+//        printf("%s want to receive message from %s\n", caller_ptr->name, "ANY ONE");
+//    } else {
+//        printf("%s want to receive message from %d\n", caller_ptr->name, src);
+//    }
+
+
     /* 检查要有没有要发消息过来的对方且符合我的要求 */
     if(!(caller_ptr->flags & SENDING)){ /* 只要我没处于发送消息状态就行 */
         /* 遍历查看给我发消息的排队队列 */
@@ -145,7 +155,7 @@ PUBLIC int flyanx_receive(
             previous_proc = sender_proc, sender_proc = sender_proc->caller_link){
             /* 我如果接收任何人的消息 或者 找到了我期望发送消息给我的对方，那么可以拿到对方的消息了 */
             if(src == ANY || src == sender_proc->nr){
-                CopyMsg(sender_proc->nr, sender_proc->message, message_ptr);
+                CopyMsg(sender_proc->nr, sender_proc->message, src,  message_ptr);
                 if(sender_proc == caller_ptr->caller_head){
                     /* 如果对方是排队队列的第一个（头），那么排队队列的头更改为下一个 */
                     caller_ptr->caller_head = sender_proc->caller_link;
@@ -194,6 +204,41 @@ PUBLIC int flyanx_receive(
     return OK;
 }
 
+/*===========================================================================*
+ *				proc_vir2phys				     *
+ *			进程的虚拟地址转化为物理地址
+ *===========================================================================*/
+PUBLIC phys_bytes proc_vir2phys(Process *proc, vir_bytes vir){
+    /* 这个函数和vir2phys宏的区别就是，本例程的虚拟地址是针对于
+     * 一个进程的段地址转换的，而vir2phys只能转换内核和任务的物
+     * 理地址。
+     */
+
+    /* 如果该进程是系统任务，那么它的数据段就是内核数据段，
+     * 所以直接用vir2phys宏去计算即可
+     */
+    if(proc->priority == PROC_PRI_TASK) {
+        return vir2phys(vir);
+    }
+
+    /* ===== 进程是服务或用户进程，需要我们计算一下 ===== */
+
+    /* 首先得到该进程数据段的物理地址 */
+    phys_bytes seg_base = ldt_seg_phys(proc, DATA);
+    /* 该虚拟地址对应的物理地址 = 进程段地址 + 虚拟地址 */
+    phys_bytes vir_phys = seg_base + vir;
+
+    return vir_phys;
+}
+
+/*===========================================================================*
+ *				ldt_seg_phys				     *
+ *		得到一个进程本地段描述符的物理地址
+ *===========================================================================*/
+PUBLIC phys_bytes ldt_seg_phys(Process *proc, int seg_index){
+    SegDescriptor *d = &proc->ldt[seg_index];
+    return d->base_high << 24 | d->base_middle << 16 | d->base_low;
+}
 
 /*===========================================================================*
  *				sys_call				     *

@@ -61,9 +61,7 @@
 #define HAVE_SCATTERED_IO  1	/* scattered I/O is now standard > 分散的I/O现在是标准配置 */
 
 /* 功能宏 */
-/**
- * 取两数最大最小值，用简单的宏来实现
- **/
+/* 取两数最大最小值，用简单的宏来实现 */
 #define MAX(a, b)   ((a) > (b) ? (a) : (b))
 #define MIN(a, b)   ((a) < (b) ? (a) : (b))
 

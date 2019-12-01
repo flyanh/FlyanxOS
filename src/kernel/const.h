@@ -97,6 +97,9 @@
 #define USER_QUEUE             2	/* 就绪的系统服务通过队列2调度 */
 #define NR_PROC_QUEUE          3	/* 调度队列的数量 */
 
+/* 在内核中，将printf的引用指向printk */
+#define printf printk
+
 /* 将内核空间中的地址转换为物理地址。这与umap(proc ptr, D, vir, sizeof(*vir))函数
  * 相同，但成本要低得多。
  */

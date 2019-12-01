@@ -8,8 +8,8 @@
  * 关于进程的头文件
  */
 
-#ifndef FLYANX_PROCESS_H
-#define FLYANX_PROCESS_H
+#ifndef _PROCESS_H
+#define _PROCESS_H
 
 /* 进程，也称进程表项 */
 typedef struct process_s {
@@ -34,7 +34,6 @@ typedef struct process_s {
      * 置位。
      */
     int flags;
-    MemoryMap map[NR_SEGS]; /* memory map ：内存映象 */
     pid_t pid;              /* 进程号，用户可见的 */
     int priority;           /* 权限分为(任务，服务，或用户进程) */
 
@@ -84,6 +83,10 @@ typedef struct process_s {
 #define SIG_PENDING	    0x10	/* keeps to-be-signalled proc from running */
 #define PROC_STOP		0x20	/* set when process is being traced */
 
+#define SYSTEM_PID      -0x3EA  /* 系统任务进程的id */
+#define SERVER_PID      -0x328  /* 系统服务器进程的id */
+
+
 /* 进程权限定义 */
 #define PROC_PRI_NONE	0	/* 插槽未使用 */
 #define PROC_PRI_TASK	1	/* 部分内核，即系统任务 */
@@ -117,9 +120,6 @@ typedef struct process_s {
  */
 #define proc_addr(n)      (p_process_addr + NR_TASKS)[(n)]  /* 得到进程的指针 */
 #define cproc_addr(n)     (&(process + NR_TASKS)[(n)])      /* 得到进程的地址 */
-#define proc_vir2phys(p, vir) \
-			  (((phys_bytes)(p)->map[DATA].virtual << CLICK_SHIFT) \
-							    + (vir_bytes) (vir))
 
 /* process.c文件所需要的两个函数，发送消息和接收消息，放在这是因为这两个函数不需要全部人都知道。 */
 _PROTOTYPE( int flyanx_send, (struct process_s *caller_ptr, int dest, struct message_s *message_ptr) );
@@ -147,5 +147,4 @@ EXTERN Process *bill_proc;
 EXTERN Process *ready_head[NR_PROC_QUEUE];
 EXTERN Process *ready_tail[NR_PROC_QUEUE];
 
-
-#endif //FLYANX_PROCESS_H
+#endif //_PROCESS_H

@@ -54,7 +54,7 @@ PRIVATE clock_t ticks;          /* 时钟运行的时间(滴答数)，也是开�
 PRIVATE time_t realtime;        /* 时钟运行的时间(s)，也是开机后时钟运行的时间 */
 PRIVATE time_t boot_time;       /* 系统启动时间(s) */
 PRIVATE clock_t next_alarm;     /* 下一个信号或闹钟发生的时刻，称之为任务闹钟 */
-PRIVATE Message msg;            /* 发送和接收的消息缓冲区 */
+PRIVATE Message msg_in;            /* 发送和接收的消息缓冲区 */
 PRIVATE int watchdog_proc;      /* 存放触发了喂狗动作的进程 */
 /* 看门狗，存放闹钟需要调用的函数数组 */
 PRIVATE WatchDog watch_dog[NR_TASKS + NR_PROCS];
@@ -96,10 +96,10 @@ PUBLIC void clock_task(){
     while (TRUE){
 
         /* 从外界得到一条消息 */
-        receive(ANY, &msg);
+        receive(ANY, &msg_in);
 
         /* 提取消息类型 */
-        mess_type = msg.type;
+        mess_type = msg_in.type;
 
         /* 已经得到用户发来的消息请求，现在开始校准时间，记得先锁住中断 */
         interrupt_lock();
@@ -113,16 +113,16 @@ PUBLIC void clock_task(){
             case HARD_INT:      do_clock_int();             break;      /* 时钟产生的硬件中断，强制，不能忽略  */
             case GET_UPTIME:    do_get_uptime();	        break;      /* 获取从启动开始后的时钟滴答数时间 */
             case GET_TIME:      do_get_time();              break;      /* 获取系统时间（时间戳） */
-            case SET_TIME:	    do_set_time(&msg);	        break;      /* 设置系统时间 */
-            case SET_ALARM:	    do_set_alarm(&msg);	        break;      /* 设置定时器 */
-            case SET_SYNC_ALARM:do_set_sync_alarm(&msg);    break;      /* 设置同步闹钟 */
-            default: panic("Clock task got bad message", msg.type);  /* 当然了，获取到不识别的操作就宕机 */
+            case SET_TIME:	    do_set_time(&msg_in);	        break;      /* 设置系统时间 */
+            case SET_ALARM:	    do_set_alarm(&msg_in);	        break;      /* 设置定时器 */
+            case SET_SYNC_ALARM:do_set_sync_alarm(&msg_in);    break;      /* 设置同步闹钟 */
+            default: panic("Clock task got bad message", msg_in.type);  /* 当然了，获取到不识别的操作就宕机 */
         }
 
         /* 完成工作，现在给出回复，硬件中断除外 */
-        msg.type = OK;
+        msg_in.type = OK;
         if(mess_type != HARD_INT){
-            send(msg.source, &msg);
+            send(msg_in.source, &msg_in);
         }
     }
 
@@ -176,7 +176,7 @@ PRIVATE void do_clock_int() {
  *			获取从启动开始后的时钟滴答数时间
  *===========================================================================*/
 PRIVATE void do_get_uptime() {
-    msg.CLOCK_TIME = ticks;       /* 将时间放到消息中 */
+    msg_in.CLOCK_TIME = ticks;       /* 将时间放到消息中 */
 }
 
 /*===========================================================================*
@@ -184,7 +184,7 @@ PRIVATE void do_get_uptime() {
  *			获取并返回当前时钟时间(以秒为单位)。
  *===========================================================================*/
 PRIVATE void do_get_time() {
-    msg.CLOCK_TIME = boot_time + realtime;  /* 系统时间 + 时钟真实时间 */
+    msg_in.CLOCK_TIME = boot_time + realtime;  /* 系统时间 + 时钟真实时间 */
 }
 
 /*===========================================================================*
@@ -212,7 +212,7 @@ PRIVATE void do_set_alarm(Message *m_ptr) {
                                              * 如果是用户进程，调用函数可以取空指针，就算给了也会被无视 */
     proc = proc_addr(proc_nr);          /* 得到进程实例 */
     /* 计算闹钟时间，并将其放入到即将回复的消息中| */
-    msg.SECONDS_LEFT = (proc->alarm == 0 ? 0 : (proc->alarm - ticks + (HZ - 1)) / HZ);
+    msg_in.SECONDS_LEFT = (proc->alarm == 0 ? 0 : (proc->alarm - ticks + (HZ - 1)) / HZ);
     /* 给系统任务的要调用的函数设置为0，代表以后用信号通知它 */
     if(!is_task_proc(proc)) func = 0;
     /* 公共的设置并启动闹钟例程：真正要去实现设置并启动闹钟的事务 */
@@ -229,7 +229,7 @@ PRIVATE void do_set_sync_alarm(Message *m_ptr) {
      * 但是网络我们暂时没有编写支持，所以现在这个功能暂时
      * 搁置。
      */
-    panic("Clock task sync alarm not yet supported.", msg.type);  /* 当然了，提示不支持并宕机 */
+    panic("Clock task sync alarm not yet supported.", msg_in.type);  /* 当然了，提示不支持并宕机 */
 }
 
 /*===========================================================================*

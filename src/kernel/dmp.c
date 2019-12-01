@@ -21,7 +21,7 @@ PUBLIC void proc_dmp(void)
     /* 为所有的进程显示基本的处理信息，包括在按下F1键时显示的内存使用信息。 */
 
     int t, proc_count = 0;
-    printf("\tprocess table information\n");
+    printf("\tprocess(all) information\n");
     printf("----------------------------------------------\n");
     printf("#\tpid\tname\t\tpriority\n");
     printf("----------------------------------------------\n");
@@ -50,6 +50,6 @@ PUBLIC void proc_dmp(void)
  *				map_dmp    				     *
  *===========================================================================*/
 PUBLIC void map_dmp(void){
-    printf("You computer's memory size is %uKB.\n", (bootParams.memory_size / (1024)) );
+
 }
 

@@ -30,6 +30,8 @@
  */
 /* 一个128字的小栈 */
 #define SMALL_STACK (128 * sizeof(char*))
+/* 这是一个普通进程堆栈大小，16KB */
+#define NORMAL_STACK (0x2000 * sizeof(char*))
 
 /* 终端任务栈大小  -17 */
 #define TTY_TASK_STASK      (3 * SMALL_STACK)
@@ -43,43 +45,51 @@
 #endif
 
 /* 时钟任务栈大小 */
-#define CLOCK_TASK_STACK SMALL_STACK
-
-/* 测试任务堆栈大小 */
-#define TEST_TASK_STACK  SMALL_STACK
-/* 虚拟硬件任务，使用内核堆栈 */
+#define CLOCK_TASK_STACK    SMALL_STACK
+/* 系统任务，内核堆栈 */
+#define SYS_TASK_STACK      SMALL_STACK
+/* 虚拟硬件任务，使用内核堆栈，但它没有空间 */
 #define	HARDWARE_STACK	    0
+/* 内存管理器服务，使用内核堆栈 */
+#define MM_STACK            NORMAL_STACK
+/* 文件系统服务，使用内核堆栈 */
+#define FS_STACK            NORMAL_STACK
+/* 飞彦扩展器服务，使用内核堆栈 */
+#define FLY_STACK           NORMAL_STACK
+/* 起源进程，使用内核堆栈 */
+#define ORIGIN_STACK        NORMAL_STACK
+
+
 
 /* 所有系统任务的栈空间大小 */
-#define TOT_TASK_STACK_SPACE    (IDLE_TASK_STACK + CLOCK_TASK_STACK)
+#define TOT_TASK_STACK_SPACE    (TTY_TASK_STASK + IDLE_TASK_STACK + CLOCK_TASK_STACK + \
+                                 MM_STACK + FS_STACK + FLY_STACK + ORIGIN_STACK)
 
 /* 为系统任务表的所有表象分配空间 */
 PUBLIC TaskTab tasktab[] = {
         /* 终端任务，必须存在 */
-        { tty_task, TTY_TASK_STASK, "TTY_TASK"  },
+        { &tty_task, TTY_TASK_STASK, "TTY_TASK"  },
 
         /* 闲置任务 */
-        { idle_task, IDLE_TASK_STACK, "IDLE_TASK" },
+        { &idle_task, IDLE_TASK_STACK, "IDLE_TASK" },
 
         /* 时钟任务 */
-        { clock_task, CLOCK_TASK_STACK, "CLOCK_TASK" },
+        { &clock_task, CLOCK_TASK_STACK, "CLOCK_TASK" },
 
-#if OPEN_TEST_TASK == 1     /* 开启了测试任务 */
-        /* 系统测试任务 */
-        { test_task, TEST_TASK_STACK, "TEST_TASK" },
-#endif
+        /* 系统任务 */
+        { &system_task, SYS_TASK_STACK, "SYS_TASK" },
 
         /* 硬件任务，没有任何数据和正文，占个位置 - 用作判断硬件中断 */
         { 0, HARDWARE_STACK, "HARDWARE" },
 
         /* 内存管理器 */
-        { first_up,			SMALL_STACK,		"MM"		},
+        { &mm_main, MM_STACK, "MM"		},
         /* 文件系统 */
-        { 0,			0,		"FS"		},
+        { &fs_main, FS_STACK, "FS"		},
         /* 飞彦扩展管理器 */
-        { 0,			0,		"FLY"		},
+        { &fly_main, FLY_STACK, "FLY"		},
         /* 起源进程 */
-        { 0,			0,		"ORIGIN"		},
+        { &origin_main, ORIGIN_STACK, "ORIGIN"		},
 };
 
 /* 所有系统任务堆栈的堆栈空间。 （声明为（char *）使其对齐。） */

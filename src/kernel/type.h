@@ -28,12 +28,6 @@ typedef struct memory_s {
 
 } Memory;
 
-/* 启动参数 */
-typedef struct boot_params_s {
-    u32_t memory_size;          /* 内存大小 */
-    phys_bytes kernel_file;     /* 内核所在绝对物理地址 */
-} BootParams;
-
 #if (CHIP == INTEL)
 /* 端口数据类型，用于访问I/O端口 */
 typedef unsigned port_t;

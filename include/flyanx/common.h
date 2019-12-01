@@ -25,8 +25,6 @@
                          */
 
 /* 任务号，函数索引号(消息类型)和回复代码，将在下面开始定义 */
-#if OPEN_TEST_TASK == 1     /* 开启了测试任务 */
-
 #define TTY_TASK                -5  /* 终端I/O任务 */
 #	define CANCEL               0	/* 强制取消任务的一般要求 */
 #	define HARD_INT             2	/* 所有硬件中断的索引代码 */
@@ -54,41 +52,13 @@
 #	define REAL_TIME        1	/* 时钟任务的回复代码，用于告诉请求者：这是一个真实时间 */
 #	define CLOCK_INT   HARD_INT /* 此代码仅由同步闹钟任务发送，用来请求一个同步闹钟 */
 
-#define TEST_TASK           -2      /* 测试任务：仅仅在开发中将其打开 */
-#define HARDWARE            -1	    /* 用作中断生成消息的源 */
-
-#else       /* 关闭测试任务 */
-
-#define TTY_TASK            -4  /* 终端I/O任务 */
-#	define CANCEL           0	/* general req to force a task to cancel */
-#	define HARD_INT         2	/* fcn code for all hardware interrupts */
-#	define DEV_READ	        3	/* fcn code for reading from tty */
-#	define DEV_WRITE        4	/* fcn code for writing to tty */
-#	define DEV_IOCTL        5	/* fcn code for ioctl */
-#	define DEV_OPEN         6	/* fcn code for opening tty */
-#	define DEV_CLOSE        7	/* fcn code for closing tty */
-#	define DEV_SCATTER      8	/* fcn code for writing from a vector */
-#	define DEV_GATHER       9	/* fcn code for reading into a vector */
-#	define TTY_SETPGRP      10	/* fcn code for setpgroup */
-#	define TTY_EXIT	        11	/* a process group leader has exited */
-#	define SUSPEND	        -998/* used in interrupts when tty has no data */
-
-//#define IDLE_TASK           -6  /* 闲置任务的进程插槽号 */
-#define IDLE_TASK           -3  /* 闲置任务的进程插槽号 */
-
-
-#define CLOCK_TASK          -2  /* 时钟任务 */
-#	define SET_ALARM        1	/* 时钟功能索引号，设置闹钟 */
-#	define GET_TIME	        3	/* 时钟功能索引号，获得真实时间（秒） */
-#	define SET_TIME	        4	/* 时钟功能索引号，设置真实时间（秒） */
-#	define GET_UPTIME       5	/* 时钟功能索引号，获取时钟的运行时间（滴答） */
-#	define SET_SYNC_ALARM   6	/* 时钟功能索引号，设置同步闹钟 */
-#	define REAL_TIME        1	/* 时钟任务的回复代码，用于告诉请求者：这是一个真实时间 */
-#	define CLOCK_INT   HARD_INT /* 此代码仅由同步闹钟任务发送，用来请求一个同步闹钟 */
+#define SYS_TASK            -2  /* 系统任务，用于服务器跟内部通信获得系统内部功能 */
+#	define SYS_EXIT         1   /* 系统功能索引代码，sys_exit(parent, proc) */
+#   define SYS_GET_SP       2   /* 系统功能索引代码，sys_sp(proc, &new_sp) */
+#   define SYS_FORK         3   /* 系统功能索引代码，sys_fork(parent, child, pid) */
+#	define SYS_PUTS         4	/* 系统功能索引代码，sys_puts(count, buf) */
 
 #define HARDWARE            -1	    /* 用作中断生成消息的源 */
-
-#endif /* OPEN_TEST_TASK == 1 */
 
 /* 块设备和字符设备任务消息中使用的消息字段名称。 */
 #define DEVICE          m2_i1	/* 主-次设备号 */

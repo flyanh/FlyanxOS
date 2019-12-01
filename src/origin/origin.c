@@ -5,9 +5,27 @@
  * QQ-Group:909830414
  * gitee: https://gitee.com/flyanh/
  *
+ * 起源程序，这是操作系统的第一个用户程序。
+ * 这个程序成为操作系统的一个运行进程后，操作系统以后将会使用它来创建新的进程
+ * 分支，即进行fork操作。所以这个进程在只需要做一些简单的工作就可以退出了，退
+ * 出后，它将会称为一个僵尸进程，但是不会被操作系统清理，它就默默的留在那里等
+ * 待操作系统使用它fork新的程序。
  */
+#include <sys/types.h>
+//#include <sys/wait.h>
+//#include <time.h>
+//#include <stdlib.h>
+#include <stdio.h>
+#include <flyanx/type.h>
+#include <flyanx/common.h>
+#include <flyanx/syslib.h>
 
-int main(void){
+/*===========================================================================*
+ *                            origin_main                                        *
+ *                            起源程序主函数             *
+ *===========================================================================*/
+void origin_main(void){
 
+    while (1){ }
 }
 

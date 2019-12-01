@@ -17,11 +17,11 @@
 #include <sys/types.h>
 #endif
 
-/* 虚拟内存块，一个块在INTEL的MINIX中是256个字节 */
+/* 虚拟内存块，一个块在INTEL的Flyanx中是256个字节 */
 typedef unsigned int vir_clicks;
 /* 物理地址（字节长度） */
 typedef unsigned long phys_bytes;
-/* 物理内存块 */
+/* 物理内存块，一个块在INTEL的Flyanx中是256个字节 */
 typedef unsigned int phys_clicks;
 
 #if (CHIP == INTEL)
@@ -59,6 +59,12 @@ typedef struct message_s{
         mess_union6 m_u6;
     } m_u;
 } Message;
+
+/* 启动参数 */
+typedef struct boot_params_s {
+    u32_t memory_size;          /* 内存大小 */
+    phys_bytes kernel_file;     /* 内核所在绝对物理地址 */
+} BootParams;
 
 /* 内存映像（映射）结构体定义
  *

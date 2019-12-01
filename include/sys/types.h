@@ -13,8 +13,8 @@
  * 标准的规定。这是“保留后缀”的一个例子,而且“_t”不用于非数据类型的其他任何符号名。
  */
 
-#ifndef _FLYANX_TYPES_H
-#define _FLYANX_TYPES_H
+#ifndef _TYPES_H
+#define _TYPES_H
 
 #ifndef _ANSI_H
 #include <ansi.h>
@@ -123,4 +123,4 @@ typedef int             Mode_t;
 /* 信号处理程序类型，例如SIG_IGN */
 typedef void _PROTOTYPE( (*sighandler_t), (int) );
 
-#endif //_FLYANX_TYPES_H
+#endif //_TYPES_H

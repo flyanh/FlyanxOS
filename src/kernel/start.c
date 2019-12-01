@@ -34,8 +34,8 @@ PUBLIC void cstart(void)
     /* 建立CPU的保护机制和中断表。 */
     protect_init();
 
-     /* 得到引导（启动）参数 */
-     get_boot_params(&bootParams);
+    /* 得到引导（启动）参数 */
+    get_boot_params(&bootParams);
 
     /* 根据引导参数确定机器的各种信息：显示器的型号、内存大小、机器类型、处理器操作模式
      * (实模式还是保护模式)，以及是否可能返回到引导监控程序等。这些所有的信息都保存在适

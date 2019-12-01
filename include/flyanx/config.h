@@ -59,9 +59,6 @@
 #define BP_MEMOARY_SIZE     1
 #define BP_KERNEL_FILE      2
 
-/* 是否打开测试任务，这可以帮助我们进行开发，如果需要编译一个发行版，请关闭它 */
-#define OPEN_TEST_TASK      1
-
 /* 进程表中的用户进程的槽数。 */
 #define NR_PROCS          32
 

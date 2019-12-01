@@ -11,6 +11,10 @@
 #ifndef _STDIO_H
 #define _STDIO_H
 
+#ifndef _ANSI_H
+#include <ansi.h>
+#endif
 
+_PROTOTYPE( int printf, (const char *_fmt, ...)				);
 
 #endif //STDIO_H

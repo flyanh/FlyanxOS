@@ -42,7 +42,6 @@ _PROTOTYPE( void panic, (const char *msg, int errno)				);
 _PROTOTYPE(void raw_clear_screen, (void) );
 _PROTOTYPE( void idle_test_task, (void) );
 _PROTOTYPE( void ok_print, (char* msg, char* ok) );
-_PROTOTYPE( void first_up, (void) );
 
 /*================================================================================================*/
 /* protect.c */
@@ -51,12 +50,14 @@ _PROTOTYPE( void protect_init, (void) );
 _PROTOTYPE( phys_bytes seg2phys, (U16_t seg) );
 _PROTOTYPE( void init_seg_desc,
         (struct seg_descriptor_s *p_desc, vir_bytes base, vir_bytes limit, u16_t attribute) );
-_PROTOTYPE( void phys2seg, (u16_t *seg, vir_bytes *off, phys_bytes phys) );
+_PROTOTYPE( void phys2seg, (vir_bytes *seg, vir_bytes *off, phys_bytes phys) );
 
 /*================================================================================================*/
 /* message.c */
 /*================================================================================================*/
 _PROTOTYPE( int sys_call, (int function, int src_dest, struct message_s *message_ptr) );
+_PROTOTYPE( phys_bytes proc_vir2phys, (struct process_s *proc, vir_bytes vir) );
+_PROTOTYPE( phys_bytes ldt_seg_phys, (struct process_s *proc, int seg_index) );
 
 /*================================================================================================*/
 /* clock.c */
@@ -81,7 +82,8 @@ _PROTOTYPE( void tty_reply, (int code, int reply_dest, int proc_nr, int status) 
 /* console.c */
 /*================================================================================================*/
 _PROTOTYPE( void console_init, (struct tty_s *tty) );
-_PROTOTYPE( void putk, (int ch) );
+_PROTOTYPE( void k_putk, (int ch) );
+_PROTOTYPE( void printk, (const char *fmt, ...) );
 _PROTOTYPE( void toggle_scroll, (void) );
 _PROTOTYPE( void console_stop, (void) );
 _PROTOTYPE( void switch_to, (int line) );
@@ -122,6 +124,8 @@ _PROTOTYPE( int spurious_irq, (int ) );
 /*================================================================================================*/
 /* kernel_386_lib.asm  */
 /*================================================================================================*/
+_PROTOTYPE(void disp_str, (char* string));                      /* 显示一个字符串 */
+_PROTOTYPE(void disp_color_str, (char *string, int color));     /* 显示一个带颜色的字符串 */
 _PROTOTYPE( void phys_copy, (phys_bytes source, phys_bytes dest, phys_bytes count) );
 _PROTOTYPE( void out_byte, (port_t port, U8_t value) );
 _PROTOTYPE( U8_t in_byte, (port_t port) );
@@ -136,12 +140,14 @@ _PROTOTYPE( void reset, (void) );
 
 /*================================================================================================*/
 /* system.c  */
-/*================================================================================================*/
+/*====================================================seg_index============================================*/
+_PROTOTYPE( void system_task, (void) );
+_PROTOTYPE( int vir_copy, (int src_proc, vir_bytes src_vir,
+        int dest_proc, vir_bytes dest_vir, vir_bytes bytes) );
+_PROTOTYPE( phys_bytes umap, (struct process_s *proc, int seg_index,
+        vir_bytes vir_addr, vir_bytes bytes) );
 
-/*================================================================================================*/
-/* test.c  */
-/*================================================================================================*/
-_PROTOTYPE( void test_task, (void) );
+
 
 /*================================================================================================*/
 /* table.c */
@@ -164,7 +170,7 @@ _PROTOTYPE( void map_dmp, (void) );
 /* misc.c */
 /*================================================================================================*/
 _PROTOTYPE( void memory_init, (void) );
-_PROTOTYPE( int get_kernel_map, (vir_bytes *base, vir_bytes *limit) );
+_PROTOTYPE( int get_kernel_map, (phys_clicks *base, phys_clicks *limit) );
 
 /*================================================================================================*/
 /*  硬件中断处理程序。 */
@@ -211,5 +217,15 @@ _PROTOTYPE( void	stack_exception, (void) );
 _PROTOTYPE( void	general_protection, (void) );
 _PROTOTYPE( void	page_fault, (void) );
 _PROTOTYPE( void	copr_error, (void) );
+
+/*================================================================================================*/
+/* 内存管理器、文件系统、飞彦扩展器、起源进程 */
+/*================================================================================================*/
+_PROTOTYPE( void mm_main, (void) );
+_PROTOTYPE( void fs_main, (void) );
+_PROTOTYPE( void fly_main, (void) );
+_PROTOTYPE( void origin_main, (void) );
+
+
 
 #endif //FLYANX_PROTOTYPE_H

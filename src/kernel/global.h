@@ -20,7 +20,8 @@
 /* 内核内存 */
 EXTERN phys_bytes code_base;	/* 内核代码段基地址 */
 EXTERN phys_bytes data_base;	/* 内核数据段基地址 */
-EXTERN int   ttt;
+EXTERN phys_clicks kernel_base; /* 内核所在基地址 */
+EXTERN phys_clicks kernel_limit;/* 内核界限 */
 
 /* GDT 和 IDT 以及显示位置 */
 EXTERN u16_t display_position;       /* 256显示模式下，文字显示位置，注意：这不是光标，

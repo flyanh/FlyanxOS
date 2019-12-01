@@ -125,7 +125,7 @@ int task;           /* 要开始的任务号 */
  *				     hunter   				     *
  *				     狩猎进程以用下次执行
  *===========================================================================*/
-//bool first = TRUE;
+bool first = TRUE;
 PRIVATE void hunter(){
     /* 从进程表中抓出一个作为下次运行的进程
      *
@@ -140,9 +140,9 @@ PRIVATE void hunter(){
      */
     register Process *prey;      /* 准备运行的进程 */
 
-//    if(first){
-//        first = FALSE;
-//    }
+    if(first){
+        first = FALSE;
+    }
 
     /* 就绪任务进程队列使我们狩猎的第一个目标 */
     if( (prey = ready_head[TASK_QUEUE]) != NIL_PROC){

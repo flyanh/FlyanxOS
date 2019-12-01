@@ -110,39 +110,22 @@ PUBLIC void tty_task(void){
 
     /* 显示Flyanx启动信息
      * 现在已经有可以交互的终端任务了，所以我们打印系统启动信息。
-     * 虽然这里看到的是调用printf，但在编译时使用了把对printf库例程的调用转换为对printk的调用的宏。
-     * printk使用了控制台驱动程序中的一个叫作putk的例程，所以不涉及到文件系统。这条消息只发往主控制
+     * 虽然这里看到的是调用printf，但在const.h里已经用宏把对printf库例程的调用转换为对printk的调用。
+     * printk使用了控制台驱动程序中的一个叫作k_putk的例程，所以不涉及到文件系统。这条消息只发往主控制
      * 台显示器，不能被重定向。
      */
-//    printf("Flyanx %s.%s  Copyright 2019 flyan@Chenu, Inc.\n", OS_RELEASE, OS_VERSION);
-//    printf("You computer's memory size is %uKB, ", (bootParams.memory_size / (1024)) );
-//#if (CHIP == INTEL)
-//    /* 运行在实模式还是16/32位保护模式下? */
-//#if _WORD_SIZE == 4
-//    printf("executing in 32-bit protected mode.\n\n");
-//#else
-//    printf("executing in %s mode\n\n",
-//           protected_mode ? "16-bit protected" : "real");
-//#endif  /* _WORD_SIZE == 4 */
-//#endif  /* (CHIP == INTEL) */
-    /* 显示欢迎信息 */
-//    printf("************  **             **        **\n");
-//    printf("************  **              **      **\n");
-//    printf("**            **                **  **\n");
-//    printf("**            **                  **\n");
-//    printf("************  **                  **\n");
-//    printf("************  **                  **\n");
-//    printf("**            **                  **\n");
-//    printf("**            **                  **\n");
-//    printf("**            ************        **\n");
-//    printf("**            ************        **\n");
-//    printf("          Author QQ: 1341662010\n");
-//    printf("****** QQ exchange group: 909830414 ******\n");
-//    printf("*********** Welcome to disturb ***********\n\n");
+    printf("Flyanx %s.%s  Copyright 2019 flyan@Chenu, Inc.\n", OS_RELEASE, OS_VERSION);
+#if (CHIP == INTEL)
+    /* 运行在实模式还是16/32位保护模式下? */
+#if _WORD_SIZE == 4
+    printf("executing in 32-bit protected mode.\n\n");
+#else
+    printf("executing in %s mode\n\n",
+           protected_mode ? "16-bit protected" : "real");
+#endif  /* _WORD_SIZE == 4 */
+#endif  /* (CHIP == INTEL) */
     /* 显示现在进程的运行情况 */
 //    proc_dmp();
-//    printf("You can click <F5> to clear the screen...\n");
-    printf("ttt: %d\n", ttt);
 
     /* 时钟任务主循环，一直得到工作，处理工作，回复处理结果 */
     while (TRUE){
@@ -161,9 +144,6 @@ PUBLIC void tty_task(void){
         }
         /* 从外界得到一条消息 */
         receive(ANY, &rec_msg);
-
-        printf("ttt: %d\n", ttt);
-
 
         /* 提取消息类型 */
         mess_type = rec_msg.type;

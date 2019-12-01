@@ -59,7 +59,7 @@ extern int errno;		  /* place where the error numbers go */
 #define EAGAIN        (_SIGN 11)  /* resource temporarily unavailable */
 #define ENOMEM        (_SIGN 12)  /* not enough space */
 #define EACCES        (_SIGN 13)  /* permission denied */
-#define EFAULT        (_SIGN 14)  /* bad address */
+#define EFAULT        (_SIGN 14)  /* 错误的地址 */
 #define ENOTBLK       (_SIGN 15)  /* Extension: not a block special file */
 #define EBUSY         (_SIGN 16)  /* resource busy */
 #define EEXIST        (_SIGN 17)  /* file exists */
@@ -83,7 +83,7 @@ extern int errno;		  /* place where the error numbers go */
 #define EDEADLK       (_SIGN 35)  /* resource deadlock avoided */
 #define ENAMETOOLONG  (_SIGN 36)  /* file name too long */
 #define ENOLCK        (_SIGN 37)  /* no locks available */
-#define ENOSYS        (_SIGN 38)  /* function not implemented */
+#define ENOSYS        (_SIGN 38)  /* 功能未实现 */
 #define ENOTEMPTY     (_SIGN 39)  /* directory not empty */
 
 /* The following errors relate to networking. */
@@ -118,9 +118,9 @@ extern int errno;		  /* place where the error numbers go */
 #define ERROR_OVERRUN      -1004	/* interrupt for task that is not waiting */
 #define ERROR_BAD_BUF      -1005	/* message buf outside caller's addr space */
 #define ERROR_TASK         -1006	/* 无法发送到任务，任务可能是错误的 */
-#define ERROR_NO_MESSAGE   -1007	/* RECEIVE failed: no message present */
+#define ERROR_NO_MESSAGE   -1007	/* 接收失败：现在没有消息（用于告诉用户别等待了） */
 #define ERROR_NO_PERM      -1008	/* 普通用户无法直接发送消息到任务 */
-#define ERROR_BAD_FCN      -1009	/* only valid fcns are SEND, RECEIVE, BOTH */
+#define ERROR_BAD_FCN      -1009	/* 只有有效的功能索引号才能得到系统功能 */
 #define ERROR_BAD_ADDR     -1010	/* bad address given to utility routine */
 #define ERROR_BAD_PROC     -1011	/* bad proc number given to utility */
 #endif /* _SYSTEM */

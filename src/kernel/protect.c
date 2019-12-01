@@ -141,8 +141,8 @@ vir_bytes limit;
 u16_t attribute;
 {
     /* 初始化一个数据段描述符 */
-    p_desc->limit_low	= limit & 0x0FFFFu;         /* 段界限 1		(2 字节) */
-    p_desc->base_low	= base & 0x0FFFFu;          /* 段基址 1		(2 字节) */
+    p_desc->limit_low	= limit & 0x0FFFF;         /* 段界限 1		(2 字节) */
+    p_desc->base_low	= base & 0x0FFFF;          /* 段基址 1		(2 字节) */
     p_desc->base_middle	= (base >> 16) & 0x0FF;     /* 段基址 2		(1 字节) */
     p_desc->access		= attribute & 0xFF;         /* 属性 1 */
     p_desc->granularity = ((limit >> 16) & 0x0F) |  /* 段界限 2 + 属性 2 */
@@ -189,7 +189,7 @@ PUBLIC phys_bytes seg2phys(U16_t seg)
  *			通过段基址得到对应的段描述符
  *=========================================================================*/
 PUBLIC void phys2seg(
-        u16_t *seg,
+        vir_bytes *seg,
         vir_bytes *off,
         phys_bytes phys
 ){

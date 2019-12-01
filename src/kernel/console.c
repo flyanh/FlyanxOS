@@ -14,6 +14,7 @@
 #include "protect.h"
 #include "tty.h"
 #include "process.h"
+#include <stdarg.h>     /* 对可变参数列表操作 */
 
 /* BIOS参数相关 */
 #define BIOS_PARM_COLUMNS       0x44AL      /* 屏幕有多少列（按字符算） */
@@ -775,15 +776,15 @@ PUBLIC void console_stop(void){
 }
 
 /*===========================================================================*
- *				putk					     *
+ *				k_putk					     *
  *			输出一个字符到当前控制台
  *===========================================================================*/
-PUBLIC void putk(int ch)
+PUBLIC void k_putk(int ch)
 {
     /* 不需要通过文件系统而直接打印一个字符，内核和任务级别可使用
-     * 与内核本身链接的printf()将使用这个过程，系统库中的printf
-     * 则需要向文件系统发送一条消息，这么低效的工作方式不是内核和
-     * 任务所需要的，所以本例程只将输出的字符加入输出队列并输出。
+     * printk()使用这个过程，系统库中的printf()则需要向文件系统
+     * 发送一条消息，这么低效的工作方式不是内核和任务所需要的，所
+     * 以本例程只将输出的字符加入输出队列并输出。
      */
 
     if(ch != 0){
@@ -795,7 +796,17 @@ PUBLIC void putk(int ch)
         /* 如果是一个字符串结束符号0，将输出队列冲洗到视频内存 */
         flush(&console_table[0]);
     }
+}
 
+/*===========================================================================*
+ *				printk					     *
+ *			格式打印一个字符串，只能被内核调用
+ *===========================================================================*/
+PUBLIC void printk(const char *fmt, ...){
+    va_list argp;
+    va_start(argp, fmt);
+    redirect_printf(fmt, argp, &k_putk);      /* 实际的调用是库例程里的redirect_printf完成的 */
+    va_end(argp);
 }
 
 /*===========================================================================*
@@ -805,7 +816,6 @@ PUBLIC void putk(int ch)
 PUBLIC void screen_init(void){
     u16_t bios_columns, bios_crtbase, bios_font_lines;
     u8_t bios_rows;
-
     /* 获取描述视频显示单元的BIOS参数。 */
     phys_copy(BIOS_PARM_COLUMNS, vir2phys(&bios_columns), 2L);
     phys_copy(BIOS_PARM_CRTBASE, vir2phys(&bios_crtbase), 2L);
