@@ -16,5 +16,7 @@
 PUBLIC void fs_main(void){
     Message msg;
 
+//    printf("fs\n");
+
     receive(ANY, &msg);
 }

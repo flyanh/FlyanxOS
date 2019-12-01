@@ -37,6 +37,7 @@ FORWARD _PROTOTYPE( int do_fork, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_get_sp, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_exit, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_puts, (Message *msg_ptr) );
+FORWARD _PROTOTYPE( int do_find_proc, (Message *msg_ptr) );
 
 
 /*===========================================================================*
@@ -49,13 +50,15 @@ PUBLIC void system_task(void){
 
     while (TRUE){
         receive(ANY, &msg_in);
+//        printf("source: %d, type: %d\n", msg_in.source, msg_in.type);
 
         switch (msg_in.type){      /* 想要什么系统功能服务？ */
-            case SYS_FORK:      rs = do_fork(&msg_in);     break;
-            case SYS_GET_SP:    rs = do_get_sp(&msg_in);   break;
-            case SYS_EXIT:      rs = do_exit(&msg_in);     break;
-            case SYS_PUTS:      rs = do_puts(&msg_in);     break;
-            default:            rs = ERROR_BAD_FCN;     break;
+            case SYS_FORK:      rs = do_fork(&msg_in);      break;
+            case SYS_GET_SP:    rs = do_get_sp(&msg_in);    break;
+            case SYS_EXIT:      rs = do_exit(&msg_in);      break;
+            case SYS_PUTS:      rs = do_puts(&msg_in);      break;
+            case SYS_FIND_PROC: rs = do_find_proc(&msg_in); break;
+            default:            rs = ERROR_BAD_FCN;         break;
         }
 
         msg_in.type = rs;          /* 报告调用结果 */
@@ -105,6 +108,31 @@ PRIVATE int do_puts(Message *msg_ptr){
     }
     k_putk(0);    /* 字符串结束 */
     return OK;
+}
+
+/*===========================================================================*
+ *				do_find_proc					     *
+ *			通过名称寻找一个进程
+ *===========================================================================*/
+PRIVATE int do_find_proc(Message *msg_ptr){
+    /* 根据任务的名称确定任务的任务编号。这允许像internet这样的延迟启动的服务器
+     * 不知道任何任务号，因此它可以与一个精确配置(任务在哪里?)未知的内核一起使用。
+     */
+
+    Process *p;
+
+    /* 得到参数 */
+    char *name = msg_ptr->m3_ca1;
+
+    for(p = BEG_PROC_ADDR; p < END_PROC_ADDR; p++){
+        /* 只查找任务和服务 */
+        if(!is_task_proc(p) && !is_serv_proc(p)) continue;
+        if(strncmp(p->name, name, M3_STRING) == 0){
+            msg_ptr->m3_i1 = p->nr;
+            return OK;
+        }
+    }
+    return (ERROR_SEARCH);
 }
 
 /*==========================================================================*

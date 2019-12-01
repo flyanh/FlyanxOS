@@ -16,9 +16,6 @@
 #endif
 
 /* 全局变量 */
-EXTERN phys_clicks total_clicks;    /* 总物理内存大小 */
-EXTERN phys_clicks flyanx_clicks;   /* flyanx占用的物理内存大小 */
-EXTERN phys_clicks free_clicks;     /* 空闲的物理内存大小 */
 EXTERN int procs_in_use;            /* 有多少进程被标记为正在使用 */
 EXTERN struct mm_process_s *curr_mp;    /* 指向一个当前正在处理的进程 */
 

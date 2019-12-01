@@ -186,7 +186,7 @@ register Process *proc;      /* 就绪的进程 */
 {
     /* 将一个可运行的进程挂入就绪队列，它直接将进程追加到队列的尾部 */
 
-//    printf("%s ready\n", proc->name);
+//    printf("%s ready, pri is %d\n", proc->name, proc->priority);
     if(is_task_proc(proc)){     /* 系统任务？ */
         // 首先我们得知道，就绪队列已经有进程否？
         if(ready_head[TASK_QUEUE] != NIL_PROC){

@@ -45,11 +45,11 @@ extern int errno;		  /* place where the error numbers go */
 /* Here are the numerical values of the error numbers. */
 #define _NERROR               70  /* number of errors */  
 
-#define EGENERIC      (_SIGN 99)  /* generic error */
-#define EPERM         (_SIGN  1)  /* operation not permitted */
-#define ENOENT        (_SIGN  2)  /* no such file or directory */
-#define ESRCH         (_SIGN  3)  /* no such process */
-#define EINTR         (_SIGN  4)  /* interrupted function call ：函数调用中断 */
+#define EGENERIC            (_SIGN 99)  /* generic error */
+#define EPERM               (_SIGN  1)  /* operation not permitted */
+#define ENOENT              (_SIGN  2)  /* no such file or directory */
+#define ERROR_SEARCH        (_SIGN  3)  /* 没有这个进程 */
+#define EINTR               (_SIGN  4)  /* interrupted function call ：函数调用中断 */
 #define EIO           (_SIGN  5)  /* input/output error */
 #define ENXIO         (_SIGN  6)  /* 没有这样的设备或地址 */
 #define E2BIG         (_SIGN  7)  /* arg list too long */

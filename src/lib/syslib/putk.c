@@ -37,11 +37,11 @@ int ch;      /* 字符，因为包含字符属性，所以不能为char */
         msg.m1_i1 = buffer_count;
         msg.m1_p1 = print_buffer;
         msg.type = SYS_PUTS;
-        (void) send_receive(SYS_TASK, &msg);    /* 成功与否对我们不重要 */
+        send_receive(SYS_TASK, &msg);    /* 成功与否对我们不重要 */
         buffer_count = 0;
     }
     /* 将字符放入输出缓冲区 */
-    if(ch != 0) print_buffer[buffer_count++] = (char)ch;
+    if(ch != 0) print_buffer[buffer_count++] = ch;
 
 }
 

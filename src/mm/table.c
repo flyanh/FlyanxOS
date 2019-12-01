@@ -29,5 +29,111 @@ char *core_name = "core";   /* 生成核心映像的文件名 */
  */
 _PROTOTYPE( int (*call_handlers[NR_CALLS]), (void) ) = {
         &no_sys,    /* 0 = 没有使用的调用 */
+        &do_mm_exit,    /* 1 = exit::退出一个进程 */
+        &do_wait,    /* 2 = wait:: */
+        &do_fork,    /* 3 = fork::派生一个新进程 */
+        &do_exec,    /* 4 = exec::执行一个文件 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 6 = 未实现 */
+        &no_sys,    /* 7 = 未实现 */
+        &no_sys,    /* 8 = 未实现 */
+        &no_sys,    /* 9 = 未实现 */
+
+        &no_sys,    /* 10 = 未实现 */
+        &no_sys,    /* 11 = 未实现 */
+        &no_sys,    /* 12 = 未实现 */
+        &no_sys,    /* 13 = 未实现 */
+        &no_sys,    /* 14 = 未实现 */
+        &no_sys,    /* 15 = 未实现 */
+        &no_sys,    /* 16 = 未实现 */
+        &no_sys,    /* 17 = 未实现 */
+        &no_sys,    /* 18 = 未实现 */
+        &no_sys,    /* 19 = 未实现 */
+
+        &no_sys,    /* 20 = 未实现 */
+        &no_sys,    /* 21 = 未实现 */
+        &no_sys,    /* 22 = 未实现 */
+        &no_sys,    /* 23 = 未实现 */
+        &no_sys,    /* 24 = 未实现 */
+        &no_sys,    /* 25 = 未实现 */
+        &no_sys,    /* 26 = 未实现 */
+        &no_sys,    /* 27 = 未实现 */
+        &no_sys,    /* 28 = 未实现 */
+        &no_sys,    /* 29 = 未实现 */
+
+        &no_sys,    /* 30 = 未实现 */
+        &no_sys,    /* 31 = 未实现 */
+        &no_sys,    /* 32 = 未实现 */
+        &no_sys,    /* 33 = 未实现 */
+        &no_sys,    /* 34 = 未实现 */
+        &no_sys,    /* 35 = 未实现 */
+        &no_sys,    /* 36 = 未实现 */
+        &no_sys,    /* 37 = 未实现 */
+        &no_sys,    /* 38 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
+        &no_sys,    /* 5 = 未实现 */
 };
 
+/* 审计call_vec数组是否未分配到应有的内存 */
+extern int dummy[sizeof(call_handlers) == NR_CALLS * sizeof(call_handlers[0]) ? 0 : -1];

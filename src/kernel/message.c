@@ -28,7 +28,7 @@
 #ifdef INTEL
 #define MESSAGE_SIZE    36  /* intel体系下，一个消息的字节大小 */
 /* 复制消息的宏，就是简单的调用了phys_copy例程，它通过物理地址复制，
- * 速度较慢。后期将会改进，因为现在还未实现物理块。
+ * 速度较慢。后期将会改进。
  */
 #define CopyMsg(src, src_msg, dest,  dest_msg) src_msg->source = src; \
     phys_copy(proc_vir2phys(proc_addr(src), (vir_bytes)src_msg), proc_vir2phys(proc_addr(dest), (vir_bytes)dest_msg), MESSAGE_SIZE)
@@ -93,19 +93,21 @@ Message *message_ptr;          /* 消息 */
         /* 好了，拿到了消息，解除对方接收消息堵塞的状态 */
         dest_proc->flags &= ~RECEIVING;
 
-        /* 如果对方收到消息后不在堵塞，那么让对方可以就绪了 */
+        /* 如果对方收到消息后不再堵塞，那么让对方可以就绪了 */
         if(dest_proc->flags == 0) ready(dest_proc);
     } else {
         /* 如果对方并没有堵塞，或者他被堵塞但不是在等待我
          * 那么堵塞我自己（发送消息的人）并开始排队。
          */
+//        printf("unready self\n");
         caller_ptr->message = message_ptr;  /* 保存我没送成功的消息 */
         if(caller_ptr->flags == 0) unready(caller_ptr); /* 堵塞我自己 */
         caller_ptr->flags |= SENDING;   /* 进入状态：发送消息中 */
         caller_ptr->send_to = dest;     /* 保存对方的信息 */
 
         /* 现在我被堵塞了，加入对方的排队队列。 */
-        if( (next_proc = dest_proc->caller_head) ==  NIL_PROC){
+        next_proc = dest_proc->caller_head;
+        if( next_proc ==  NIL_PROC){
             /* 如果排队队列为空，那么我就是队头 */
             dest_proc->caller_head = caller_ptr;
         } else {
@@ -155,7 +157,7 @@ PUBLIC int flyanx_receive(
             previous_proc = sender_proc, sender_proc = sender_proc->caller_link){
             /* 我如果接收任何人的消息 或者 找到了我期望发送消息给我的对方，那么可以拿到对方的消息了 */
             if(src == ANY || src == sender_proc->nr){
-                CopyMsg(sender_proc->nr, sender_proc->message, src,  message_ptr);
+                CopyMsg(sender_proc->nr, sender_proc->message, caller_ptr->nr,  message_ptr);
                 if(sender_proc == caller_ptr->caller_head){
                     /* 如果对方是排队队列的第一个（头），那么排队队列的头更改为下一个 */
                     caller_ptr->caller_head = sender_proc->caller_link;
@@ -163,7 +165,8 @@ PUBLIC int flyanx_receive(
                     /* 如果对方不是队头，那么对方出队，然后下一个排队的人顶替在对方原来的位置 */
                     previous_proc->caller_link = sender_proc->caller_link;
                 }
-                if((sender_proc->flags &= ~SENDING) == 0){
+                sender_proc->flags &= ~SENDING;
+                if(sender_proc->flags == 0){
                     /* 取消对方的发送状态，如果对方不再堵塞，那么就绪他 */
                     ready(sender_proc);
                 }

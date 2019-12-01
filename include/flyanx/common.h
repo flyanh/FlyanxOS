@@ -57,6 +57,7 @@
 #   define SYS_GET_SP       2   /* 系统功能索引代码，sys_sp(proc, &new_sp) */
 #   define SYS_FORK         3   /* 系统功能索引代码，sys_fork(parent, child, pid) */
 #	define SYS_PUTS         4	/* 系统功能索引代码，sys_puts(count, buf) */
+#   define SYS_FIND_PROC    5   /* 系统功能索引代码，sys_find_proc(name, &task_nr, flags) */
 
 #define HARDWARE            -1	    /* 用作中断生成消息的源 */
 

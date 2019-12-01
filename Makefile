@@ -95,13 +95,14 @@ KernelObjs      = $(tk)/start.o $(tk)/protect.o $(tk)/kernel_386_lib.o \
 # 运行在系统上的进程，现在有：MM、FS、FLY、ORIGIN
 ProcObjs        = $(tog)/origin.o \
                   $(tmm)/main.o \
-                  $(tmm)/table.o $(tmm)/utils.o $(tmm)/alloc.o \
+                  $(tmm)/table.o $(tmm)/utils.o $(tmm)/alloc.o $(tmm)/forkexit.o \
+                  $(tmm)/exec.o \
                   $(tfs)/main.o \
                   $(tfly)/main.o
 
 LibObjs         = $(tl)/i386/message.o \
-                  $(tl)/syslib/string.o $(tl)/syslib/kernel_debug.o $(tl)/syslib/kprintf.o \
-                  $(tl)/putk.o
+                  $(tl)/ansi/string.o $(tl)/syslib/kernel_debug.o $(tl)/syslib/kprintf.o \
+                  $(tl)/putk.o $(tl)/ansi/stringc.o
 
 Objs			= $(FlyanxKernelHead) $(KernelObjs) $(LibObjs) $(ProcObjs)
 
@@ -198,8 +199,12 @@ $(tk)/protect.o: $(sk)/protect.c
 $(tk)/kernel_386_lib.o: $(sk)/kernel_386_lib.asm
 	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
 
-$(tl)/syslib/string.o: src/lib/syslib/string.asm
+$(tl)/ansi/string.o: src/lib/ansi/string.asm
 	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
+
+$(tl)/ansi/stringc.o: $i/string.h
+$(tl)/ansi/stringc.o: src/lib/ansi/stringc.c
+	$(CC) $(CFlags) -o $@ $<
 
 $(tl)/syslib/kernel_debug.o: $(lib)
 $(tl)/syslib/kernel_debug.o: src/lib/syslib/kernel_debug.c
@@ -303,6 +308,7 @@ $(tk)/misc.o: $(ka)
 $(tk)/misc.o: $(sk)/assert.h
 $(tk)/misc.o: $i/stdlib.h
 $(tk)/misc.o: $h/common.h
+$(tk)/misc.o: $i/elf.h
 $(tk)/misc.o: $(sk)/misc.c
 	$(CC) $(CFlags) -o $@ $<
 
@@ -350,6 +356,26 @@ $(tmm)/alloc.o: $h/callnr.h
 $(tmm)/alloc.o: $i/signal.h
 $(tmm)/alloc.o: $(smm)/mmproc.h
 $(tmm)/alloc.o: $(smm)/alloc.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tmm)/forkexit.o: $(mma)
+$(tmm)/forkexit.o: $s/wait.h
+$(tmm)/forkexit.o: $h/callnr.h
+$(tmm)/forkexit.o: $i/signal.h
+$(tmm)/forkexit.o: $(smm)/mmproc.h
+$(tmm)/forkexit.o: $(smm)/param.h
+$(tmm)/forkexit.o: $(smm)/forkexit.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tmm)/exec.o: $(mma)
+$(tmm)/exec.o: $s/stat.h
+$(tmm)/exec.o: $h/callnr.h
+$(tmm)/exec.o: $i/elf.h
+$(tmm)/exec.o: $i/signal.h
+$(tmm)/exec.o: $i/string.h
+$(tmm)/exec.o: $(smm)/mmproc.h
+$(tmm)/exec.o: $(smm)/param.h
+$(tmm)/exec.o: $(smm)/exec.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tmm)/utils.o: $(mma)

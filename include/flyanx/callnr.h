@@ -11,7 +11,7 @@
 #ifndef _FLYANX_CALLNR_H
 #define _FLYANX_CALLNR_H
 
-#define NR_CALLS		    78  /* 允许的系统调用数量 */
+#define NR_CALLS		    96  /* 允许的系统调用数量 */
 
 #define EXIT            1
 #define WAIT            2

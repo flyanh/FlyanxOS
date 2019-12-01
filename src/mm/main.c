@@ -93,7 +93,8 @@ PUBLIC void set_reply(
 PRIVATE void mm_init(void){
     register int proc_nr;
     register MMProcess *rmp;
-    int mem;
+    phys_clicks total_clicks;    /* 总物理内存大小 */
+    phys_clicks free_clicks;     /* 空闲的物理内存大小 */
 
     /* 初始化内存管理器所有的进程表项 */
     for(proc_nr = 0; proc_nr <= ORIGIN_PROC_NR; proc_nr++){
@@ -101,15 +102,20 @@ PRIVATE void mm_init(void){
         rmp->flags |= IN_USE;
     }
 
-    /* 内存总量 */
+    /* 得到机器的内存总量（包含了不可用的） */
     total_clicks = bootParams.memory_size >> CLICK_SHIFT;
+    /* 得到剩余可用的空闲内存，总内存减去程序可以使用的空间即可 */
+    free_clicks = total_clicks - (PROCS_BASE >> CLICK_SHIFT);
+    /* 初始化内存空洞表，将表初始化为所有可用的物理内存 */
+    mem_init(total_clicks, free_clicks);
 
     /* 准备ORIGIN进程表项 */
     mmproc[ORIGIN_PROC_NR].pid = ORIGIN_PID;
     procs_in_use = LOW_USER + 1;
 
     /* 打印内存信息：内存总量、核心内存的使用和空闲内存情况 */
-    printf("You computer's memory size is %uKB\n", click2round_kb(total_clicks) );
+    printf("You computer's total memory size = %uKB, Available = %uKB.\n\n",
+            click2round_kb(total_clicks), click2round_kb(free_clicks) );
 }
 
 
