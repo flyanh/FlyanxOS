@@ -31,9 +31,11 @@ PUBLIC void mm_main(void){
     int rec_state, call;
     MMProcess *mp;
 
+    mm_print_info("working...\n");
     /* 初始化 */
     mm_init();
 
+    /* 内存管理器开始工作了 */
     while (TRUE){
         /* 等待一条消息 */
         rec_state = receive(ANY, &mmsg_in);
@@ -57,11 +59,11 @@ PUBLIC void mm_main(void){
 
         /* 发送所有未处理的回复消息，包括上述调用的结果。不能换出进程。 */
         for(proc_nr = 0, mp = mmproc; proc_nr < NR_PROCS; proc_nr++, mp++){
-            if((mp->flags & (REPLY | ON_SWAP)) == REPLY){
-                if(send(proc_nr, &mp->reply) != OK){
+            if(mp->flags & REPLY){      /* 存在回复标记 */
+                if(send(proc_nr, &mp->reply) != OK){    /* 回答它并检查回复成功状态 */
                     mm_panic("MM can't reply a message to any", proc_nr);
                 }
-                mp->flags &= ~REPLY;
+                mp->flags &= ~REPLY;    /* 回复过了，解除标记 */
             }
         }
     }
@@ -81,7 +83,6 @@ PUBLIC void set_reply(
      * 回值以及用于设置“必须发送回复”标志。
      */
     register MMProcess *rmp = &mmproc[proc_nr];
-
     rmp->reply_type = rs;
     rmp->flags |= REPLY;    /* 挂起了一个回复，等待处理 */
 }
@@ -117,5 +118,14 @@ PRIVATE void mm_init(void){
     printf("You computer's total memory size = %uKB, Available = %uKB.\n\n",
             click2round_kb(total_clicks), click2round_kb(free_clicks) );
 }
+
+/*===========================================================================*
+ *				mm_print_info					     *
+ *				内存管理器输出信息
+ *===========================================================================*/
+PUBLIC void mm_print_info(char *info){
+    printf("{MM}-> %s", info);
+}
+
 
 

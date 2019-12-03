@@ -26,7 +26,6 @@
 #include "message.h"
 
 #ifdef INTEL
-#define MESSAGE_SIZE    36  /* intel体系下，一个消息的字节大小 */
 /* 复制消息的宏，就是简单的调用了phys_copy例程，它通过物理地址复制，
  * 速度较慢。后期将会改进。
  */

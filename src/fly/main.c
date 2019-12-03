@@ -10,11 +10,23 @@
 #include <flyanx/callnr.h>
 #include <flyanx/common.h>
 
+PRIVATE Message msg;
+
 /*===========================================================================*
  *				fly_main					     *
  *===========================================================================*/
 PUBLIC void fly_main(void){
-    Message msg;
 
-    receive(ANY, &msg);
+    fly_print_info("working...\n");
+    while (TRUE){
+        receive(ANY, &msg);
+    }
+}
+
+/*===========================================================================*
+ *				fly_print_info					     *
+ *				飞彦拓展管理器输出信息
+ *===========================================================================*/
+PUBLIC void fly_print_info(char *info){
+    printf("{FLY}-> %s", info);
 }

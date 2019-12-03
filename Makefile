@@ -7,6 +7,13 @@
 #
 
 # ===============================================
+# FlyanxOS　的内存装载点
+# 这个值必须存在且相等在文件"load.inc"中的 'KernelEntryPointPhyAddr'！
+ENTRYPOINT 		= 0x1000
+# 内核文件的挂载点偏移地址
+# 它必须和 ENTRYPOINT 相同
+ENRTYOFFSET 	= 0
+# ===============================================
 # 所有的变量
 
 # 头文件目录
@@ -34,15 +41,11 @@ tmm = $t/mm
 tfs = $t/fs
 tfly = $t/fly
 
-# FlyanxOS　的内存装载点
-# 这个值必须存在且相等在文件"load.inc"中的 'KernelEntryPointPhyAddr'！
-ENTRYPOINT 		= 0x1000
-# 内核文件的挂载点偏移地址
-# 它必须和 ENTRYPOINT 相同
-ENRTYOFFSET 	= 0
+# 所需要的软盘镜像，可以自指定已存在的软盘镜像，系统内核将被写入这里面
+FD			= Flyanx.img
+# 硬盘镜像
+HD          = 100M_HD.img
 
-# 所需要的软盘镜像，可以自指定已存在的软盘镜像，如果不存在，将创建新的
-OSImage			= Flyanx.img
 # 镜像挂载点，自指定，必须存在于自己的计算机上，如果没有请自行创建一下
 FloppyMountPoint= /media/floppyDisk
 
@@ -90,12 +93,13 @@ KernelObjs      = $(tk)/start.o $(tk)/protect.o $(tk)/kernel_386_lib.o \
                   $(tk)/message.o $(tk)/exception.o $(tk)/system.o \
                   $(tk)/clock.o $(tk)/tty.o $(tk)/keyboard.o \
                   $(tk)/console.o $(tk)/i8259.o  $(tk)/dmp.o \
-                  $(tk)/misc.o
+                  $(tk)/misc.o $(tk)/driver.o $(tk)/at_wind.o
 
-# 运行在系统上的进程，现在有：MM、FS、FLY、ORIGIN
+# 运行在系统上的服务进程和起源进程，现在有：MM、FS、FLY、ORIGIN
 ProcObjs        = $(tog)/origin.o \
                   $(tmm)/main.o \
                   $(tmm)/table.o $(tmm)/utils.o $(tmm)/alloc.o $(tmm)/forkexit.o \
+                  $(tmm)/misc.o \
                   $(tmm)/exec.o \
                   $(tfs)/main.o \
                   $(tfly)/main.o
@@ -109,13 +113,16 @@ Objs			= $(FlyanxKernelHead) $(KernelObjs) $(LibObjs) $(ProcObjs)
 DASMOutPut		= kernel.bin.asm
 
 # ===============================================
-# 默认选项，编译全部
+# 默认选项，提示如何编译
+nop:
+	@echo "哎呀，你为什么不试试'make image'或者'make all'呢？ ^ - ^"
+# 编译全部
 all: everything
 	@echo "已经编译并生成 Flyanx OS 内核！！！"
-# 只编译链接内核
+# 只编译链接内核（不包括boot）
 kernel: $(FlyanxKernel)
 # 所有的伪命令，将不会被识别为文件
-.PHONY : all everything image debug run realclean clean
+.PHONY : all everything image debug run realclean clean buildimg
 
 # ===============================================
 # 所有的伪命令
@@ -125,20 +132,23 @@ everything: $(FlyanxBoot) $(FlyanxKernel)
 only_kernel: $(FlyanxKernel)
 
 # 将生成 boot sector　和　kernel　二进制文件写入系统软盘镜像中
-image: $(OSImage) $(FlyanxBoot)
-	dd if=$(tb)/boot.bin of=$(OSImage) bs=512 count=1 conv=notrunc
-	sudo mount -o loop $(OSImage) $(FloppyMountPoint)
+image: $(FD) $(FlyanxBoot)
+	dd if=$(tb)/boot.bin of=$(FD) bs=512 count=1 conv=notrunc
+	sudo mount -o loop $(FD) $(FloppyMountPoint)
 	sudo cp -fv $(tb)/loader.bin $(FloppyMountPoint)
 	sudo cp -fv $(FlyanxKernel) $(FloppyMountPoint)
 	sudo umount $(FloppyMountPoint)
 
 #　使用 bochs 来进行 debug
-debug: $(OSImage)
+debug: $(FD)
 	bochs -q
 
-# 使用 qemu 来运行查看我们的系统镜像,如果需要更真实的模拟,请使用虚拟机,例如vbox,vpc或微软的vm
-run: $(OSImage)
-	qemu-system-i386 -drive file=$(OSImage),if=floppy
+# flyanx现在使用软盘+硬盘启动
+run: $(FD)
+	@echo "请使用Vbox虚拟机启动Flyanx，先挂载挂生成的Flyanx.img镜像到软盘上，然后下载已经格式化的硬盘从：htttp://。"
+	@echo "然后挂载这个硬盘，启动它！OK :)"
+# 	qemu-system-i386 -drive file=$(FD),if=floppy
+
 
 # 完全清理，包括生成的boot和内核文件（二进制文件）
 realclean:
@@ -148,15 +158,25 @@ realclean:
 clean:
 	-rm -f $(Objs)
 
+# 制作系统镜像
+buildimg:
+	dd if=$(tb)/boot.bin of=$(FD) bs=512 count=1 conv=notrunc
+	dd if=$(tb)/hd_boot.bin of=$(HD) bs=1 count=446 conv=notrunc
+	dd if=boot/hd_boot.bin of=$(HD) seek=510 skip=510 bs=1 count=2 conv=notrunc
+	sudo mount -o loop $(FD) $(FloppyMountPoint)
+	sudo cp -fv $(tb)/loader.bin $(FloppyMountPoint)
+	sudo cp -fv $(FlyanxKernel) $(FloppyMountPoint)
+	sudo umount $(FloppyMountPoint)
+
 # ===============================================
 # 所有的文件生成规则
 
 # 镜像
-$(OSImage):
-	dd if=/dev/zero of=$(OSImage) bs=512 count=2880
-	mkfs.fat $(OSImage)
+$(FD):
+	dd if=/dev/zero of=$(FD) bs=512 count=2880
+	mkfs.fat $(FD)
 
-# BootLoader
+# 内核加载器
 $(tb)/boot.bin: src/boot/include/load.inc
 $(tb)/boot.bin: src/boot/include/fat12hdr.inc
 $(tb)/boot.bin : src/boot/boot.asm
@@ -312,6 +332,26 @@ $(tk)/misc.o: $i/elf.h
 $(tk)/misc.o: $(sk)/misc.c
 	$(CC) $(CFlags) -o $@ $<
 
+$(tk)/driver.o: $(a)
+$(tk)/driver.o: $s/ioctl.h
+$(tk)/driver.o: $h/callnr.h
+$(tk)/driver.o: $h/common.h
+$(tk)/driver.o: $(sk)/process.h
+$(tk)/driver.o: $(sk)/driver.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tk)/at_wind.o: $(a)
+$(tk)/at_wind.o: $(sk)/drvlib.h
+$(tk)/at_wind.o: $h/callnr.h
+$(tk)/at_wind.o: $h/common.h
+$(tk)/at_wind.o: $s/ioctl.h
+$(tk)/at_wind.o: $(sk)/process.h
+$(tk)/at_wind.o: $(sk)/hd.h
+$(tk)/at_wind.o: $(sk)/assert.h
+$(tk)/at_wind.o: $(sk)/at_wind.c
+	$(CC) $(CFlags) -o $@ $<
+
+# 系统库
 $(tl)/i386/message.o: src/lib/i386/message.asm
 	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
 
@@ -359,12 +399,19 @@ $(tmm)/alloc.o: $(smm)/alloc.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tmm)/forkexit.o: $(mma)
-$(tmm)/forkexit.o: $s/wait.h
-$(tmm)/forkexit.o: $h/callnr.h
 $(tmm)/forkexit.o: $i/signal.h
 $(tmm)/forkexit.o: $(smm)/mmproc.h
 $(tmm)/forkexit.o: $(smm)/param.h
 $(tmm)/forkexit.o: $(smm)/forkexit.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tmm)/misc.o: $(mma)
+$(tmm)/misc.o: $s/wait.h
+$(tmm)/misc.o: $h/callnr.h
+$(tmm)/misc.o: $i/signal.h
+$(tmm)/misc.o: $(smm)/mmproc.h
+$(tmm)/misc.o: $(smm)/param.h
+$(tmm)/misc.o: $(smm)/misc.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tmm)/exec.o: $(mma)

@@ -12,10 +12,7 @@
  * 待操作系统使用它fork新的程序。
  */
 #include <sys/types.h>
-//#include <sys/wait.h>
-//#include <time.h>
-//#include <stdlib.h>
-#include <stdio.h>
+#include <sys/wait.h>
 #include <flyanx/type.h>
 #include <flyanx/common.h>
 #include <flyanx/syslib.h>
@@ -25,7 +22,15 @@
  *                            起源程序主函数             *
  *===========================================================================*/
 void origin_main(void){
+#define FOREVER -1
+    Message msg;
 
-    while (1){ }
+
+    /* 现在还没啥事做，先永久堵塞自己 */
+    msg.type = 5;
+    msg.m6_l1 = FOREVER;
+    while (1){
+        send_receive(0, &msg);
+    }
 }
 

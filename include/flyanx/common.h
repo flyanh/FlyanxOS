@@ -25,7 +25,7 @@
                          */
 
 /* 任务号，函数索引号(消息类型)和回复代码，将在下面开始定义 */
-#define TTY_TASK                -5  /* 终端I/O任务 */
+#define TTY_TASK                (CONTROLLER(NR_CONTROLLERS) - 2)  /* 终端I/O任务 */
 #	define CANCEL               0	/* 强制取消任务的一般要求 */
 #	define HARD_INT             2	/* 所有硬件中断的索引代码 */
 #	define DEVICE_READ	        3	/* 终端功能索引代码，从终端读取数据 */
@@ -39,11 +39,7 @@
 #	define TTY_EXIT	        11	/* a process group leader has exited */
 #	define SUSPEND	        -998/* used in interrupts when tty has no data */
 
-//#define IDLE_TASK           -6  /* 闲置任务的进程插槽号 */
-#define IDLE_TASK           -4  /* 闲置任务的进程插槽号 */
-
-
-#define CLOCK_TASK          -3  /* 时钟任务 */
+#define CLOCK_TASK          (CONTROLLER(NR_CONTROLLERS) - 1)  /* 时钟任务 */
 #	define SET_ALARM        1	/* 时钟功能索引代码，设置闹钟 */
 #	define GET_TIME	        3	/* 时钟功能索引代码，获得真实时间（秒） */
 #	define SET_TIME	        4	/* 时钟功能索引代码，设置真实时间（秒） */
@@ -51,6 +47,10 @@
 #	define SET_SYNC_ALARM   6	/* 时钟功能索引代码，设置同步闹钟 */
 #	define REAL_TIME        1	/* 时钟任务的回复代码，用于告诉请求者：这是一个真实时间 */
 #	define CLOCK_INT   HARD_INT /* 此代码仅由同步闹钟任务发送，用来请求一个同步闹钟 */
+
+#define CONTROLLER(n)       (-3 - (n))  /* 控制器任务 */
+
+#define IDLE_TASK           -3  /* 闲置任务的进程插槽号 */
 
 #define SYS_TASK            -2  /* 系统任务，用于服务器跟内部通信获得系统内部功能 */
 #	define SYS_EXIT         1   /* 系统功能索引代码，sys_exit(parent, proc) */
@@ -63,7 +63,7 @@
 
 /* 块设备和字符设备任务消息中使用的消息字段名称。 */
 #define DEVICE          m2_i1	/* 主-次设备号 */
-#define PROC_NR         m2_i2	/* 那个进程需要I/O服务？ */
+#define PROC_NR         m2_i2	/* 哪个进程需要I/O服务？ */
 #define COUNT           m2_i3	/* 有多少字节将要被传送 */
 #define REQUEST         m2_i3	/* io控制请求代码 */
 #define POSITION        m2_l1	/* 文件偏移地址 */

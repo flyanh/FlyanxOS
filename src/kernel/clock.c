@@ -213,7 +213,7 @@ PRIVATE void do_set_alarm(Message *m_ptr) {
     proc = proc_addr(proc_nr);          /* 得到进程实例 */
     /* 计算闹钟时间，并将其放入到即将回复的消息中| */
     msg_in.SECONDS_LEFT = (proc->alarm == 0 ? 0 : (proc->alarm - ticks + (HZ - 1)) / HZ);
-    /* 给系统任务的要调用的函数设置为0，代表以后用信号通知它 */
+    /* 如果不是系统任务，无视func，以后用信号通知它 */
     if(!is_task_proc(proc)) func = 0;
     /* 公共的设置并启动闹钟例程：真正要去实现设置并启动闹钟的事务 */
     common_set_alarm(proc_nr, delta_ticks, func);
@@ -400,7 +400,7 @@ PRIVATE void init_clock()
     out_byte(TIMER0, (u8_t)(TIMER_COUNT / HZ));
     out_byte(TIMER0, (u8_t )(TIMER_COUNT >> 8));
     /* 设定时钟中断处理例程，并开启时钟中断 */
-    put_irq_handler(CLOCK_IRQ, clock_handler);
+    put_irq_handler(CLOCK_IRQ, &clock_handler);
     enable_irq(CLOCK_IRQ);
 }
 

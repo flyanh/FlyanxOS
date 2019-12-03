@@ -70,7 +70,7 @@ extern int errno;		  /* place where the error numbers go */
 #define EINVAL        (_SIGN 22)  /* 无效的参数 */
 #define ENFILE        (_SIGN 23)  /* too many open files in system */
 #define EMFILE        (_SIGN 24)  /* too many open files */
-#define ENOTTY        (_SIGN 25)  /* inappropriate I/O control operation */
+#define ENOTTY        (_SIGN 25)  /* 不适当的I/O控制操作 */
 #define ETXTBSY       (_SIGN 26)  /* no longer used */
 #define EFBIG         (_SIGN 27)  /* file too large */
 #define ENOSPC        (_SIGN 28)  /* no space left on device */

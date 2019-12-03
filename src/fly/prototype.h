@@ -6,7 +6,8 @@
  * gitee: https://gitee.com/flyanh/
  */
 
-#ifndef _FLY_PROTOTYPE_H
-#define _FLY_PROTOTYPE_H
+/*================================================================================================*/
+/* main.c */
+/*================================================================================================*/
+_PROTOTYPE( void fly_print_info, (char *info) );
 
-#endif //_FLY_PROTOTYPE_H

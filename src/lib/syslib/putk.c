@@ -37,8 +37,13 @@ int ch;      /* 字符，因为包含字符属性，所以不能为char */
         msg.m1_i1 = buffer_count;
         msg.m1_p1 = print_buffer;
         msg.type = SYS_PUTS;
-        send_receive(SYS_TASK, &msg);    /* 成功与否对我们不重要 */
+        /* 在这里count清零，而不是在发送并接收到消息后，因为A的请求还没有得到答复，
+         * A处于堵塞状态，这时候，B又想打印字符串，这时候B累积count，然后发送消息，
+         * 这将会导致B的请求打印的字符串包含了A的字符串，这不是我们想看到的。所以我
+         * 们应该在发消息之前就将缓冲区长度清零。
+         */
         buffer_count = 0;
+        send_receive(SYS_TASK, &msg);   /* 成功与否对我们并不重要 */
     }
     /* 将字符放入输出缓冲区 */
     if(ch != 0) print_buffer[buffer_count++] = ch;

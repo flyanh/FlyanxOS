@@ -23,6 +23,7 @@ struct process_s;
 struct message_s;
 struct tty_s;
 
+
 /*================================================================================================*/
 /* kernel.asm */
 /*================================================================================================*/
@@ -89,6 +90,7 @@ _PROTOTYPE( void console_stop, (void) );
 _PROTOTYPE( void switch_to, (int line) );
 _PROTOTYPE( void clear_screen, (struct tty_s *tty) );
 _PROTOTYPE( void screen_init, (void) );
+_PROTOTYPE( void blue_screen, (void) );
 
 /*================================================================================================*/
 /* keyboard.c */
@@ -107,6 +109,7 @@ _PROTOTYPE( void lock_hunter, (void) );
 _PROTOTYPE( void lock_ready, (struct process_s *proc) );
 _PROTOTYPE( void lock_unready, (struct process_s *proc) );
 _PROTOTYPE( void lock_schedule, (void) );
+_PROTOTYPE( void schedule_stop, (void) );
 _PROTOTYPE( void unhold, (void) );
 
 /*================================================================================================*/
@@ -135,6 +138,8 @@ _PROTOTYPE( void disable_irq, (u32_t intRequest) );
 _PROTOTYPE( void enable_irq, (u32_t intRequest) );
 _PROTOTYPE( void interrupt_lock, (void) );
 _PROTOTYPE( void interrupt_unlock, (void) );
+_PROTOTYPE( void port_read, (u16_t port, void *destination, unsigned bytcount) );
+_PROTOTYPE( void port_write, (unsigned port, void *source, unsigned bytcount) );
 _PROTOTYPE( void level0, (void (*func)(void)) );
 _PROTOTYPE( void reset, (void) );
 
@@ -146,12 +151,18 @@ _PROTOTYPE( int vir_copy, (int src_proc, vir_bytes src_vir,
         int dest_proc, vir_bytes dest_vir, vir_bytes bytes) );
 _PROTOTYPE( phys_bytes umap, (struct process_s *proc, int seg_index,
         vir_bytes vir_addr, vir_bytes bytes) );
-
+_PROTOTYPE( phys_bytes numap, (int proc_nr, vir_bytes vir_addr, vir_bytes bytes) );
 
 /*================================================================================================*/
 /* table.c */
 /*================================================================================================*/
-_PROTOTYPE( void map_drivers, (void)					);
+_PROTOTYPE(  void map_drivers, (void) );
+
+/*================================================================================================*/
+/* driver.c */
+/*================================================================================================*/
+_PROTOTYPE( void nop_task, (void) );
+_PROTOTYPE( void alarm_clock, (time_t ticks, WatchDog func) );
 
 /*================================================================================================*/
 /* kernel_debug.c  */
@@ -224,6 +235,9 @@ _PROTOTYPE( void fs_main, (void) );
 _PROTOTYPE( void fly_main, (void) );
 _PROTOTYPE( void origin_main, (void) );
 
-
+/*================================================================================================*/
+/* 所有驱动任务入口 */
+/*================================================================================================*/
+_PROTOTYPE( void at_winchester_task, (void) );
 
 #endif //FLYANX_PROTOTYPE_H

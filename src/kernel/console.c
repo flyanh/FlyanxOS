@@ -159,7 +159,7 @@ PUBLIC void console_init(TTY *tty){
     console->limit = console->start + page_size;	        /* 计算控制台的显存界线 */
     console->cursor = console->origin = console->start;	    /* 初始化控制台的光标位置，基地址指针和显存开始地址 */
     console->attr = console->blank = BLANK_COLOR;	        /* 初始化字符属性，空属性为黑底白字 */
-    
+
     /* 清空控制台的屏幕 */
     blank_color = BLANK_COLOR;
     memory2video_copy(BLANK_MEM, console->start, screen_size);
@@ -167,11 +167,29 @@ PUBLIC void console_init(TTY *tty){
     ioctl(tty);
 }
 
-
 /*===========================================================================*
- *				控制台类加载器				     *
+ *				blue_screen				     *
+ *				 蓝屏
  *===========================================================================*/
-PUBLIC void ConsoleLoader(Console *console){ }
+PUBLIC void blue_screen(void){
+    /* 系统遇到不可恢复的错误，准备打印错误信息，进入蓝屏状态。
+     * 这个功能十分有名，因为它来自于Windows，flyanx也简单实
+     * 现了它。
+     */
+    TTY *tty = console_table[0].tty;
+    Console *console = tty->priv;
+
+    /* 切换到第一个控制台 */
+    switch_to(0);
+    /* 设置蓝屏属性 */
+    console->attr = MAKE_COLOR(BLUE, WHITE) | BRIGHT;
+    /* 清屏（改变属性） */
+    blank_color = console->attr;
+    memory2video_copy(BLANK_MEM, curr_console->origin, screen_size);
+    blank_color = BLANK_COLOR;
+    console->row = console->column = 0;
+    flush(curr_console);
+}
 
 /*===========================================================================*
  *				    write				     *
@@ -388,7 +406,7 @@ PRIVATE void out_char(
             /* 如果控制台的缓存队列中已满，刷洗更新到视频存储 */
             if(console->row == buffer_len(console->ram_queue)) flush(console);
             /* 上面的工作做完了，我们可以处理这次要输出的字符了 */
-            console->ram_queue[console->ram_words] = (ch & BYTE) | console->attr; /* 记得设置上字符属性 */
+            console->ram_queue[console->ram_words] = console->attr | (ch & BYTE); /* 记得设置上字符属性 */
             console->ram_words++;   /* 指向视频输出的下一个字（word） */
             console->column++;      /* 指向下一列 */
             break;
@@ -398,8 +416,7 @@ PRIVATE void out_char(
 /*===========================================================================*
  *				scroll_screen				     *
  *			        滚屏
- * priv: 需要进行滚屏操作的控制台
- * dir: 上滚（SCROLL_UP）或下滚（SCROLL_DOWN）
+ * direction: 上滚（SCROLL_UP）或下滚（SCROLL_DOWN）
  *===========================================================================*/
 PRIVATE void scroll_screen(unsigned direction){
     /* 滚屏（只能对当前正在使用的控制台生效）
@@ -772,7 +789,7 @@ PUBLIC void console_stop(void){
     console_origin0();
     software_scroll = TRUE;
     switch_to(0);
-    console_table[0].attr = console_table[0].blank = BLANK_COLOR;
+//    console_table[0].attr = console_table[0].blank = BLANK_COLOR;
 }
 
 /*===========================================================================*
@@ -931,7 +948,7 @@ PRIVATE void memory2video_copy(
 
     /* 如果字串是BLANK_MEM，执行清空整个屏幕空间 */
     if(src == BLANK_MEM){
-        blank_color = BLANK_COLOR;
+//        blank_color = BLANK_COLOR;
         for(; i < screen_size; i++){   /* 整个屏幕 */
             *video_memory = blank_color;
             video_memory++;

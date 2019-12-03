@@ -51,7 +51,7 @@ PUBLIC int main(){
         (p_process_addr + NR_TASKS)[t] = proc;
     }
 
-    /* 解析任务表中的驱动程序选择子映射 */
+    /* 映射任务表中的驱动程序选择。 */
     map_drivers();
 
     /* 初始化多进程支持
@@ -151,7 +151,6 @@ PUBLIC int main(){
     proc_addr(IDLE_TASK)->priority = PROC_PRI_IDLE;
     lock_hunter();  /* 让我们看看，有什么进程那么幸运的被抓出来执行 */
 
-
     /* 最后,main的工作至此结束。在许多C程序中main是一个循环,但在Flyanx核心中,
      * 它的工作到初始化结束为止。restart的调用将启动第一个任务,控制权从此不再返回到main。
      *
@@ -167,6 +166,7 @@ PUBLIC int main(){
  *                                   panic                                   *
  *                              系统无法继续运行                               *
  *===========================================================================*/
+extern bool assert_panic;
 PUBLIC void panic(msg, errno)
 _CONST char *msg;
 int errno;
@@ -177,12 +177,19 @@ int errno;
      * 在控制台上输出信息。
      */
 
+    /* OK，蓝屏吧（致敬XP）
+     * 但如果是从断言进入的本例程，就不做蓝屏操作了，因为断言例程已经做过了。
+     * */
+    if(assert_panic != TRUE){
+        blue_screen();
+    }
+
     if(msg != NULL){
         printf("\nFlyanx Kernel panic: %s", msg);
         if(errno != NO_NUM) printf(" %d", errno);
         printf("\n");
     }
-    wreboot(RBT_REBOOT);
+    wreboot(RBT_PANIC);
 }
 
 /*===========================================================================*

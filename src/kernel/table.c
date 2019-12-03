@@ -44,6 +44,8 @@
 #define IDLE_TASK_STACK	    SMALL_STACK
 #endif
 
+/* 控制器任务堆栈大小 */
+#define CONTROLLER_STACK    (2 * SMALL_STACK)
 /* 时钟任务栈大小 */
 #define CLOCK_TASK_STACK    SMALL_STACK
 /* 系统任务，内核堆栈 */
@@ -63,18 +65,30 @@
 
 /* 所有系统任务的栈空间大小 */
 #define TOT_TASK_STACK_SPACE    (TTY_TASK_STASK + IDLE_TASK_STACK + CLOCK_TASK_STACK + \
-                                 MM_STACK + FS_STACK + FLY_STACK + ORIGIN_STACK)
+                                 MM_STACK + FS_STACK + FLY_STACK + ORIGIN_STACK + \
+                                 NR_CONTROLLERS * CONTROLLER_STACK + SYS_TASK_STACK)
 
 /* 为系统任务表的所有表象分配空间 */
 PUBLIC TaskTab tasktab[] = {
         /* 终端任务，必须存在 */
         { &tty_task, TTY_TASK_STASK, "TTY_TASK"  },
 
+        /* 时钟任务，它很重要，需要第二个运行 */
+        { &clock_task, CLOCK_TASK_STACK, "CLOCK_TASK" },
+
+        /* 控制器任务，例如：硬盘任务 */
+#if NR_CONTROLLERS >= 3
+        { nop_task,		CONTROLLER_STACK,	"(C2)"		},
+#endif
+#if NR_CONTROLLERS >= 2
+        { nop_task,		CONTROLLER_STACK,	"(C1)"		},
+#endif
+#if NR_CONTROLLERS >= 1
+        { &nop_task,		CONTROLLER_STACK,	"(C0)"		},
+#endif
+
         /* 闲置任务 */
         { &idle_task, IDLE_TASK_STACK, "IDLE_TASK" },
-
-        /* 时钟任务 */
-        { &clock_task, CLOCK_TASK_STACK, "CLOCK_TASK" },
 
         /* 系统任务 */
         { &system_task, SYS_TASK_STACK, "SYS_TASK" },
@@ -92,18 +106,46 @@ PUBLIC TaskTab tasktab[] = {
         { &origin_main, ORIGIN_STACK, "ORIGIN"		},
 };
 
-/* 所有系统任务堆栈的堆栈空间。 （声明为（char *）使其对齐。） */
-PUBLIC char *task_stack[TOT_TASK_STACK_SPACE / sizeof(char *)];
+/* 驱动任务 */
+typedef struct driver_tab {
+    char name[8];
+    task_t *driver;
+} DriverTab;
+/* 从驱动程序名称到驱动程序功能的映射，例如 “bios”-> bios_wini */
+PRIVATE DriverTab driver_tab[] = {
+#if ENABLE_AT_WINI
+        /* 默认硬盘驱动 */
+        {"AT_HD", &at_winchester_task },
+#endif
+};
+#define FIRST_DRIVER_TASK   NR_CONTROLLERS + 1   /* 第一个驱动任务所处任务表中的位置， */
 
 /*===========================================================================*
  *                                   map_drivers                                    *
  *                                   映射驱动程序              *
  *===========================================================================*/
-PUBLIC void map_drivers(){
-    /* 将驱动程序映射到控制器，并将任务表更新为该选择子。@TODO */
+PUBLIC void map_drivers(void){
+    /* 将驱动程序映射到控制器，并将任务表更新为该选择。 */
 
+    DriverTab *driver;
+    char *driver_name;
+    TaskTab *task;
+    int t = FIRST_DRIVER_TASK, c = 0;
+
+    task = &tasktab[t];
+    driver = &driver_tab[c];
+    for(; c < NR_CONTROLLERS; c++, t--){
+        driver_name = driver->name;
+        task->initial_pc = driver->driver;
+        strcpy(task->name, driver_name);
+        task--;
+        driver++;
+    }
 
 }
+
+/* 所有系统任务堆栈的堆栈空间。 （声明为（char *）使其对齐。） */
+PUBLIC char *task_stack[TOT_TASK_STACK_SPACE / sizeof(char *)];
 
 /* 虽然已经尽量将所有用户可设置的配置消息单独放在include/flyanx/config.h中,但是在将tasktab的大小与
  * NR_TASKS相匹配时仍可能会导致错误。在table.c的结尾处使用一个小技巧对这个错误进行检测。方法是在这里声明

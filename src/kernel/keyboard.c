@@ -134,13 +134,16 @@ PUBLIC void wreboot(
     int quiet, code;
     static u16_t magic = MEMCHECK_MAG;
 
-    /* 屏蔽所有中断 */
-    out_byte(INT_M_CTLMASK, ~0);
+    /* 屏蔽除了时钟外的所有中断 */
+    int irq = CLOCK_IRQ + 1;
+    for(;irq < NR_IRQ_VECTORS; irq++){
+        disable_irq(irq);
+    }
 
     /* 停止几个任务 */
     console_stop();     /* 停止控制台 */
-    /* 停止时钟：可以实现但没必要 */
-//    clock_stop();
+    /* 停止用户进程的调度，也可以理解为停止所有用户进程的运行 */
+    schedule_stop();
 
     if(how == RBT_HALT){
         printf("System Halted\n");
@@ -153,9 +156,11 @@ PUBLIC void wreboot(
 
         (void) scan_keyboard();     /* 清除所有旧的输出 */
         quiet = scan_keyboard();    /* 静态值（PC上为0，AT上为最后一个代码） */
-        /* 重复的读键盘 */
+        /* 即使系统错误非常严重，系统的时钟和键盘依然可以正常运行
+         * 我们在这重复的读键盘，给用户一个分析错误的机会。
+         */
         while (TRUE){
-//            milli_delay(100);   /* 读取间隔100ms */
+            milli_delay(100);   /* 读取间隔100ms，免得CPU一直空转 */
             code = scan_keyboard();
             if(code != quiet){
                 /* 直到用户点击了ESC键，重启 */

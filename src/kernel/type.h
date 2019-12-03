@@ -24,8 +24,12 @@ typedef struct tasktab_s {
     char    name[16];           /* 任务名称 */
 } TaskTab;
 
+/* 内存区域数据结构定义
+ * 定义了唯一确定一片内存区域的两个数值
+ */
 typedef struct memory_s {
-
+    phys_clicks base;
+    phys_clicks size;
 } Memory;
 
 #if (CHIP == INTEL)
@@ -72,7 +76,7 @@ typedef struct seg_descriptor_s {		    /* 受保护模式的段描述符 */
     u8_t base_high;
 } SegDescriptor;
 
-/* 中断处理函数原型 */
+/* 硬件（异常）中断处理函数原型 */
 typedef _PROTOTYPE( void (*int_handler_t), (void) );
 /* 中断请求处理函数原型 */
 typedef _PROTOTYPE( int (*irq_handler_t), (int irq) );

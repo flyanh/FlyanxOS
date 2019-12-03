@@ -15,8 +15,6 @@
 #include <flyanx/common.h>
 #include <elf.h>            /* elf可执行文件头 */
 
-#if (CHIP == INTEL)
-
 /*=========================================================================*
  *				get_kernel_map				   *
  *			    获取内核映像
@@ -75,5 +73,39 @@ PUBLIC int memcmp(const void * s1, const void *s2, size_t n)
     return 0;
 }
 
-#endif
+#if !NDEBUG
+/*=========================================================================*
+ *				bad_assertion				   *
+ *				坏断言处理
+ *=========================================================================*/
+PUBLIC bool assert_panic;           /* 断言宕机标志 */
+PUBLIC void bad_assertion(
+        char *file,     /*  */
+        int line,
+        char *what
+){
+    /* 本例程只有在宏DEBUG被定义为TRUE时才对其进行编译，支持assert.h中的宏。 */
+    assert_panic = TRUE;
+    blue_screen();          /* 蓝屏 */
+    printf("panic at file://%s(%d): assertion \"%s\" failed\n", file, line, what);
+    panic(NULL, NO_NUM);
+}
+
+/*=========================================================================*
+ *				bad_compare				   *
+ *				坏比较处理
+ *=========================================================================*/
+PUBLIC void bad_compare(file, line, lhs, what, rhs)
+        char *file;
+        int line;
+        int lhs;
+        char *what;
+        int rhs;
+{
+    /* 本例程只有在宏DEBUG被定义为TRUE时才对其进行编译，支持assert.h中的宏。 */
+    printf("panic at %s(%d): compare (%d) %s (%d) failed\n",
+           file, line, lhs, what, rhs);
+    panic(NULL, NO_NUM);
+}
+#endif /* !NDEBUG */
 

@@ -6,7 +6,7 @@
  * gitee: https://gitee.com/flyanh/
  */
 
-#ifndef _FS_PROTOTYPE_H
-#define _FS_PROTOTYPE_H
-
-#endif //_FS_PROTOTYPE_H
+/*================================================================================================*/
+/* main.c */
+/*================================================================================================*/
+_PROTOTYPE( void fs_print_info, (char *info) );

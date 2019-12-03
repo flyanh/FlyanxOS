@@ -16,7 +16,18 @@
 PUBLIC void fs_main(void){
     Message msg;
 
-//    printf("fs\n");
+    fs_print_info("working...\n");
+    /* 文件系统开始工作了 */
+    while (TRUE){
+        receive(ANY, &msg);
+    }
+}
 
-    receive(ANY, &msg);
+
+/*===========================================================================*
+ *				fs_print_info					     *
+ *				文件系统输出信息
+ *===========================================================================*/
+PUBLIC void fs_print_info(char *info){
+    printf("{FS}-> %s", info);
 }
