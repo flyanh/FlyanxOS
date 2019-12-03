@@ -20,40 +20,36 @@ PUBLIC void proc_dmp(void)
 {
     /* 为所有的进程显示基本的处理信息，包括在按下F1键时显示的内存使用信息。 */
 
-    int t, task_count = 0, server_count = 0, usr_proc_count = 0;
+    int t, proc_count = 0;
+    printf("\tprocess(all) information\n");
+    printf("----------------------------------------------\n");
+    printf("#\tpid\tname\t\tpriority\n");
+    printf("----------------------------------------------\n");
     for(t = -NR_TASKS; t <= LOW_USER;++t){
+        Process *proc =  proc_addr(t);
+        printf("%d\t%d\t%s\t", proc->nr,proc->pid, proc->name);
         if(t < 0){  /* 任务 */
-            task_count++;
+            printf("%s\n", "system task");
         } else {    /* 服务或用户进程 */
-            if(t < LOW_USER){
+            if (t < LOW_USER) {
                 /* 服务 */
-                server_count++;
-            } else{
+                printf("\t%s\n", "system server");
+            } else {
                 /* 用户进程 */
-                usr_proc_count++;
+                printf("\t%s\n", "user process");
             }
         }
+        proc_count++;
     }
-    printf("System task count: %d\n", task_count);
-    printf("System server count: %d\n", server_count);
-    printf("User process count: %d\n", usr_proc_count);
-    printf("Current running process: %s, nr: %d.\n", curr_proc->name, curr_proc->nr);
+    printf("----------------------------------------------\n");
+    printf("process count: %d\n", proc_count);
+    printf("current running process: %s, nr: %d.\n", curr_proc->name, curr_proc->nr);
 }
 
 /*===========================================================================*
  *				map_dmp    				     *
  *===========================================================================*/
 PUBLIC void map_dmp(void){
-    printf("You computer's memory size is %ldKB.\n", (total_memory_size / (1024)) );
-//    ARDS p_ards;
-//    int i;
-//    for(i = 0; i < NR_MEMORY_CLICK; i++){
-//        p_ards = ards[i];
-//        printf("%lX  ", p_ards.base_addr_low);
-//        printf("%lX  ", p_ards.base_addr_high);
-//        printf("%lX  ", p_ards.size_low);
-//        printf("%lX  ", p_ards.size_high);
-//        printf("%lX\n", p_ards.type);
-//    }
+
 }
 

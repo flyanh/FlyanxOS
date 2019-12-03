@@ -1,13 +1,12 @@
 /* Copyright (C) 2007 Free Software Foundation, Inc. 
  * See the copyright notice in the file /usr/LICENSE.
- * Created by flyan on 2019/11/13.
+ * Created by flyan on 2019/11/28.
  * QQ: 1341662010
  * QQ-Group:909830414
  * gitee: https://gitee.com/flyanh/
  *
- * IBM控制台驱动程序的代码和数据。
+ * 控制台
  */
-
 #include "kernel.h"
 #include <termios.h>
 #include <flyanx/callnr.h>
@@ -15,6 +14,7 @@
 #include "protect.h"
 #include "tty.h"
 #include "process.h"
+#include <stdarg.h>     /* 对可变参数列表操作 */
 
 /* BIOS参数相关 */
 #define BIOS_PARM_COLUMNS       0x44AL      /* 屏幕有多少列（按字符算） */
@@ -56,48 +56,49 @@
 #define GA_VIDEO_ADDRESS	0xA0000L
 #define GA_FONT_SIZE		8192
 
+#define CONS_RAM_WORDS  80	                /* 视频ram缓冲区大小 */
+#define MAX_ESC_PARMS   4	                /* 允许的转义序列参数数量 */
 #define CONSOLE_IN_BYTES	  64	        /* 键盘输入缓冲区的大小 */
 
 /* 为控制台驱动程序和程序集提供支持所使用的全局变量。 */
 PUBLIC phys_bytes   video_base;     /* 视频基地址 */
 PUBLIC unsigned     video_size;	    /* 0x2000表示彩色，0x0800表示单色 */
 PUBLIC unsigned     video_mask;	    /* 0x1FFF表示彩色，0x07FF表示单色 */
-PUBLIC unsigned     blank_color = BLANK_COLOR; /* 空白显示代码 */
+PUBLIC unsigned     blank_color =   BLANK_COLOR; /* 空白显示代码 */
 
 /* 控制台驱动程序使用的私有变量。 */
 PRIVATE int video_port;		            /* 用于访问6845的I/O端口 */
-PRIVATE status_t wrap;			        /* 硬件可以重叠吗? */
-PRIVATE status_t software_scroll;       /* 1 = 软件滚动，0 = 硬件 */
-PRIVATE status_t beeping;		        /* 扬声器已经在蜂鸣？ */
+PRIVATE bool wrap;			        /* 硬件可以重叠吗? */
+PRIVATE bool software_scroll;       /* 1 = 软件滚动，0 = 硬件 */
+PRIVATE bool beeping;		        /* 扬声器已经在蜂鸣？ */
 PRIVATE unsigned font_lines;	        /* 每个字符占几行 */
 PRIVATE unsigned screen_width;	        /* 屏幕一行的字符数 */
 PRIVATE unsigned screen_lines;	        /* 屏幕的行数 */
 PRIVATE unsigned screen_size;	        /* 屏幕的总字符数 */
 
-/* 控制台结构体定义 */
 typedef struct console_s {
-    TTY *tty;                   /* 关联了一个终端 */
-    int column;                /* 光标所在列 */
-    int row;                   /* 光标所在行 */
-    int ram_words;             /* 视频输出队列中的字（word）数 */
-    unsigned int start;         /* 显示内存的起始地址 */
-    unsigned int limit;         /* 显示内存的界限 */
-    unsigned int origin;        /* 由控制器芯片的基指针指向的内存地址 */
-    unsigned int cursor;        /* 在显存中光标的当前位置 */
-    unsigned int attr;          /* 字符属性，颜色以及是否闪烁等 */
-    unsigned int blank;         /* 空字符属性 */
-    status_t reverse;           /* 状态：反相显示 */
-    status_t escape_state;      /* 0 = 正常,1 = ESC, 2 = ESC [] */
-    status_t escape_intro;      /* 转义信息标识符，标识上次转义处理到了哪一步，0即ESC，[则是到了ESC [，以此类推 */
-    int *p_escape_parm;         /* 指向当前转义参数的指针 */
+    struct tty_s *tty;          /* 跟控制台关联的终端 */
+    int column;                 /* 光标所在列 */
+    int row;                    /* 光标所在行 */
+    int ram_words;              /* 视频输出队列中的字（word）数 */
+    unsigned start;             /* 显示内存的起始地址 */
+    unsigned limit;         /* 显示内存的界限 */
+    unsigned origin;        /* 由控制器芯片的基指针指向的内存地址 */
+    unsigned cursor;        /* 在显存中光标的当前位置 */
+    unsigned attr;          /* 字符属性，颜色以及是否闪烁等 */
+    unsigned blank;         /* 空字符属性 */
+    bool reverse;           /* 状态：反相显示 */
+    char escape_state;      /* 0 = 正常,1 = ESC, 2 = ESC [] */
+    char escape_intro;      /* 转义信息标识符，标识上次转义处理到了哪一步，0即ESC，[则是到了ESC [，以此类推 */
     int escape_parm[MAX_ESC_PARMS]; /* 转义参数列表 */
+    int *p_escape_parm;         /* 指向当前转义参数的指针 */
     u16_t ram_queue[CONS_RAM_WORDS];/* 视频存储器缓冲队列 */
 } Console;
 
-PRIVATE int nr_console = 1;		            /* 目前的控制台数量 */
-PRIVATE Console console_table[NR_CONSOLES];	/* 控制台表 */
-PRIVATE Console *curr_console;	            /* 当前可见的（在屏幕上显示的）控制台 */
-PRIVATE char buffer[CONSOLE_IN_BYTES];      /* 控制台缓冲区 */
+PUBLIC int nr_console;		                        /* 控制台数量 */
+PUBLIC Console console_table[NR_CONSOLES];     /* 控制台表 */
+PRIVATE Console *curr_console;	                /* 当前可见的（在屏幕上显示的）控制台 */
+PRIVATE char buffer[CONSOLE_IN_BYTES];              /* 控制台缓冲区 */
 
 /* 从ANSI颜色映射到PC使用的属性 */
 PRIVATE int ansi_colors[8] = {0, 4, 2, 6, 1, 5, 3, 7};
@@ -112,32 +113,92 @@ typedef struct sequence_s {
     unsigned char value;
 } Sequence;
 
-FORWARD _PROTOTYPE( void console_write, (TTY *tty)			);
-FORWARD _PROTOTYPE( void console_echo, (TTY *tty, int c)			);
-FORWARD _PROTOTYPE( void console_ioctl, (TTY *tty) );
-FORWARD _PROTOTYPE( void out_char, (Console *console, int ch) );
+
+FORWARD _PROTOTYPE( void out_char, (Console *console_data, int ch) );
 FORWARD _PROTOTYPE( void scroll_screen, (unsigned direction) );
-FORWARD _PROTOTYPE( void memory2video_copy, (const u16_t *src, unsigned int dst, unsigned int count) );
-FORWARD _PROTOTYPE( void video2video_copy, (unsigned int src, unsigned int dest, unsigned int count) );
-FORWARD _PROTOTYPE( void set_6845_video_start, (unsigned int start_addr) );
-FORWARD _PROTOTYPE( void set_6845_cursor, (unsigned int position) );
-FORWARD _PROTOTYPE( void flush, (Console *console) );
-FORWARD _PROTOTYPE( void parse_escape, (Console *console, char ch) );
+FORWARD _PROTOTYPE( void flush, (Console *console_data) );
+FORWARD _PROTOTYPE( void parse_escape, (Console *console_data, char ch) );
 FORWARD _PROTOTYPE( void beep, (void) );
 FORWARD _PROTOTYPE( void console_origin0, (void) );
 FORWARD _PROTOTYPE( void stop_beep, (void) );
-FORWARD _PROTOTYPE( void do_escape, (Console *console, char ch) );
+FORWARD _PROTOTYPE( void do_escape, (Console *console_data, char ch) );
+FORWARD _PROTOTYPE( void set_6845_video_start, (unsigned int start_addr) );
+FORWARD _PROTOTYPE( void set_6845_cursor, (unsigned int position) );
+FORWARD _PROTOTYPE( void memory2video_copy, (u16_t *src, unsigned int dst, unsigned int count) );
+FORWARD _PROTOTYPE( void video2video_copy, (unsigned int src, unsigned int dest, unsigned int count) );
+FORWARD _PROTOTYPE( void write, (TTY *tty)			);
+FORWARD _PROTOTYPE( void echo, (TTY *tty, int ch)		);
+FORWARD _PROTOTYPE( void ioctl, (TTY *tty) );
 
 /*===========================================================================*
- *				console_write				     *
+ *				console_init				     *
+ *				控制台初始化
+ * tty：跟控制台关联的终端
+ * char_attribute：控制台显示字符的默认属性
+ *===========================================================================*/
+PUBLIC void console_init(TTY *tty){
+    Console *console;
+    int line;
+    unsigned page_size;
+
+    /* 关联控制台和终端 */
+    line = tty - &tty_table[0];
+    /* 如果初始化的控制台超出表，说明这不是一个有效可用的终端 */
+    if(line >= nr_console) return;
+    console = &(console_table[line]);
+    console->tty = tty;             /* 关联控制台的终端 */
+    tty->priv = console;            /* 关联终端的控制台 */
+
+    /* 建立指向设备操作例程的指针 */
+    tty->device_write = &write;      /* 终端写操作 */
+    tty->echo = &echo;               /* 终端回显 */
+    tty->ioctl = &ioctl;             /* 终端I/O控制操作 */
+
+    page_size = video_size / nr_console;
+    console->start = line * page_size;				        /* 计算控制台的显存开始地址 */
+    console->limit = console->start + page_size;	        /* 计算控制台的显存界线 */
+    console->cursor = console->origin = console->start;	    /* 初始化控制台的光标位置，基地址指针和显存开始地址 */
+    console->attr = console->blank = BLANK_COLOR;	        /* 初始化字符属性，空属性为黑底白字 */
+
+    /* 清空控制台的屏幕 */
+    blank_color = BLANK_COLOR;
+    memory2video_copy(BLANK_MEM, console->start, screen_size);
+    display_position = 0;           /* 现在已经有终端了，这个值也就没用了，但我们还是重置它吧 */
+    ioctl(tty);
+}
+
+/*===========================================================================*
+ *				blue_screen				     *
+ *				 蓝屏
+ *===========================================================================*/
+PUBLIC void blue_screen(void){
+    /* 系统遇到不可恢复的错误，准备打印错误信息，进入蓝屏状态。
+     * 这个功能十分有名，因为它来自于Windows，flyanx也简单实
+     * 现了它。
+     */
+    TTY *tty = console_table[0].tty;
+    Console *console = tty->priv;
+
+    /* 切换到第一个控制台 */
+    switch_to(0);
+    /* 设置蓝屏属性 */
+    console->attr = MAKE_COLOR(BLUE, WHITE) | BRIGHT;
+    /* 清屏（改变属性） */
+    blank_color = console->attr;
+    memory2video_copy(BLANK_MEM, curr_console->origin, screen_size);
+    blank_color = BLANK_COLOR;
+    console->row = console->column = 0;
+    flush(curr_console);
+}
+
+/*===========================================================================*
+ *				    write				     *
  *                控制台写入
  *===========================================================================*/
-PRIVATE void console_write(
-        TTY *tty        /* 使用哪个终端进行控制台写入？ */
-){
+PRIVATE void write(TTY *tty){
     /* 控制台写入
      * 这个函数的地址存放在每个控制台的device_write入口处。它只从一个地方被调用，即tty.c的handle_events
-     * 中。console.c中的其他大部分函数的存在都是为了支持这个函数。当它在一个客户进程进行了一个WRITE调用后
+     * 中。priv.c中的其他大部分函数的存在都是为了支持这个函数。当它在一个客户进程进行了一个WRITE调用后
      * 被第一次调用时，待输出的数据位于客户进程的缓冲区中，可以用tty结构中的out_proc和out_vir_addr找到。
      * out_left域记录了还有多少字符需要传送，out_cum被初始化为0，表示什么还没有传送。这是在进入console_write
      * 时的一般情况，因为在正常情况下，一旦该函数被调用，它就传送原始调用请求的所有数据。不过，如果用户希望进
@@ -146,12 +207,10 @@ PRIVATE void console_write(
      * 继续调用console_write，当status_inhibited最终被重置时，用户通过键入START（CTRL-Q）可以让console_write
      * 继续中断的传送。
      */
-    register char *temp_buffer;
+    char *temp_buffer;
     phys_bytes user_phys;
     unsigned int count;
-
-    Console *console = tty->console;
-
+    Console *console = tty->priv;
     /* 进来第一件事就是快速检查是否真的有事可做，因此可以经常调用本例程，因为没事做就立马返回
      * 了，而不需要在其他地方进行费模块化测试。
      */
@@ -163,7 +222,7 @@ PRIVATE void console_write(
         if(count > sizeof(buffer)) count = CONSOLE_IN_BYTES;
         /* 得到用户的输出缓冲区，即用户准备写入控制台的数据 */
         user_phys = proc_vir2phys(proc_addr(tty->out_proc), tty->out_vir_addr);
-        phys_copy(user_phys, vir2phys(data_base, buffer), (phys_bytes)count);
+        phys_copy(user_phys, vir2phys(buffer), (phys_bytes)count);
         temp_buffer = buffer;
 
         /* 更新终端数据结构 */
@@ -176,11 +235,11 @@ PRIVATE void console_write(
             /* 如果字符是一个不可见字符 或 有一个转义序列 或 超过了屏幕宽度
 			 * 或 视频存储器缓冲队列满了
              * 上面的四种情况都需要执行out_char输出这个字符到控制台，因为其
-             * 可能需要一enable echoing of input characters 些奇怪的特殊操作。
+             * 可能需要一些奇怪的特殊操作。
              */
             if((unsigned) *temp_buffer < ' ' || console->escape_state != FALSE
-                    || console->column >= screen_width
-                    || console->ram_words >= buffer_len(console->ram_queue)){
+               || console->column >= screen_width
+               || console->ram_words >= buffer_len(console->ram_queue)){
                 out_char(console, *temp_buffer);
             } else {
                 /* 当然了，如果这个字符的非常“简单”，我们直接将该字符连同属性字节直接放入到视频缓冲队列中。 */
@@ -204,19 +263,19 @@ PRIVATE void console_write(
 
     /* 如果操作真的完成了，终端任务就发送一条回答消息。 */
     if(tty->out_left == 0){
-//        tty_reply(tp->tty_outrepcode, tp->tty_outcaller, tp->tty_outproc,
-//                  tp->tty_outcum);
-//        tp->tty_outcum = 0;
+        tty_reply(tty->out_reply_code, tty->out_caller, tty->out_proc,
+                  tty->out_cum);
+        tty->out_cum = 0;       /* 写入完毕 */
     }
 }
 
 /*===========================================================================*
- *				console_echo				     *
+ *				    echo				     *
  *				 控制台回显
  *===========================================================================*/
-PRIVATE void console_echo(
-        register TTY *tty,      /* 回显的终端 */
-        int c                   /* 回显的字符 */
+PRIVATE void echo(
+        TTY *tty,       /* 回显的终端 */
+        int ch          /* 回显的字符 */
 ){
     /* 控制台回显：回显键盘的输入(打印并刷新)。
      *
@@ -225,17 +284,31 @@ PRIVATE void console_echo(
      * 数通过调用out_char然后调用flush完成所有的工作。来自键盘的输入逐个字符地到达，而
      * 输入的人希望看到回显没有可察觉的延迟，所以把字符送入输出队列并不能满足要求。
      */
+    Console *console = tty->priv;
+
     /* 输出字符并将其刷洗到显存 */
-    out_char(tty->console, c);
-    flush(tty->console);
+    out_char(console, ch);
+    flush(console);
+}
+
+/*===========================================================================*
+ *				 ioctl				     *
+ *				设置窗口框架
+ *===========================================================================*/
+PRIVATE void ioctl(TTY *tty){
+    tty->win_frame.row = screen_lines;
+    tty->win_frame.col = screen_width;
+    tty->win_frame.x_pixel = screen_width * 8;
+    tty->win_frame.y_pixel = screen_lines * font_lines;
+    unsigned short s;
 }
 
 /*===========================================================================*
  *				out_char				     *
  *			向控制台输出一个字符
- *===========================================================================*/
+ *===========================`================================================*/
 PRIVATE void out_char(
-        register Console *console,
+        Console *console,
         int ch
 ){
     /* 首先检查转义序列。 */
@@ -285,11 +358,6 @@ PRIVATE void out_char(
             flush(console);
             break;
 
-        case 033:               /* 转义符号：标志着即将开始一个转义序列 */
-            flush(console);     /* 前面或许还有在等待输出的字符，冲洗它们 */
-            console->escape_state = TRUE;   /* 将转义状态置位 */
-            break;
-
         case '\r':              /* 回车符 */
             /* 控制台列数变为0，OK */
             console->column = 0;
@@ -314,6 +382,11 @@ PRIVATE void out_char(
             flush(console);
             break;
 
+        case 033:               /* 转义符号：标志着即将开始一个转义序列 */
+            flush(console);     /* 前面或许还有在等待输出的字符，冲洗它们 */
+            console->escape_state = TRUE;   /* 将转义状态置位 */
+            break;
+
         default:                /* 能到这里的，将全部是可打印的普通字符，将其存储到视频缓冲队列中 */
             /* 超出了屏幕宽度 */
             if(console->column >= screen_width){
@@ -321,10 +394,7 @@ PRIVATE void out_char(
                 if(!LINE_WARP) return;
                 if(console->row == screen_lines - 1){
                     /* 如果行数已经到底，向上滚屏 */
-                    console->origin = (console->origin + screen_width) & video_mask;
-                    if(console == curr_console){
-                        set_6845_video_start(console->origin);
-                    }
+                    scroll_screen(SCROLL_UP);
                 } else {
                     /* 还在屏幕中间，正常情况，行数 + 1 */
                     console->row++;
@@ -336,7 +406,7 @@ PRIVATE void out_char(
             /* 如果控制台的缓存队列中已满，刷洗更新到视频存储 */
             if(console->row == buffer_len(console->ram_queue)) flush(console);
             /* 上面的工作做完了，我们可以处理这次要输出的字符了 */
-            console->ram_queue[console->ram_words] = (ch & BYTE) | console->attr; /* 记得设置上字符属性 */
+            console->ram_queue[console->ram_words] = console->attr | (ch & BYTE); /* 记得设置上字符属性 */
             console->ram_words++;   /* 指向视频输出的下一个字（word） */
             console->column++;      /* 指向下一列 */
             break;
@@ -346,8 +416,7 @@ PRIVATE void out_char(
 /*===========================================================================*
  *				scroll_screen				     *
  *			        滚屏
- * console: 需要进行滚屏操作的控制台
- * dir: 上滚（SCROLL_UP）或下滚（SCROLL_DOWN）
+ * direction: 上滚（SCROLL_UP）或下滚（SCROLL_DOWN）
  *===========================================================================*/
 PRIVATE void scroll_screen(unsigned direction){
     /* 滚屏（只能对当前正在使用的控制台生效）
@@ -427,9 +496,8 @@ PRIVATE void scroll_screen(unsigned direction){
  *				    flush				     *
  *		        将控制台缓冲刷到显存
  *===========================================================================*/
-PRIVATE void  flush(register Console *console){
+PRIVATE void  flush(Console *console){
     /* 将缓存队列更新到视频内存中，并更新变量保证行和列的数值是合理的。 */
-    u16_t *video_memory = (u16_t*)(video_base + console->cursor * 2);    /* 视频内存，以字(word) */
     unsigned int cursor;
     TTY *tty = console->tty;
 
@@ -438,53 +506,22 @@ PRIVATE void  flush(register Console *console){
         memory2video_copy(console->ram_queue, console->cursor, console->ram_words);
         console->ram_words = 0;     /* 传输完毕，清零 */
 
-        /* 终端想知道当前的列 以及 是否回显数据已经混乱（因为被更新了） */
+        /* 终端想知道当前的列 以及 是否有错误的回调（回显数据已经混乱） */
         tty->position = console->column;
-        tty->status_reprint = TRUE;
+        tty->reprint = TRUE;
     }
+
     /* 检查并更新光标位置。 */
     if(console->column < 0) console->column = 0;    /* 列在屏幕左外边，拉回来 */
     if(console->column > screen_width) console->column = screen_width;  /* 在屏幕右外边 */
     if(console->row < 0) console->row = 0; /* 行在屏幕上外边 */
-    if(console->row > screen_lines) console->row = screen_lines - 1;    /* 行在屏幕下外边 */
+    if(console->row >= screen_lines) console->row = screen_lines - 1;    /* 行在屏幕下外边 */
     cursor = console->origin + console->row * screen_width + console->column; /* 计算光标位置 */
     if(cursor != console->cursor){
         /* 当新光标跟当前控制台光标位置不一致时，且是当前正在使用的控制器时，更新视频光标位置 */
         if(console == curr_console) set_6845_cursor(cursor);
         /* 无论如何，光标不一致都需要更新控制台的光标位置 */
         console->cursor = cursor;
-    }
-}
-
-/*===========================================================================*
- *				memory2video_copy					     *
- *			     内存到显存复制
- *===========================================================================*/
-PRIVATE void memory2video_copy(
-        const u16_t *src,           /* 要复制到显存的word字串 */
-        unsigned int dest,          /* 目标，是显存中的相对位置 */
-        unsigned int count          /* 要复制多少个字？ */
-){
-    /* 将一个字串（不是字符串）从核心的内存区域拷贝到视频显示器的存储器中（通俗讲就是显存）。
-     * 该字串中包含替换字符码和若干属性字节 *
-     */
-    u16_t *video_memory = (u16_t*)(video_base + dest * 2);  /* 得到目标显存 */
-    unsigned int i = 0;
-
-    /* 如果字串是BLANK_MEM，执行清空整个屏幕空间 */
-    if(src == BLANK_MEM){
-        blank_color = BLANK_COLOR;
-        for(; i < screen_size; i++){   /* 整个屏幕 */
-            *video_memory = blank_color;
-            video_memory++;
-        }
-    } else {                            /* 移动src字串到显存，从dest相对位置开始，复制count个字 */
-        while (count != 0){             /* 只要count != 0，一直复制 */
-            *video_memory = src[i];
-            video_memory++;
-            i++;
-            count--;
-        }
     }
 }
 
@@ -510,13 +547,11 @@ PRIVATE void beep(void){
     beeping = TRUE;
 
     /* 延迟BEEP_TIME滴答 */
-    delay_by_loop(37);
-//    milli_delay(BEEP_TIME * 10);
+    milli_delay(BEEP_TIME * 10);
     stop_beep();        /* 关闭蜂鸣 */
 
 
-    /* 这里可以改进为使用闹钟的方式来定时关闭蜂鸣，可能以后的版本会改进 */
-
+    /* 这里可以改进为使用闹钟的方式来定时关闭蜂鸣，以后的版本会改进 */
 }
 
 /*===========================================================================*
@@ -537,7 +572,7 @@ PRIVATE void stop_beep(void){
  *			    转义处理
  *===========================================================================*/
 PRIVATE void parse_escape(
-        register Console *console,  /* 哪个控制台产生了转义？ */
+        Console *console,  /* 哪个控制台产生了转义？ */
         char ch                     /* 转义序列中的下一个字符，将会陆续进来 */
 ){
     /* 解析转义字符
@@ -612,7 +647,7 @@ PRIVATE void parse_escape(
  *				do_escape				     *
  *		识别转义序列，并执行其需要的动作
  *===========================================================================*/
-PRIVATE void do_escape(register Console *console, char ch){
+PRIVATE void do_escape(Console *console, char ch){
     int value, n;
     unsigned int src, dest, count;
     int *parmp;
@@ -729,26 +764,7 @@ PRIVATE void console_origin0(void){
         flush(console);
     }
     /* 激活控制台 */
-    switch_console(current_console_nr);
-}
-
-/*===========================================================================*
- *				switch_console				     *
- *				切换控制台
- *===========================================================================*/
-PUBLIC void switch_console(u16_t console_line){
-    /* 切换一个控制台 */
-
-    /* 切换到一个不存在的控制台？那可不行！ */
-    if(console_line >= nr_console) return;
-    /* 设置当前使用的控制台 */
-    current_console_nr = console_line;
-    /* 得到该控制台实例（虽然这不是java，但习惯了，所以以后的实例我们指其拥有实际内存空间的数据结构） */
-    curr_console = &console_table[console_line];
-    /* 设置控制台的光标 */
-    set_6845_cursor(curr_console->cursor);
-    /* 设置控制台基地址，即控制台视频显存开始地址 */
-    set_6845_video_start(curr_console->start);
+    switch_to(current_console_nr);
 }
 
 /*===========================================================================*
@@ -766,37 +782,63 @@ PUBLIC void toggle_scroll(void){
 }
 
 /*===========================================================================*
+ *				cons_stop				     *
+ *	重新初始化控制台为重启监控程序指定的状态，优先于关机或重启
+ *===========================================================================*/
+PUBLIC void console_stop(void){
+    console_origin0();
+    software_scroll = TRUE;
+    switch_to(0);
+//    console_table[0].attr = console_table[0].blank = BLANK_COLOR;
+}
+
+/*===========================================================================*
+ *				k_putk					     *
+ *			输出一个字符到当前控制台
+ *===========================================================================*/
+PUBLIC void k_putk(int ch)
+{
+    /* 不需要通过文件系统而直接打印一个字符，内核和任务级别可使用
+     * printk()使用这个过程，系统库中的printf()则需要向文件系统
+     * 发送一条消息，这么低效的工作方式不是内核和任务所需要的，所
+     * 以本例程只将输出的字符加入输出队列并输出。
+     */
+
+    if(ch != 0){
+        /* 如果遇到了换行符，再输入一个'\r'，即输出'\n'时，实际上是输出"\r\n" */
+        if(ch == '\n') out_char(&console_table[0], '\r');
+        /* 只要还没到遇到字符串结束符号0，继续将字符加入到输出队列 */
+        out_char(&console_table[0], ch);
+    } else {
+        /* 如果是一个字符串结束符号0，将输出队列冲洗到视频内存 */
+        flush(&console_table[0]);
+    }
+}
+
+/*===========================================================================*
+ *				printk					     *
+ *			格式打印一个字符串，只能被内核调用
+ *===========================================================================*/
+PUBLIC void printk(const char *fmt, ...){
+    va_list argp;
+    va_start(argp, fmt);
+    redirect_printf(fmt, argp, &k_putk);      /* 实际的调用是库例程里的redirect_printf完成的 */
+    va_end(argp);
+}
+
+/*===========================================================================*
  *				screen_init				     *
  *				屏幕初始化
  *===========================================================================*/
-PUBLIC void screen_init(TTY *tty){
-    /* 初始化屏幕驱动程序。 */
-    Console *console;
+PUBLIC void screen_init(void){
     u16_t bios_columns, bios_crtbase, bios_font_lines;
     u8_t bios_rows;
-    int line;
-    unsigned int page_size;
-
-    /* 关联控制台和终端 */
-    line = tty - &tty_table[0];
-    if(line >= nr_console) return;  /* 如果初始化的控制台超出表，说明这不是一个有效可用的终端（初始化第一个控制台时nr_console == 1） */
-    console = &console_table[line]; /* 得到控制台实例 */
-    console->tty = tty;             /* 关联控制台的终端 */
-    tty->console = console;         /* 关联终端的控制台 */
-
-    /* 初始化键盘驱动程序 */
-    keyboard_init(tty);
-
-    /* 建立指向设备操作例程的指针 */
-    tty->device_write = console_write;      /* 终端写操作 */
-    tty->echo = console_echo;               /* 终端回显 */
-    tty->ioctl = console_ioctl;             /* 终端I/O控制操作 */
-
     /* 获取描述视频显示单元的BIOS参数。 */
-    phys_copy(BIOS_PARM_COLUMNS, vir2phys(data_base, &bios_columns), 2L);
-    phys_copy(BIOS_PARM_CRTBASE, vir2phys(data_base, &bios_crtbase), 2L);
-    phys_copy(BIOS_PARM_ROWS, vir2phys(data_base, &bios_rows), 1L);
-    phys_copy(BIOS_PARM_FONTLINES, vir2phys(data_base, &bios_font_lines), 2L);
+    phys_copy(BIOS_PARM_COLUMNS, vir2phys(&bios_columns), 2L);
+    phys_copy(BIOS_PARM_CRTBASE, vir2phys(&bios_crtbase), 2L);
+    phys_copy(BIOS_PARM_ROWS, vir2phys( &bios_rows), 1L);
+    phys_copy(BIOS_PARM_FONTLINES, vir2phys(&bios_font_lines), 2L);
+
     /* 将得到的参数设置到全局变量，对于屏幕行数screen_lines需要注意：
      * 如果视频卡是EGA，则屏幕的行数就是检测到的bios_rows + 1，否则(VGA)是25。
      */
@@ -816,7 +858,6 @@ PUBLIC void screen_init(TTY *tty){
     /* 根据使用的视频控制器的类型设置wrap标志（用来确定如何滚屏），EGA不可以硬件重叠。 */
     wrap = !ega;
     /* 根据视频存储器基地得到并初始化段描述符 */
-//    phys2seg(&video_segment, &video_offset, video_base);
     video_size >>= 1;				/* 将按字节(byte)计数转换成按字(word)计数 */
     video_mask = video_size - 1;	/* 计算视频存储器的大小索引 */
 
@@ -826,20 +867,23 @@ PUBLIC void screen_init(TTY *tty){
     nr_console = video_size / screen_size;				    /* 首先，得到视频大小允许分配的最大的控制台数量 */
     if (nr_console > NR_CONSOLES) nr_console = NR_CONSOLES;	/* 当然了，配置项NR_CONSOLE限制其能开启的控制台数量 */
     if (nr_console > 1) wrap = FALSE;					    /* 如果有多个控制台被激活，那么不允许硬件重叠 */
-    page_size = video_size / nr_console;			        /* 计算一个控制台可用的页大小 */
-    console->start = line * page_size;				        /* 计算控制台的显存开始地址 */
-    console->limit = console->start + page_size;	        /* 计算控制台的显存界线 */
-    console->cursor = console->origin = console->start;	    /* 初始化控制台的光标位置，基地址指针和显存开始地址 */
-    console->attr = console->blank = BLANK_COLOR;	        /* 初始化字符属性，空属性为黑底白字 */
+}
 
-    /* 清空控制台的屏幕 */
-    blank_color = BLANK_COLOR;
-    memory2video_copy(BLANK_MEM, console->start, screen_size);
-    display_position = 0;           /* 现在已经有终端了，这个值也就没用了，但我们还是重置它吧 */
-    /* 控制台0被选为第一个活动控制台。 */
-    switch_console(0);
-    /* 设置设备的屏幕尺寸 */
-    console_ioctl(tty);
+/*===========================================================================*
+ *				switch_to				     *
+ *				切换控制台
+ *===========================================================================*/
+PUBLIC void switch_to(int line){
+    /* 切换到一个不存在的控制台？那可不行！ */
+    if(line < 0 || line >= nr_console) return;
+    /* 设置当前使用的控制台 */
+    current_console_nr = line;
+    /* 设置该控制台为当前控制台 */
+    curr_console = &console_table[line];
+    /* 设置控制台的光标 */
+    set_6845_cursor(curr_console->cursor);
+    /* 设置控制台基地址，即控制台视频显存开始地址 */
+    set_6845_video_start(curr_console->start);
 }
 
 /*===========================================================================*
@@ -847,7 +891,7 @@ PUBLIC void screen_init(TTY *tty){
  *				设置6845的显存开始区域
  *===========================================================================*/
 PRIVATE void set_6845_video_start(
-        unsigned start_addr   /* 要设置的显存位置 */
+        unsigned int start_addr   /* 要设置的显存位置 */
 ){
     interrupt_lock();
     out_byte(video_port + INDEX, VIDEO_ORG);
@@ -862,7 +906,7 @@ PRIVATE void set_6845_video_start(
  *			    设置6845的光标位置
  *===========================================================================*/
 PRIVATE void set_6845_cursor(
-        unsigned position      /* 屏幕显示的位置，光标将会跟随更新 */
+        unsigned int position      /* 屏幕显示的位置，光标将会跟随更新 */
 ){
     /* 本例程其实可以和set_video_start合并为一个函数，但是为了代码可读性更好，还是分开吧！
      */
@@ -875,38 +919,57 @@ PRIVATE void set_6845_cursor(
 }
 
 /*===========================================================================*
- *				console_ioctl				     *
- *				设置窗口框架
+ *				clear_screen					     *
+ *			  清除控制台的屏幕输出
  *===========================================================================*/
-
-PRIVATE void console_ioctl(TTY *tty){
-    tty->win_frame.row = screen_lines;
-    tty->win_frame.col = screen_width;
-    tty->win_frame.x_pixel = screen_width * 8;
-    tty->win_frame.y_pixel = screen_lines * font_lines;
-    unsigned short s;
+PUBLIC void clear_screen(TTY *tty) {
+    Console *console = tty->priv;
+    if(console != curr_console) return; /* 如果不是当前控制台，no！ */
+    blank_color = BLANK_COLOR;
+    memory2video_copy(BLANK_MEM, curr_console->origin, screen_size);
+    curr_console->row = curr_console->column = 0;
+    flush(curr_console);
 }
 
 /*===========================================================================*
- *				clear_srceen					     *
- *			        清屏
+ *				memory2video_copy					     *
+ *			     内存到显存复制
  *===========================================================================*/
-PUBLIC void clear_srceen(int line){
-    Console *console = &console_table[line];
-    /* 清空控制台的屏幕 */
-    blank_color = BLANK_COLOR;
-    memory2video_copy(BLANK_MEM, console->origin, screen_size);
-    console->row = console->column = 0;
-    flush(console);
+PRIVATE void memory2video_copy(
+        register u16_t *src,            /* 要复制到显存的word字串 */
+        register unsigned int dest,     /* 目标，是显存中的相对位置 */
+        unsigned int count              /* 要复制多少个字？ */
+){
+    /* 将一个字串（不是字符串）从核心的内存区域拷贝到视频显示器的存储器中（通俗讲就是显存）。
+     * 该字串中包含替换字符码和若干属性字节 *
+     */
+    u16_t *video_memory = (u16_t*)(video_base + dest * 2);  /* 得到目标显存 */
+    unsigned int i = 0;
+
+    /* 如果字串是BLANK_MEM，执行清空整个屏幕空间 */
+    if(src == BLANK_MEM){
+//        blank_color = BLANK_COLOR;
+        for(; i < screen_size; i++){   /* 整个屏幕 */
+            *video_memory = blank_color;
+            video_memory++;
+        }
+    } else {                            /* 移动src字串到显存，从dest相对位置开始，复制count个字 */
+        while (count != 0){             /* 只要count != 0，一直复制 */
+            *video_memory = src[i];
+            video_memory++;
+            i++;
+            count--;
+        }
+    }
 }
 
 /*===========================================================================*
  *				video2video_copy					     *
  *			     显存内复制
  *===========================================================================*/
-PUBLIC void video2video_copy(
-        unsigned int src,       /* 源，是显存中的相对位置 */
-        unsigned int dest,      /* 目标，是显存中的相对位置 */
+PRIVATE void video2video_copy(
+        register unsigned int src,       /* 源，是显存中的相对位置 */
+        register unsigned int dest,      /* 目标，是显存中的相对位置 */
         unsigned int count      /* 要复制多少个字？ */
 ){
     /* 显示器存储器(显存)内部的数据块拷贝。
@@ -935,30 +998,15 @@ PUBLIC void video2video_copy(
             count--;
         }
     }
-
 }
 
-/*===========================================================================*
- *				putk					     *
- *			输出一个字符到当前控制台
- *===========================================================================*/
-PUBLIC void putk(int ch)
-{
-    /* 不需要通过文件系统而直接打印一个字符，内核和任务级别可使用
-     * 与内核本身链接的printf()将使用这个过程，系统库中的printf
-     * 则需要向文件系统发送一条消息，这么低效的工作方式不是内核和
-     * 任务所需要的，所以本例程只将输出的字符加入输出队列并输出。
-     */
 
-    if(ch != 0){
-        /* 如果遇到了换行符，在'\n'前再加一个'\r'回车符号 */
-        if(ch == '\n') out_char(&console_table[0], '\r');
-        /* 只要还没到遇到字符串结束符号0，继续将字符加入到输出队列 */
-        out_char(&console_table[0], ch);
-    } else {
-        /* 如果是一个字符串结束符号0，将输出队列冲洗到视频内存 */
-        flush(&console_table[0]);
-    }
 
-}
+
+
+
+
+
+
+
 

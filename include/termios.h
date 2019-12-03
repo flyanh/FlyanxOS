@@ -101,9 +101,9 @@ typedef struct termios_s {
                                          */
 
 /* Values for the baud rate settings.  POSIX Table 7-6. */
-#define B0		0x0000	/* hang up the line */
-#define B50		0x1000	/* 50 baud */
-#define B75		0x2000	/* 75 baud */
+#define B0		    0x0000	/* hang up the line > 挂线 */
+#define B50		    0x1000	/* 50 baud */
+#define B75		    0x2000	/* 75 baud */
 #define B110		0x3000	/* 110 baud */
 #define B134		0x4000	/* 134.5 baud */
 #define B150		0x5000	/* 150 baud */
@@ -214,10 +214,10 @@ _PROTOTYPE( int tcsetattr,
  */
 typedef struct win_frame_s
 {
-    u16_t	row;	    /* 行，以字符为单位 */
-    u16_t 	col;	    /* 列，以字符为单位 */
-    u16_t 	x_pixel;	/* 水平尺寸，像素 */
-    u16_t 	y_pixel;	/* 垂直尺寸，像素 */
+    int	    row;	    /* 行，以字符为单位 */
+    int 	col;	    /* 列，以字符为单位 */
+    int 	x_pixel;	/* 水平尺寸，像素 */
+    int  	y_pixel;	/* 垂直尺寸，像素 */
 } WinFrame;
 
 #endif /*_ FLYANX */

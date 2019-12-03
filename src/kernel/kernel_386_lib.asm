@@ -35,7 +35,10 @@ global  enable_irq
 global  disable_irq
 global  interrupt_lock
 global  interrupt_unlock
+global	port_read
+global	port_write
 global  level0
+global  reset
 
 ;*===========================================================================*
 ;*				phys_copy				     *
@@ -181,6 +184,8 @@ out_word:
     mov edx, [esp + 4]      ; 得到端口
     mov eax, [esp + 4 + 4]  ; 得到值
     out dx, ax              ; 输出一个字
+    nop	; 一点延迟
+    nop
     ret
 
 ;*===========================================================================*
@@ -193,6 +198,8 @@ in_word:
     mov edx, [esp + 4]      ; 端口
     xor eax, eax
     in ax, dx               ; 读一个字
+    nop	; 一点延迟
+    nop
     ret
 
 ;================================================================================================
@@ -268,6 +275,24 @@ interrupt_unlock:
     ret
 
 ;================================================================================================
+;            void port_read(u16_t port, phys_bytes destination, unsigned bytcount);
+port_read:
+    mov edx, [esp + 4]          ; port
+    mov edi, [esp + 4 + 4]      ; destination
+    mov ecx, [esp + 4 + 4 + 4]  ; bytcount
+    cld
+    rep insw
+    ret
+;================================================================================================
+;             void port_write(unsigned port, phys_bytes source, unsigned bytcount);
+port_write:
+    mov edx, [esp + 4]          ; port
+    mov edi, [esp + 4 + 4]      ; source
+    mov ecx, [esp + 4 + 4 + 4]  ; bytcount
+    cld
+    rep outsw
+    ret
+;================================================================================================
 ;                  void level0(void (*func)(void))	解锁中断
 ; 将任务提权到最高特权级 - 0级
 ; 它主要用于这样的操作，如复位CPU、或访问PC的ROM BIOS例程。
@@ -277,6 +302,17 @@ level0:
     mov [level0_func], eax
     int LEVEL0_VECTOR
     ret
+;================================================================================================
+;                   PUBLIC void reset(void);
+;*                       使处理器复位             *
+;* 这通过将一个空指针装入处理器的中断描述符表寄存器，然后执行一个软件中断实现， *
+;* 它与硬件复位效果是一样的。这个例程一般在重启的时候使用。 *
+reset:
+    lidt    [idt_zero]
+    int     3           ; 386保护模式不会想看到这个中断的，所以目的达到了
+[SECTION .data]
+idt_zero:   dd  0, 0
+[SECTION .text]
+
 
 ;================================================================================================
-

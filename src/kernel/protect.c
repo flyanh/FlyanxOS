@@ -25,7 +25,6 @@ PRIVATE Gate idt[IDT_SIZE];             /* 中断描述符表 */
 PUBLIC Tss tss;                         /* 用0初始化 */
 
 FORWARD _PROTOTYPE(void init_gate, (u8_t vector, u8_t desc_type, int_handler_t handler, u8_t privilege) );
-FORWARD _PROTOTYPE(void init_seg_desc, (SegDescriptor *p_desc, phys_bytes base, u32_t limit, u16_t attribute) );
 /*=========================================================================*
  *				protect_init				   *
  *				保护模式初始化
@@ -106,7 +105,7 @@ PUBLIC void protect_init(void)
      */
     tss.ss0 = SELECTOR_KERNEL_DS;
     init_seg_desc(&gdt[TSS_INDEX],
-                vir2phys(data_base, &tss),
+                vir2phys(&tss),
                 sizeof(tss) - 1,
                 DA_386TSS);
 #if _WORD_SIZE == 4
@@ -123,7 +122,7 @@ PUBLIC void protect_init(void)
     for(proc = BEG_PROC_ADDR, ldt_index = LDT_FIRST_INDEX;
         proc < END_PROC_ADDR; ++proc, ldt_index++){
         init_seg_desc(&gdt[ldt_index],
-                      vir2phys(data_base, proc->ldt),
+                      vir2phys(proc->ldt),
                       LDT_SIZE * DESCRIPTOR_SIZE,
                       DA_LDT);
         gdt[ldt_index].access = 0x82;
@@ -137,17 +136,18 @@ PUBLIC void protect_init(void)
  *=========================================================================*/
 PUBLIC void init_seg_desc(p_desc, base, limit, attribute)
 register SegDescriptor *p_desc;
-phys_bytes base;
-u32_t limit;
+vir_bytes base;
+vir_bytes limit;
 u16_t attribute;
 {
     /* 初始化一个数据段描述符 */
-    p_desc->limit_low	= limit & 0x0FFFFu;
-    p_desc->base_low	= base & 0x0FFFFu;
-    p_desc->base_middle	= (base >> 16u) & 0x0FFu;
-    p_desc->access		= attribute & 0xFFu;
-    p_desc->granularity = ((limit >> 16) & 0x0F) | (attribute >> 8) & 0xF0;
-    p_desc->base_high	= (base >> 24u) & 0x0FFu;
+    p_desc->limit_low	= limit & 0x0FFFF;         /* 段界限 1		(2 字节) */
+    p_desc->base_low	= base & 0x0FFFF;          /* 段基址 1		(2 字节) */
+    p_desc->base_middle	= (base >> 16) & 0x0FF;     /* 段基址 2		(1 字节) */
+    p_desc->access		= attribute & 0xFF;         /* 属性 1 */
+    p_desc->granularity = ((limit >> 16) & 0x0F) |  /* 段界限 2 + 属性 2 */
+                        ((attribute >> 8) & 0xF0);
+    p_desc->base_high	= (base >> 24) & 0x0FF;     /* 段基址 3		(1 字节) */
 }
 
 /*=========================================================================*
@@ -189,7 +189,7 @@ PUBLIC phys_bytes seg2phys(U16_t seg)
  *			通过段基址得到对应的段描述符
  *=========================================================================*/
 PUBLIC void phys2seg(
-        u16_t *seg,
+        vir_bytes *seg,
         vir_bytes *off,
         phys_bytes phys
 ){

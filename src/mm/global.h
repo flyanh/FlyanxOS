@@ -1,0 +1,38 @@
+/* Copyright (C) 2007 Free Software Foundation, Inc. 
+ * See the copyright notice in the file /usr/LICENSE.
+ * Created by flyan on 2019/11/30.
+ * QQ: 1341662010
+ * QQ-Group:909830414
+ * gitee: https://gitee.com/flyanh/
+ */
+
+#ifndef _MM_GLOBAL_H
+#define _MM_GLOBAL_H
+
+/* 当该文件被包含在定义了宏_TABLE的 table.c中时，宏EXTERN的定义被取消。 */
+#ifdef _TABLE
+#undef EXTERN
+#define EXTERN
+#endif
+
+/* 全局变量 */
+EXTERN int procs_in_use;            /* 有多少进程被标记为正在使用 */
+EXTERN struct mm_process_s *curr_mp;    /* 指向一个当前正在处理的进程 */
+
+/* 外界的调用参数在这 */
+EXTERN Message mmsg_in;     /* 传入的消息保存在这 */
+EXTERN int who;         /* 调用进程的进程号 */
+
+extern _PROTOTYPE( int (*call_handlers[]), (void) );    /* 系统调用处理函数在这里 */
+extern char *core_name;     /* 生成核心映像的文件名
+                             * 在进程非正常结束时，我们把进程的映像写到一个内核文件中，core_name
+                             * 定义了这个文件的文件名。
+                             */
+
+/* 导入内核变量，这些变量已经由内核初始化并设置，现在只需要感知以下就可以了 */
+extern phys_clicks kernel_base; /* 内核所在基地址 */
+extern phys_clicks kernel_limit;/* 内核界限 */
+extern BootParams bootParams;   /* 系统启动参数 */
+
+
+#endif //_MM_GLOBAL_H

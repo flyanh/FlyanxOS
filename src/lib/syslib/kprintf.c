@@ -23,16 +23,34 @@ void putk();
 int printf(fmt) char *fmt;
 #else
 
-/* printf()使用putk()打印字符。 putk在内核中有内核的实现，在服务中，使用系统库中的实现 */
-void putk(int ch);
+typedef void(*putk_func_t)(int ch);
+void putk(int ch);      /* 引入通用的putk */
+
+int redirect_printf(const char *fmt, va_list argp, putk_func_t rp_putk);
 
 /*=========================================================================*
  *				        printf				   *
- *				        打印一个格式化字符串      *
+ *				    打印一个格式化字符串      *
  *=========================================================================*/
 int printf(const char *fmt, ...)
 #endif
 {
+    va_list argp;
+
+    va_start(argp, fmt);
+
+    /* redirect_printf去做真正的事情 */
+    redirect_printf(fmt, argp, &putk);
+
+    va_end(argp);
+    return 0;
+}
+
+/*=========================================================================*
+ *				    redirect_printf				   *
+ *				    可重定向的printf函数      *
+ *=========================================================================*/
+int redirect_printf(const char *fmt, va_list argp, putk_func_t rp_putk){
     int c;
     enum { LEFT, RIGHT } adjust;
     enum { LONG, INT } intsize;
@@ -46,14 +64,10 @@ int printf(const char *fmt, ...)
     unsigned long u;
     char temp[8 * sizeof(long) / 3 + 2];
 
-    va_list argp;
-
-    va_start(argp, fmt);
-
     while ((c = *fmt++) != 0) {
         if (c != '%') {
             /* 普通字符 */
-            putk(c);
+            rp_putk(c);
             continue;
         }
 
@@ -118,7 +132,7 @@ int printf(const char *fmt, ...)
             /* 十进制 */
             case 'd':
                 i = intsize == LONG ? (long)va_arg(argp, long)
-                                   : (long) va_arg(argp, int);
+                                    : (long) va_arg(argp, int);
                 u = i < 0 ? -i : i;
                 goto int2ascii;
 
@@ -142,7 +156,7 @@ int printf(const char *fmt, ...)
             case 'u':
             getint:
                 u = intsize == LONG ? (unsigned long)va_arg(argp, unsigned long)
-                                   : (unsigned long)va_arg(argp, unsigned int);
+                                    : (unsigned long)va_arg(argp, unsigned int);
             int2ascii:
                 p = temp + sizeof(temp) - 1;
                 *p = 0;
@@ -175,25 +189,29 @@ int printf(const char *fmt, ...)
             string_print:
                 width -= len;
                 if (i < 0) width--;
-                if (fill == '0' && i < 0) putk('-');
+                if (fill == '0' && i < 0) rp_putk('-');
                 if (adjust == RIGHT) {
-                    while (width > 0) { putk(fill); width--; }
+                    while (width > 0) { rp_putk(fill); width--; }
                 }
-                if (fill == ' ' && i < 0) putk('-');
-                while (len > 0) { putk((unsigned char) *p++); len--; }
-                while (width > 0) { putk(fill); width--; }
+                if (fill == ' ' && i < 0) rp_putk('-');
+                while (len > 0) { rp_putk((unsigned char) *p++); len--; }
+                while (width > 0) { rp_putk(fill); width--; }
                 break;
 
                 /* 无法识别的格式键，将其回显。 */
             default:
-                putk('%');
-                putk(c);
+                rp_putk('%');
+                rp_putk(c);
         }
     }
 
     /* 将结尾标记为空（可以是其他值，例如-1）。 */
-    putk(0);
+    rp_putk(0);
     va_end(argp);
     return 0;
 }
+
+
+
+
 

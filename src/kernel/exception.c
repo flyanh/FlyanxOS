@@ -20,7 +20,7 @@ typedef struct exception_s{
    int sig_num;         /* 异常处理信号（发送给用户进程） */
 } Exception;
 
-static Exception ex_data[] = {
+PRIVATE Exception ex_data[] = {
         "#DE Divide Error", SIGKILL,
         "#DB RESERVED", SIGKILL,
         "—  NMI Interrupt", SIGKILL,

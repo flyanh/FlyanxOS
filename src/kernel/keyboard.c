@@ -76,11 +76,125 @@ PRIVATE int locks[NR_CONSOLES];	/* 每个控制台的锁定键状态 */
 PRIVATE char numpad_map[] =
         {'H', 'Y', 'A', 'B', 'D', 'C', 'V', 'U', 'G', 'S', 'T', '@'};
 
-
 FORWARD _PROTOTYPE( unsigned int key_make_break, (int scan_code) );
 FORWARD _PROTOTYPE( void check_cad, (int scan_code) );
 FORWARD _PROTOTYPE( void set_led, (void) );
 FORWARD _PROTOTYPE( int function_key, (int scan_code) );
+FORWARD _PROTOTYPE( int scan_keyboard, (void) );
+FORWARD _PROTOTYPE(  void keyboard_read, (TTY *tty) );
+FORWARD _PROTOTYPE( int keyboard_wait, (void) );
+FORWARD _PROTOTYPE( int keyboard_ack, (void) );
+FORWARD _PROTOTYPE( unsigned map_key, (int scan_code) );
+FORWARD _PROTOTYPE( int keyboard_handler, (int irq) );
+
+
+/*===========================================================================*
+ *				keyboard_init					     *
+ *				键盘驱动初始化
+ *===========================================================================*/
+PUBLIC void keyboard_init(void){
+    /* 初始化一个键盘驱动程序，同时将该键盘和一个终端绑定 */
+
+    /* 设置键盘灯 */
+    set_led();
+
+    /* 扫描键盘以确保没有残余的读入，将残余的键码都丢弃掉 */
+    scan_keyboard();
+
+    /* 设定键盘中断处理程序并打开键盘中断 */
+    put_irq_handler(KEYBOARD_IRQ, keyboard_handler);
+    enable_irq(KEYBOARD_IRQ);
+}
+
+/*===========================================================================*
+ *				keyboard_bind_tty					     *
+ *			 将键盘绑定到一个控制台终端上
+ *===========================================================================*/
+PUBLIC void keyboard_bind_tty(TTY *tty){
+    /* 设置终端设备的读取函数，也是终端输入函数，即从哪里获取键码 */
+    tty->device_read = &keyboard_read;
+}
+
+/*===========================================================================*
+ *				keyboard_loadmap				     *
+ *				加载一个新的按键映射
+ *===========================================================================*/
+PUBLIC int keyboard_loadmap(phys_bytes user_phys){
+    phys_copy(user_phys, vir2phys(keymap), (phys_bytes) sizeof(keymap));
+    return OK;
+}
+
+/*==========================================================================*
+ *				wreboot					    *
+ *			等待输入打印调试信息并重新启动。
+ *==========================================================================*/
+PUBLIC void wreboot(
+        int how     /* 0 = halt, 1 = reboot, 2 = panic!, ... */
+){
+    int quiet, code;
+    static u16_t magic = MEMCHECK_MAG;
+
+    /* 屏蔽除了时钟外的所有中断 */
+    int irq = CLOCK_IRQ + 1;
+    for(;irq < NR_IRQ_VECTORS; irq++){
+        disable_irq(irq);
+    }
+
+    /* 停止几个任务 */
+    console_stop();     /* 停止控制台 */
+    /* 停止用户进程的调度，也可以理解为停止所有用户进程的运行 */
+    schedule_stop();
+
+    if(how == RBT_HALT){
+        printf("System Halted\n");
+        if(!monitor_return) how = RBT_PANIC;      /* 是否能返回到监视器？ */
+    }
+
+    if(how == RBT_PANIC){
+        /* 没办法了，只能强制宕机了。 */
+        printf("Hit ESC to reboot, FUNC-keys for debug dumps\n");
+
+        (void) scan_keyboard();     /* 清除所有旧的输出 */
+        quiet = scan_keyboard();    /* 静态值（PC上为0，AT上为最后一个代码） */
+        /* 即使系统错误非常严重，系统的时钟和键盘依然可以正常运行
+         * 我们在这重复的读键盘，给用户一个分析错误的机会。
+         */
+        while (TRUE){
+            milli_delay(100);   /* 读取间隔100ms，免得CPU一直空转 */
+            code = scan_keyboard();
+            if(code != quiet){
+                /* 直到用户点击了ESC键，重启 */
+                if(code == ESC_SCAN) break;
+                /* FUNC-key（功能键）被调用以给用户提供用于分析系统崩溃原因 */
+                (void) function_key(code);
+                quiet = scan_keyboard();
+            }
+        }
+        how = RBT_REBOOT;   /* 下一步进入重启 */
+    }
+
+    /* 重启中，打印信息 */
+    if(how == RBT_REBOOT) printf("Rebooting...\n");
+
+    /* 能返回到监视器，且不是重启RBT_RESET
+     */
+//    if(monitor_return && how != RBT_RESET) {
+//        /* 将中断控制器重新初始化为BIOS默认值。 */
+//        interrupt_init(0);
+//        /* 打开BIOS中断 */
+//        out_byte(INT_M_CTLMASK, 0);
+//        out_byte(INT_S_CTLMASK, 0);
+//    }
+
+    /* 停止BIOS的内存测试。 */
+    phys_copy(vir2phys(&magic), (phys_bytes)MEMCHECK_ADR, (phys_bytes)sizeof(magic));
+
+    /* 通过跳转到reset地址（实模式）或强制处理器关闭（保护模式）来重置系统。
+     */
+//    milli_delay(1500);  /* 重启之前，等待1500ms，好让用户有个准备。 */
+    level0(reset);
+
+}
 
 /*===========================================================================*
  *				map_key0				     *
@@ -108,9 +222,7 @@ PRIVATE unsigned map_key(int scan_code){
     caps = shift;
     /* 得到当前控制台的所有锁定键状态 */
     lock = locks[current_console_nr];
-    /* ??? */
     if((lock & NUM_LOCK) && HOME_SCAN <= scan_code && scan_code <= DEL_SCAN) caps = !caps;
-    /* ??? */
     if((lock & CAPS_LOCK) && (key_row[0] & HASCAPS)) caps = !caps;
 
 
@@ -143,10 +255,9 @@ PRIVATE void keyboard_read(TTY *tty){
 
     char buffer[3];		/* 局部缓冲区 */
     int scan_code;
-    unsigned ch;
-
+    unsigned int ch;
     /* 首先，拿到当前用户所使用的控制台，我们始终使用当前控制台 */
-    tty = &tty_table[current_console_nr];
+    TTY *ctty = &tty_table[current_console_nr];
 
     /* 只有输入缓冲区中有字符，才能读 */
     while (input_count > 0){
@@ -169,10 +280,10 @@ PRIVATE void keyboard_read(TTY *tty){
         /* 得到ASCII码 */
         ch = key_make_break(scan_code);
 
-        if(ch <= 0xFF){
+        if(ch <= 255){      /* ascii码的最大值 */
             /* 是一个普通的字符 */
             buffer[0] = ch;
-            (void) input_handler(tty, buffer, 1);
+            (void) input_handler(ctty, buffer, 1);
         } else if (HOME <= ch && ch <= INSERT){
             /* 由数字键盘产生的ASCII转义序列
              * 其转义序列格式如：ESC [ A
@@ -180,18 +291,18 @@ PRIVATE void keyboard_read(TTY *tty){
             buffer[0] = ESCAPE;
             buffer[1] = '[';
             buffer[2] = numpad_map[ch - HOME];
-            (void) input_handler(tty, buffer, 3);
+            (void) input_handler(ctty, buffer, 3);
         } else if(ch == ALEFT) {
             /* ALT-LEFT-ARROW：切换到上一个控制台 */
-            switch_console(current_console_nr - 1);
+            switch_to(current_console_nr - 1);
             set_led();
         } else if(ch == ARIGHT) {
             /* ALT-RIGHT-ARROW：切换到下一个控制台 */
-            switch_console(current_console_nr + 1);
+            switch_to(current_console_nr + 1);
             set_led();
         } else if(AF1 <= ch && ch <= AF12){
             /* Alt-F1是控制台，Alt-F2是ttyc1，等等... */
-            switch_console(ch - AF1);
+            switch_to(ch - AF1);
             set_led();
         }
     }
@@ -303,6 +414,7 @@ PRIVATE unsigned int key_make_break(int scan_code){
 PRIVATE int function_key(int scan_code){
     /* 判断并处理意味着局部处理的特殊功能键 */
     unsigned int code;
+    TTY *tty = &tty_table[current_console_nr];  /* 得到当前使用的控制台终端 */
 
     /* 如果是按键释放，不处理 */
     if(scan_code & 0200) return FALSE;
@@ -322,7 +434,7 @@ PRIVATE int function_key(int scan_code){
             toggle_scroll();
             break;
         case F5:        /* 暂用作清屏功能 */
-            clear_srceen((int)current_console_nr);
+            clear_screen(tty);
             break;
         /* 一个小彩蛋 */
         case ASF7:          /* ALT + SHIFT + F7 */
@@ -454,50 +566,13 @@ PRIVATE int keyboard_handler(int irq){
         if(input_free == input_buffer + KEYBOARD_IN_BYTES) input_free = input_buffer;
         /* 字符计数器加1 */
         input_count++;
-        /* 只要还有字符需要处理，那么控制台的event标志就应该被置位，以便中断及时处理缓冲区的字符 */
-        tty_table[current_console_nr].events = TRUE;
+        /* 键盘触发的字符读入，控制台的events标志的READ就应该被置位，
+         * 以便中断及时处理缓冲区的字符。
+         */
+        tty_table[current_console_nr].events |= (EVENTS_READ);
         /* 现在，该唤醒终端任务做事情了！ */
         tty_wake();
     }
     return ENABLE;  /* 使键盘中断再次打开 */
 }
 
-/*===========================================================================*
- *				keyboard_init					     *
- *				键盘驱动初始化
- *===========================================================================*/
-PUBLIC void keyboard_init(TTY *tty){
-    /* 初始化一个键盘驱动程序，同时将该键盘和一个终端绑定 */
-
-    /* 设置终端设备的读取函数，也是终端输入函数，即从哪里获取键码 */
-    tty->device_read = keyboard_read;
-    /* 设置键盘灯 */
-    set_led();
-
-    /* 扫描键盘以确保没有残余的读入，将残余的键码都丢弃掉 */
-    scan_keyboard();
-
-    /* 设定键盘中断处理程序并打开键盘中断 */
-    put_irq_handler(KEYBOARD_IRQ, keyboard_handler);
-    enable_irq(KEYBOARD_IRQ);
-}
-
-/*===========================================================================*
- *				keyboard_loadmap				     *
- *				加载一个新的按键映射
- *===========================================================================*/
-PUBLIC int keyboard_loadmap(phys_bytes user_phys){
-    phys_copy(user_phys, vir2phys(data_base, keymap), (phys_bytes) sizeof(keymap));
-    return OK;
-}
-
-/*==========================================================================*
- *				wreboot					    *
- *			等待输入打印调试信息并重新启动。
- *==========================================================================*/
-PUBLIC void wreboot(
-        int how     /* 0 = halt, 1 = reboot, 2 = panic!, ... */
-){
-    /* 先死循环，以后完善@TODO */
-    while (TRUE){}
-}

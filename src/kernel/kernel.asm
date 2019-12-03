@@ -137,11 +137,6 @@ _start:
 	; 因为编译器有可能编译出使用它们的代码, 而编译器默认它们是一样的. 比如串拷贝操作会用到 ds 和 es.
 	;
 	;
-
-    ; 先获取LOADER得到的一些启动参数
-    mov [total_memory_size], eax ; 内存大小
-    mov [ards_phys], ebx         ; 内存块信息
-
     ; 建立各种处理器寄存器
     mov	ax, ds		; kernel data
     mov	es, ax

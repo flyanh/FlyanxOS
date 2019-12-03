@@ -8,8 +8,8 @@
  * 该文件的内容主要是为了支持保护模式的Intel处理器(80286,80386、80486、奔腾、高能奔腾)
  * 体系结构的细节相关。
  *
- * 处理器的保护模式提供了四种特权级，0~4，0特权最大。
- * Flyanx使用了三个特权级(0、1和3)，和Minix一样，而Linux和Windows则只使用了两种（0、3）。
+ * 处理器的保护模式提供了四种特权级，0~3，0特权最大。
+ * Flyanx使用了全部特权级，Minix使用了三种(0、1和3)，而Linux和Windows则只使用了两种（0、3）。
  */
 
 #ifndef FLYANX_PROTECT_H
@@ -132,7 +132,7 @@ typedef struct tss_s
  * 不能执行某些指令,如访问I/O端口、改变内存分配状况,或改变处理器运行级别等等。
  *
  * 用户进程运行在USER_PRIVILEGE特权级。运行在该特权级的进程限制和SERVER_PRIVILEGE
- * 一样。
+ * 一样。区别在于服务特权级可以阅读用户特权级中的代码和数据。
  */
 /*================================================================================================*/
 #define KERNEL_PRIVILEGE    0	/* 内核和中断处理程序 */
@@ -164,6 +164,7 @@ typedef struct tss_s
 /*================================================================================================*/
 #define	DA_32			    0x4000	/* 32 位段			     */
 #define	DA_LIMIT_4K		    0x8000	/* 段界限粒度为 4K 字节	   */
+#define	LIMIT_4K_SHIFT	    12
 #define	DA_DPL0			    0x00	/* DPL = 0	内核级		    */
 #define	DA_DPL1			    0x20	/* DPL = 1				*/
 #define	DA_DPL2			    0x40	/* DPL = 2				*/
@@ -205,8 +206,5 @@ typedef struct tss_s
 #define	INT_VECTOR_PROTECTION		0xD
 #define	INT_VECTOR_PAGE_FAULT		0xE
 #define	INT_VECTOR_COPROC_ERR		0x10
-
-#define	INT_VECTOR_IRQ0				0x20
-#define	INT_VECTOR_IRQ8				0x28
 
 #endif //FLYANX_PROTECT_H

@@ -1,3 +1,12 @@
+; Copyright (C) 2007 Free Software Foundation, Inc.
+; See the copyright notice in the file /usr/LICENSE.
+; Created by flyan on 2019/11/9.
+; QQ: 1341662010
+; QQ-Group:909830414
+; gitee: https://gitee.com/flyanh/
+;
+;
+; ----------------------------------------------------------------------
 ; FAT12 磁盘的头,启动盘使用FAT12文件系统,FAT12比较简单,且可以为后边的文件系统学习打下基础
 ; ----------------------------------------------------------------------
 BS_OEMName	DB 'ChenuSto'	; OEM String, 必须 8 个字节
@@ -35,13 +44,13 @@ FATSz			equ	9
 ; 但如果按照此公式代码过长，故定义此宏
 RootDirSectors		equ	14
 
-; Root Directory 的第一个扇区号	= BPB_RsvdSecCnt + (BPB_NumFATs * FATSz)
+; Root Directory 的第一个扇区号	= BPB_RsvdSecCnt + (BPB_NumFATs; FATSz)
 SectorNoOfRootDirectory	equ	19
 
 ; FAT1 的第一个扇区号	= BPB_RsvdSecCnt
 SectorNoOfFAT1		equ	1
 
-; DeltaSectorNo = BPB_RsvdSecCnt + (BPB_NumFATs * FATSz) - 2
+; DeltaSectorNo = BPB_RsvdSecCnt + (BPB_NumFATs; FATSz) - 2
 ; 文件的开始Sector号 = DirEntry中的开始Sector号 + 根目录占用Sector数目
 ;                      + DeltaSectorNo
 DeltaSectorNo		equ	17

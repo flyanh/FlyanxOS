@@ -20,12 +20,8 @@
 /* 内核内存 */
 EXTERN phys_bytes code_base;	/* 内核代码段基地址 */
 EXTERN phys_bytes data_base;	/* 内核数据段基地址 */
-EXTERN phys_bytes aout;		    /* a.out可执行文件的头信息文件的地址 */
-
-/* 系统内存信息 */
-EXTERN u32_t total_memory_size;       /* 内存大小 */
-EXTERN phys_bytes ards_phys;    /* 地址范围描述符数组的物理地址 */
-EXTERN ARDS ards[NR_MEMORY_CLICK];            /* 地址范围描述符数组，存放启动时内存检查的内存的分布结构 */
+EXTERN phys_clicks kernel_base; /* 内核所在基地址 */
+EXTERN phys_clicks kernel_limit;/* 内核界限 */
 
 /* GDT 和 IDT 以及显示位置 */
 EXTERN u16_t display_position;       /* 256显示模式下，文字显示位置，注意：这不是光标，
@@ -44,12 +40,13 @@ extern struct tss_s tss;                            /* 任务状态段 */
 EXTERN struct process_s *curr_proc;	                /* 当前运行进程的指针 */
 
 /* 其他 */
+extern BootParams bootParams;           /* 加载器（LOADER）传递的启动参数 */
 extern TaskTab tasktab[];               /* 系统任务表 */
 extern char *task_stack[];		        /* 系统任务栈task_stack，每个任务在task_stack中都有其自己的堆栈 */
 EXTERN unsigned int lost_ticks;	        /* 时钟滴答在时钟任务之外的计数 */
 EXTERN clock_t tty_wake_time;           /* 终端任务下一次被唤醒的时刻，如果到了，将是时候唤醒终端任务了 */
 EXTERN unsigned int current_console_nr; /* 当前控制台号 */
-EXTERN status_t break_point;            /* 一个简单调试断点，如果为TRUR，则断点被打开，程序将停止在断点处，直到点击任意键。 */
+EXTERN bool break_point;            /* 一个简单调试断点，如果为TRUR，则断点被打开，程序将停止在断点处，直到点击任意键。 */
 
 /* 机器状态 */
 EXTERN int pc_at;		/* PC-AT兼容硬件接口 */
@@ -68,8 +65,7 @@ EXTERN int vga;			/* 视频卡是VGA */
 /* 其他 */
 EXTERN irq_handler_t  int_request_table[NR_IRQ_VECTORS];    /* 中断请求处理程序表 */
 EXTERN int int_request_used;                                /* 中断请求处理启用位图 */
-
+EXTERN int monitor_return;                      /* 如果可以返回监视器，则为true */
 EXTERN flyanx_syscall_t level0_func;            /* 提权函数：系统任务提权调用将会把提权的函数地址放在这 */
-
 
 #endif // FLYANX_GLOBAL_H

@@ -17,11 +17,11 @@
 #include <sys/types.h>
 #endif
 
-/* 虚拟内存块，一个块在INTEL的MINIX中是256个字节 */
+/* 虚拟内存块，一个块在INTEL的Flyanx中是256个字节 */
 typedef unsigned int vir_clicks;
 /* 物理地址（字节长度） */
 typedef unsigned long phys_bytes;
-/* 物理内存块 */
+/* 物理内存块，一个块在INTEL的Flyanx中是256个字节 */
 typedef unsigned int phys_clicks;
 
 #if (CHIP == INTEL)
@@ -60,15 +60,9 @@ typedef struct message_s{
     } m_u;
 } Message;
 
-/* 内存映像（映射）结构体定义
- *
- * 该结构表示在内存中的一块区域
- */
-typedef struct memory_map_s {
-    vir_clicks virtual;     /* 虚拟地址 */
-    phys_clicks physical;   /* 物理地址 */
-    vir_clicks length;      /* 映像长度 */
-} MemoryMap;
+/* 消息常用宏定义 */
+#define MESSAGE_SIZE    (sizeof(Message))   /* 一个消息的字节大小 */
+#define NIL_MESSAGE     ((Message *) 0)     /* 空消息 */
 
 /* 以下定义提供了消息中消息域有用成员的简短名称。 */
 /* 消息域1中的消息属性 */
@@ -115,5 +109,28 @@ typedef struct memory_map_s {
 #define m6_i3   m_u.m_u6.m6i3
 #define m6_l1   m_u.m_u6.m6l1
 #define m6_f1   m_u.m_u6.m6f1
+
+/* 启动参数 */
+typedef struct boot_params_s {
+    u32_t memory_size;          /* 内存大小 */
+    phys_bytes kernel_file;     /* 内核所在绝对物理地址 */
+} BootParams;
+
+/* io向量结构定义
+ * 它用来指示一个io请求所需要操作的缓冲区在哪
+ */
+typedef struct iovector {
+    vir_bytes addr;     /* io缓冲区的基地址 */
+    vir_bytes size;     /* io缓冲区的大小 */
+} IOVector;
+
+/* 复制向量结构定义
+ * 用于指示一个复制操作所需的信息
+ */
+typedef struct {
+    vir_bytes src;      /* 复制的源地址 */
+    vir_bytes dst;      /* 复制的目标地址 */
+    vir_bytes size;     /* 复制长度 */
+} CopyVector;
 
 #endif //_FLYANX_TYPE_H

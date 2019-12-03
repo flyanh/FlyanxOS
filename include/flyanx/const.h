@@ -35,10 +35,9 @@
 #define BLOCK_SIZE      1024	/* 磁盘块中的字节量 */
 #define SUPER_USER      0	    /* 超级用户！ */
 
-#define MAJOR	           8	/* 主设备 = (dev>>MAJOR) & 0377 */
-#define MINOR	           0	/* 次设备 = (dev>>MINOR) & 0377 */
-
 #define NULL     ((void *)0)	/* 空指针 */
+#define NR_CPVECTOR         16  /* 一次SYS_VCOPY请求最多可以复制多少 */
+#define NR_IO_REQUESTS  MIN(NR_BUFS, 64)        /* 一次io请求最多传输数量 */
 
 #define NR_SEGS             3   /* 每个进程的拥有的段数量 */
 #define TEXT                0   /* 正文段索引号，也称为代码段 */
@@ -50,8 +49,7 @@
 #define FS_PROC_NR         1	/* 文件系统 */
 #define FLY_PROC_NR        2    /* FLY */
 #define ORIGIN_PROC_NR	   3	/* 初始化 -- 将会fork为多用户进程 */
-//#define LOW_USER  ORIGIN_PROC_NR	/* 第一个用户不是操作系统的一部分 */
-#define LOW_USER           -1
+#define LOW_USER    ORIGIN_PROC_NR  /* 第一个用户进程不是操作系统的一部分 */
 
 /* 其他 */
 #define BYTE            0xFF	/* 8位字节的掩码 */
@@ -62,14 +60,12 @@
 #define HAVE_SCATTERED_IO  1	/* scattered I/O is now standard > 分散的I/O现在是标准配置 */
 
 /* 功能宏 */
-/**
- * 取两数最大最小值，用简单的宏来实现
- **/
+/* 取两数最大最小值，用简单的宏来实现 */
 #define MAX(a, b)   ((a) > (b) ? (a) : (b))
 #define MIN(a, b)   ((a) < (b) ? (a) : (b))
 
 /* 系统任务数量 */
-#define NR_TASKS    (4)
+#define NR_TASKS    (5 + NR_CONTROLLERS)
 
 /* 内存是通过块分配的。 */
 #if (CHIP == INTEL)

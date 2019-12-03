@@ -46,36 +46,68 @@
 
 /* 如果在不在32位机器上编译，报错 */
 #if _WORD_SIZE != 4
-#error 对不起，Flyanx暂时只支持32位机器！
+#error 对不起，Flyanx暂时只支持32位编译器和32位机器！
 #endif
 
-/* 进程表中的用户进程的槽数。 */
-#define NR_PROCS          0
+/* 引导参数相关信息
+ * 引导参数由加载程序存储，它们应该放在内核正在运行时也不应该去覆盖的地方，
+ * 因为内核可能随时使用它们。
+ */
+#define BOOT_PARAM_ADDR     0x700   /* 物理地址 */
+#define BOOT_PARAM_MAGIC    0x3EA   /* 引导参数魔数 */
+#define BP_MAGIC            0
+#define BP_MEMOARY_SIZE     1
+#define BP_KERNEL_FILE      2
+
+/* 进程表中的用户进程的槽数，这个配置决定了flyanx能同时运行多少个用户进程。 */
+#define NR_PROCS          32
 
 /* 缓冲区高速缓存应尽可能地大。 */
 #if (MACHINE == IBM_PC && _WORD_SIZE == 2)
-#define NR_BUFS           40	/* # blocks in the buffer cache */
-#define NR_BUF_HASH       64	/* size of buf hash table; MUST BE POWER OF 2*/
+#define NR_BUFS           40	/* 高速缓冲区中的块数量 */
+#define NR_BUF_HASH       64	/* 高速缓冲区哈希表的大小； 必须是2的指数 */
 #endif
 
 #if (MACHINE == IBM_PC && _WORD_SIZE == 4)
-#define NR_BUFS           80	/* # blocks in the buffer cache */
-#define NR_BUF_HASH      128	/* size of buf hash table; MUST BE POWER OF 2*/
+#define NR_BUFS           80	/* 高速缓冲区中的块数量 */
+#define NR_BUF_HASH      128	/* 高速缓冲区哈希表的大小； 必须是2的指数 */
 #endif
 
-#if (MACHINE == SUN_4_60)
-#define NR_BUFS		 512	/* # blocks in the buffer cache (<=1536) */
-#define NR_BUF_HASH	 512	/* size of buf hash table; MUST BE POWER OF 2*/
-#endif
+/* 控制器任务的数量（/dev/cN设备类）。 */
+#define NR_CONTROLLERS          1
+
+/* 是否启用RAM磁盘上的二级文件系统缓存 */
+#define ENABLE_CACHE2           1
+
+/* 包括或排除设备驱动程序。 设置为1表示包含，设置为0表示排除。 */
+#define ENABLE_AT_WINI      1   /* AT风格的硬盘驱动程序 */
+#define ENABLE_ATAPI        0	/* 将ATAPI支持添加到AT驱动程序 */
+#define ENABLE_BIOS_WINI    0	/* BIOS硬盘驱动程序 */
+#define ENABLE_ESDI_WINI    0	/* ESDI风格的硬盘驱动程序 */
+#define ENABLE_XT_WINI      0	/* XT风格的硬盘驱动程序 */
+#define ENABLE_AHA1540_SCSI 0	/* Adaptec 1540 SCSI 驱动程序 */
+#define ENABLE_FATFILE      0	/* FAT文件虚拟磁盘驱动程序 */
+#define ENABLE_DOSFILE      0	/* DOS文件虚拟磁盘驱动程序 */
+#define ENABLE_SB16         0	/* Soundblaster音频驱动程序 */
+#define ENABLE_PRINTER      0	/* 打印机驱动程序 */
+#define ENABLE_USER_BIOS    0	/* 用户模式BIOS调用驱动 */
+
+/* 可以增加DMA_SECTORS的数量来加速基于DMA的驱动程序。 */
+#define DMA_SECTORS        1	/* DMA buffer size (must be >= 1) */
+
+/* 启用或禁用网络驱动程序，默认关闭 */
+#define ENABLE_DP8390       0   /* DP8390以太网驱动程序 */
+#define   	ENABLE_WESTERN	1	/* 将Western Digital WD80x3添加到DP8390 */
+#define   	ENABLE_NE2000	1	/* 将Novell NE1000 / NE2000添加到DP8390 */
+#define   	ENABLE_3C503 	1	/* 将3Com Etherlink II（3C503）添加到DP8390 */
 
 /* 内核配置参数 */
 #define LINE_WARP               1   /* 控制台选项 - 是否需要在第80列换行？ */
 
-/* flyanx所启用的控制台的数量等定义
- */
-#define NR_CONSOLES           	3	/* 系统控制台(1 ~ 7) */
-#define	NR_RS_LINES	   		    0	/* rs232终端(0 ~ 2) */
-#define	NR_PTYS		  	 	    0	/* 伪终端(0 ~ 64) */
+/* flyanx所启用的控制台的数量等定义 */
+#define NR_CONSOLES           	3	/* 系统控制台数量(1 ~ 8) */
+#define	NR_RS_LINES	   		    0	/* rs232终端数量(0 ~ 2) */
+#define	NR_PTYS		  	 	    0	/* 伪终端数量(0 ~ 64) */
 
 /*===========================================================================*
  *	在这一行之后没有用户可设置的参数		     *

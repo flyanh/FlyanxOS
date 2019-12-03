@@ -125,7 +125,7 @@ int task;           /* 要开始的任务号 */
  *				     hunter   				     *
  *				     狩猎进程以用下次执行
  *===========================================================================*/
-//status_t first = TRUE;
+bool first = TRUE;
 PRIVATE void hunter(){
     /* 从进程表中抓出一个作为下次运行的进程
      *
@@ -140,9 +140,9 @@ PRIVATE void hunter(){
      */
     register Process *prey;      /* 准备运行的进程 */
 
-//    if(first){
-//        first = FALSE;
-//    }
+    if(first){
+        first = FALSE;
+    }
 
     /* 就绪任务进程队列使我们狩猎的第一个目标 */
     if( (prey = ready_head[TASK_QUEUE]) != NIL_PROC){
@@ -186,7 +186,7 @@ register Process *proc;      /* 就绪的进程 */
 {
     /* 将一个可运行的进程挂入就绪队列，它直接将进程追加到队列的尾部 */
 
-//    printf("%s ready\n", proc->name);
+//    printf("%s ready, pri is %d\n", proc->name, proc->priority);
     if(is_task_proc(proc)){     /* 系统任务？ */
         // 首先我们得知道，就绪队列已经有进程否？
         if(ready_head[TASK_QUEUE] != NIL_PROC){
@@ -297,6 +297,19 @@ register Process *proc;     /* 未就绪的进程 */
          xp->next_ready = xp->next_ready->next_ready;
          if (ready_tail[USER_QUEUE] == proc) ready_tail[USER_QUEUE] = xp;
      }
+}
+
+/*===========================================================================*
+ *				schedule_stop					     *
+ *			     停止进程调度
+ *===========================================================================*/
+void schedule_stop(void){
+    /* 本例程只针对用户进程，使其用户进程不能再被调度,通常在系统宕机时
+     * 本例程会被调用，因为这时候系统及其不可靠。本例程的实现也非常简单
+     * ，让用户就绪队列为空即可，这样调度程序就找不到任何用户进程了。
+     */
+
+    ready_head[USER_QUEUE] = NIL_PROC;
 }
 
 /*===========================================================================*

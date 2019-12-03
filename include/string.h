@@ -5,7 +5,7 @@
  * QQ-Group:909830414
  * gitee: https://gitee.com/flyanh/
  *
- * 本头文件包含字符串处理函数的原型。
+ * 本头文件包含串处理函数的原型。
  */
 
 #ifndef _STRING_H
@@ -15,7 +15,7 @@
 
 #ifndef _SIZE_T
 #define _SIZE_T
-typedef unsigned int size_t;	/* type returned by sizeof */
+typedef unsigned int size_t;	/* 由sizeof返回的类型 */
 #endif /*_SIZE_T */
 
 /* 函数原型 */
@@ -46,7 +46,7 @@ _PROTOTYPE( char *strstr, (const char *_s1, const char *_s2)		);
 _PROTOTYPE( char *strtok, (char *_s1, const char *_s2)			);
 _PROTOTYPE( size_t strxfrm, (char *_s1, const char *_s2, size_t _n)	);
 
-/* flyanx特有的 */
+/* flyanx特有的，自己实现的 */
 #ifdef _FLYANX
 
 #endif

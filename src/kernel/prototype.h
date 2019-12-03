@@ -18,16 +18,22 @@
 #define FLYANX_PROTOTYPE_H
 
 /* 结构体声明 */
+struct seg_descriptor_s;
 struct process_s;
 struct message_s;
 struct tty_s;
-struct console_s;
+
 
 /*================================================================================================*/
 /* kernel.asm */
 /*================================================================================================*/
 _PROTOTYPE( void restart, (void) );
 _PROTOTYPE( void idle_task, (void) );
+
+/*================================================================================================*/
+/* start.c */
+/*================================================================================================*/
+_PROTOTYPE( void get_boot_params, (BootParams *bp) );
 
 /*================================================================================================*/
 /* main.c */
@@ -43,33 +49,56 @@ _PROTOTYPE( void ok_print, (char* msg, char* ok) );
 /*================================================================================================*/
 _PROTOTYPE( void protect_init, (void) );
 _PROTOTYPE( phys_bytes seg2phys, (U16_t seg) );
-_PROTOTYPE( void phys2seg, (u16_t *seg, vir_bytes *off, phys_bytes phys) );
+_PROTOTYPE( void init_seg_desc,
+        (struct seg_descriptor_s *p_desc, vir_bytes base, vir_bytes limit, u16_t attribute) );
+_PROTOTYPE( void phys2seg, (vir_bytes *seg, vir_bytes *off, phys_bytes phys) );
 
 /*================================================================================================*/
 /* message.c */
 /*================================================================================================*/
-_PROTOTYPE( int flyanx_send, (struct process_s *caller_ptr, int dest, struct message_s *message_ptr) );
-_PROTOTYPE( int flyanx_receive, (struct process_s *caller_ptr, int src, struct message_s *message_ptr) );
 _PROTOTYPE( int sys_call, (int function, int src_dest, struct message_s *message_ptr) );
-
+_PROTOTYPE( phys_bytes proc_vir2phys, (struct process_s *proc, vir_bytes vir) );
+_PROTOTYPE( phys_bytes ldt_seg_phys, (struct process_s *proc, int seg_index) );
 
 /*================================================================================================*/
 /* clock.c */
 /*================================================================================================*/
 _PROTOTYPE( void clock_task, (void)					);
 _PROTOTYPE( void milli_delay, (time_t millisec) );
+_PROTOTYPE( clock_t get_uptime, (void) );
 
 /*================================================================================================*/
 /* tty.c */
 /*================================================================================================*/
 _PROTOTYPE( void tty_task, (void) );
-_PROTOTYPE( void handle_events, (struct tty_s *tty) );
+_PROTOTYPE( void handle_read, (struct tty_s *tty) );
+_PROTOTYPE( void handle_write, (struct tty_s *tty) );
+_PROTOTYPE( void handle_ioctl, (struct tty_s *tty) );
 _PROTOTYPE( void tty_wakeup, (clock_t now) );
 _PROTOTYPE( void tty_dev_nop, (struct tty_s *tty) );
 _PROTOTYPE( int input_handler, (struct tty_s *tty, char *buffer, int count) );
 _PROTOTYPE( void tty_reply, (int code, int reply_dest, int proc_nr, int status) );
 
 /*================================================================================================*/
+/* console.c */
+/*================================================================================================*/
+_PROTOTYPE( void console_init, (struct tty_s *tty) );
+_PROTOTYPE( void k_putk, (int ch) );
+_PROTOTYPE( void printk, (const char *fmt, ...) );
+_PROTOTYPE( void toggle_scroll, (void) );
+_PROTOTYPE( void console_stop, (void) );
+_PROTOTYPE( void switch_to, (int line) );
+_PROTOTYPE( void clear_screen, (struct tty_s *tty) );
+_PROTOTYPE( void screen_init, (void) );
+_PROTOTYPE( void blue_screen, (void) );
+
+/*================================================================================================*/
+/* keyboard.c */
+/*================================================================================================*/
+_PROTOTYPE( void keyboard_init, (void) );
+_PROTOTYPE( int keyboard_loadmap, (phys_bytes user_phys) );
+_PROTOTYPE( void wreboot, (int how) );
+_PROTOTYPE( void keyboard_bind_tty, (struct tty_s *tty) );
 
 /*================================================================================================*/
 /* process.c */
@@ -80,6 +109,7 @@ _PROTOTYPE( void lock_hunter, (void) );
 _PROTOTYPE( void lock_ready, (struct process_s *proc) );
 _PROTOTYPE( void lock_unready, (struct process_s *proc) );
 _PROTOTYPE( void lock_schedule, (void) );
+_PROTOTYPE( void schedule_stop, (void) );
 _PROTOTYPE( void unhold, (void) );
 
 /*================================================================================================*/
@@ -95,15 +125,10 @@ _PROTOTYPE( void put_irq_handler, (int irq, irq_handler_t handler) );
 _PROTOTYPE( int spurious_irq, (int ) );
 
 /*================================================================================================*/
-/* keyboard.c */
-/*================================================================================================*/
-_PROTOTYPE( void keyboard_init, (struct tty_s *tty) );
-_PROTOTYPE( int keyboard_loadmap, (phys_bytes user_phys) );
-_PROTOTYPE( void wreboot, (int how) );
-
-/*================================================================================================*/
 /* kernel_386_lib.asm  */
 /*================================================================================================*/
+_PROTOTYPE(void disp_str, (char* string));                      /* 显示一个字符串 */
+_PROTOTYPE(void disp_color_str, (char *string, int color));     /* 显示一个带颜色的字符串 */
 _PROTOTYPE( void phys_copy, (phys_bytes source, phys_bytes dest, phys_bytes count) );
 _PROTOTYPE( void out_byte, (port_t port, U8_t value) );
 _PROTOTYPE( U8_t in_byte, (port_t port) );
@@ -113,26 +138,31 @@ _PROTOTYPE( void disable_irq, (u32_t intRequest) );
 _PROTOTYPE( void enable_irq, (u32_t intRequest) );
 _PROTOTYPE( void interrupt_lock, (void) );
 _PROTOTYPE( void interrupt_unlock, (void) );
+_PROTOTYPE( void port_read, (u16_t port, void *destination, unsigned bytcount) );
+_PROTOTYPE( void port_write, (unsigned port, void *source, unsigned bytcount) );
 _PROTOTYPE( void level0, (void (*func)(void)) );
+_PROTOTYPE( void reset, (void) );
 
 /*================================================================================================*/
 /* system.c  */
-/*================================================================================================*/
-
+/*====================================================seg_index============================================*/
+_PROTOTYPE( void system_task, (void) );
+_PROTOTYPE( int vir_copy, (int src_proc, vir_bytes src_vir,
+        int dest_proc, vir_bytes dest_vir, vir_bytes bytes) );
+_PROTOTYPE( phys_bytes umap, (struct process_s *proc, int seg_index,
+        vir_bytes vir_addr, vir_bytes bytes) );
+_PROTOTYPE( phys_bytes numap, (int proc_nr, vir_bytes vir_addr, vir_bytes bytes) );
 
 /*================================================================================================*/
 /* table.c */
 /*================================================================================================*/
-_PROTOTYPE( void map_drivers, (void)					);
+_PROTOTYPE(  void map_drivers, (void) );
 
 /*================================================================================================*/
-/* console.c */
+/* driver.c */
 /*================================================================================================*/
-_PROTOTYPE( void putk, (int ch) );
-_PROTOTYPE( void toggle_scroll, (void) );
-_PROTOTYPE( void screen_init, (struct tty_s *tty) );
-_PROTOTYPE( void switch_console, (u16_t console_line) );
-_PROTOTYPE( void clear_srceen, (int line) );
+_PROTOTYPE( void nop_task, (void) );
+_PROTOTYPE( void alarm_clock, (time_t ticks, WatchDog func) );
 
 /*================================================================================================*/
 /* kernel_debug.c  */
@@ -149,7 +179,7 @@ _PROTOTYPE( void map_dmp, (void) );
 /*================================================================================================*/
 /* misc.c */
 /*================================================================================================*/
-_PROTOTYPE( void memory_init, (void) );
+_PROTOTYPE( int get_kernel_map, (phys_clicks *base, phys_clicks *limit) );
 
 /*================================================================================================*/
 /*  硬件中断处理程序。 */
@@ -196,5 +226,18 @@ _PROTOTYPE( void	stack_exception, (void) );
 _PROTOTYPE( void	general_protection, (void) );
 _PROTOTYPE( void	page_fault, (void) );
 _PROTOTYPE( void	copr_error, (void) );
+
+/*================================================================================================*/
+/* 内存管理器、文件系统、飞彦扩展器、起源进程 */
+/*================================================================================================*/
+_PROTOTYPE( void mm_main, (void) );
+_PROTOTYPE( void fs_main, (void) );
+_PROTOTYPE( void fly_main, (void) );
+_PROTOTYPE( void origin_main, (void) );
+
+/*================================================================================================*/
+/* 所有驱动任务入口 */
+/*================================================================================================*/
+_PROTOTYPE( void at_winchester_task, (void) );
 
 #endif //FLYANX_PROTOTYPE_H
