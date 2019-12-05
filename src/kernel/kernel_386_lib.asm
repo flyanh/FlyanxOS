@@ -280,6 +280,7 @@ port_read:
     mov edx, [esp + 4]          ; port
     mov edi, [esp + 4 + 4]      ; destination
     mov ecx, [esp + 4 + 4 + 4]  ; bytcount
+    shr ecx, 1
     cld
     rep insw
     ret
@@ -287,8 +288,9 @@ port_read:
 ;             void port_write(unsigned port, phys_bytes source, unsigned bytcount);
 port_write:
     mov edx, [esp + 4]          ; port
-    mov edi, [esp + 4 + 4]      ; source
+    mov esi, [esp + 4 + 4]      ; source
     mov ecx, [esp + 4 + 4 + 4]  ; bytcount
+    shr ecx, 1
     cld
     rep outsw
     ret

@@ -40,6 +40,8 @@ FORWARD _PROTOTYPE( int do_get_sp, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_exit, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_puts, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_find_proc, (Message *msg_ptr) );
+FORWARD _PROTOTYPE( int do_sudden, (Message *msg_ptr) );
+FORWARD _PROTOTYPE( int do_blue_screen, (void) );
 
 
 /*===========================================================================*
@@ -60,6 +62,8 @@ PUBLIC void system_task(void){
             case SYS_EXIT:      rs = do_exit(&msg_in);      break;
             case SYS_PUTS:      rs = do_puts(&msg_in);      break;
             case SYS_FIND_PROC: rs = do_find_proc(&msg_in); break;
+            case SYS_SUDDEN:    rs = do_sudden(&msg_in);    break;
+            case SYS_BLUES:     rs = do_blue_screen();      break;
             default:            rs = ERROR_BAD_FCN;         break;
         }
 
@@ -211,4 +215,39 @@ PUBLIC phys_bytes numap(
 }
 
 
+/*===========================================================================*
+ *				do_sudden					     *
+ *				系统突然终止
+ *===========================================================================*/
+PRIVATE int do_sudden(Message *msg_ptr){
+    /* 处理sys_sudden，flyanx已经无法继续，终止系统。
+     *
+     * 存储管理器或文件系统都有发现一个错误以致于无法继续执行操作的可能。例如，如果在首次启动时文件系统
+     * 发现跟设备的超级块有致命的损坏，它将陷入混乱状态并向内核发送一条SYS_ABORT消息。超级用户也可能强
+     * 迫返回到启动监控程序或者使用reboot命令调用REBOOT系统调用重新启动。在任何一种情况下，系统任务执行
+     * do_abort，把指令拷贝到监控程序中，然后调用wreboot完成处理。
+     * @TODO
+     */
+
+//    phys_bytes src_phys;
+//    vir_bytes len;
+
+    /* 返回到监控器 */
+    if(msg_ptr->m1_i1 == RBT_MONITOR){
+        printf("RBT_MONITOR");
+        /* 暂时没完成 */
+    }
+    wreboot(msg_ptr->m1_i1);
+    return OK;              /* 额...其实这里已经不可能执行的到了，走个形式吧。 */
+}
+
+
+/*===========================================================================*
+ *				do_blue_screen					     *
+ *			它很简单，给服务器提供蓝屏功能
+ *===========================================================================*/
+PRIVATE int do_blue_screen(void){
+    blue_screen();
+    return OK;
+}
 

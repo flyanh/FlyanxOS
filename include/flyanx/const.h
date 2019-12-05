@@ -73,4 +73,13 @@
 #define CLICK_SHIFT       10	/* log2 of CLICK_SIZE ：内存块位数，用于移位 */
 #endif
 
+/* 一些限制 */
+#define MAX_BLOCK_NR  ((block_t) 077777777)	/* 最大块数 */
+#define MAX_INODE_NR      ((ino_t) 0177777)	/* largest inode number ：最大索引节点数 */
+#define MAX_FILE_POS ((off_t) 037777777777)	/* 最大合法文件偏移量 */
+
+#define NO_BLOCK              ((block_t) 0)	/* 缺少块号 */
+#define NO_ENTRY                ((ino_t) 0)	/* 缺少目录项 */
+#define NO_DEV                  ((dev_t) 0)	/* 缺少设备号 */
+
 #endif //_FLYANX_CONST_H

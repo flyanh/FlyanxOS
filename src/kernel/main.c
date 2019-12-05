@@ -90,14 +90,6 @@ PUBLIC int main(){
              * 我们的启动参数魔数也是它。
              */
             proc->pid = SYSTEM_PID;
-
-            /* 设置任务的LDT */
-            proc->ldt_selector = ldt_selector;
-            proc->ldt[TEXT] = gdt[SELECTOR_KERNEL_CS >> 3];
-            proc->ldt[DATA] = gdt[SELECTOR_KERNEL_DS >> 3];
-            /* 改变DPL */
-            proc->ldt[TEXT].access = DA_C     | privilege << 5;
-            proc->ldt[DATA].access = DA_DRW   | privilege << 5;
         } else {    /* 服务或用户进程 */
             /* 设置服务和用户进程堆栈 */
             k_task_stack_base += p_task->stack_size;
@@ -106,12 +98,23 @@ PUBLIC int main(){
             privilege = rpl = proc->priority = t < LOW_USER ? PROC_PRI_SERVER : PROC_PRI_USER;
             /* 设置系统服务器的pid。 */
             proc->pid = SERVER_PID;
-            /* 设置服务和用户进程的LDT */
+        }
+
+        if(privilege != PROC_PRI_USER){
+            /* 设置任务和服务的LDT */
+            proc->ldt_selector = ldt_selector;
+            proc->ldt[TEXT] = gdt[SELECTOR_KERNEL_CS >> 3];
+            proc->ldt[DATA] = gdt[SELECTOR_KERNEL_DS >> 3];
+            /* 改变DPL */
+            proc->ldt[TEXT].access = DA_C     | privilege << 5;
+            proc->ldt[DATA].access = DA_DRW   | privilege << 5;
+        } else {
+            /* 设置用户进程的LDT */
             proc->ldt_selector = ldt_selector;
             init_seg_desc(&proc->ldt[TEXT],
-                    0,  /* 入口点之前的字节对于服务或用户进程没有用（浪费），所以没关系 */
-                    (kernel_base + kernel_limit) >> LIMIT_4K_SHIFT,
-                    DA_32 | DA_LIMIT_4K | DA_C | privilege << 5
+                          0,  /* 入口点之前的字节对于服务或用户进程没有用（浪费），所以没关系 */
+                          (kernel_base + kernel_limit) >> LIMIT_4K_SHIFT,
+                          DA_32 | DA_LIMIT_4K | DA_C | privilege << 5
             );
             init_seg_desc(&proc->ldt[DATA],
                           0,  /* 入口点之前的字节对于服务或用户进程没有用（浪费），所以没关系 */

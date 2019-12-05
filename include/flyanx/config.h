@@ -54,13 +54,30 @@
  * 因为内核可能随时使用它们。
  */
 #define BOOT_PARAM_ADDR     0x700   /* 物理地址 */
-#define BOOT_PARAM_MAGIC    0x3EA   /* 引导参数魔数 */
+#define BOOT_PARAM_MAGIC    0x328   /* 引导参数魔数 */
 #define BP_MAGIC            0
 #define BP_MEMOARY_SIZE     1
 #define BP_KERNEL_FILE      2
 
 /* 进程表中的用户进程的槽数，这个配置决定了flyanx能同时运行多少个用户进程。 */
 #define NR_PROCS          32
+
+/* 默认文件占用的扇区数量 */
+#define NR_DEFAULT_FILE_SECTS   2048    /* 1MB */
+
+/* 保留一些扇区供我们（操作系统创造者）在此处复制tar文件，该文件将由OS提取并使用。
+ * 文件里存放一些使用的程序。
+ * 注意，INSTALL_NR_SECTS应该是NR_DEFAULT_FILE_SECTS的倍数：
+ *      INSTALL_NR_SECTS = n * NR_DEFAULT_FILE_SECTS（int n）
+ */
+#define	INSTALL_START_SECT		0x17000
+#define	INSTALL_NR_SECTS		0x800
+
+/* 硬盘日志，我们支持它 */
+#define ENABLE_DISK_LOG                 1
+#define SET_LOG_SECT_SMAP_AT_STARTUP    1
+#define MEMSET_LOG_SECTS                1
+#define NR_SECTS_LOG        NR_DEFAULT_FILE_SECTS
 
 /* 缓冲区高速缓存应尽可能地大。 */
 #if (MACHINE == IBM_PC && _WORD_SIZE == 2)
@@ -105,7 +122,7 @@
 #define LINE_WARP               1   /* 控制台选项 - 是否需要在第80列换行？ */
 
 /* flyanx所启用的控制台的数量等定义 */
-#define NR_CONSOLES           	3	/* 系统控制台数量(1 ~ 8) */
+#define NR_CONSOLES           	3	/* 系统控制台数量(1 ~ 9) */
 #define	NR_RS_LINES	   		    0	/* rs232终端数量(0 ~ 2) */
 #define	NR_PTYS		  	 	    0	/* 伪终端数量(0 ~ 64) */
 

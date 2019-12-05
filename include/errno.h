@@ -40,7 +40,7 @@
 #   define _SIGN         
 #endif
 
-extern int errno;		  /* place where the error numbers go */
+extern int errno;		  /* 错误编号所在的位置 */
 
 /* Here are the numerical values of the error numbers. */
 #define _NERROR               70  /* number of errors */  

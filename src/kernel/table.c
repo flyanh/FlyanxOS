@@ -141,8 +141,26 @@ PUBLIC void map_drivers(void){
         task--;
         driver++;
     }
-
 }
+
+/* 下面给系统服务分配高速缓冲区 */
+/* 6MB~7MB: 文件系统使用 */
+PUBLIC u8_t *fs_buffer  = (u8_t*)0x600000;
+PUBLIC const int FS_BUFFER_SIZE = 0x100000;
+
+/* 7MB~8MB: 内存管理器使用 */
+PUBLIC u8_t *mm_buffer  = (u8_t*)0x700000;
+PUBLIC const int MM_BUFFER_SIZE = 0x100000;
+
+/* 8MB~9MB: 飞彦拓展管理器使用 */
+PUBLIC u8_t *fly_buffer  = (u8_t*)0x800000;
+PUBLIC const int FLY_BUFFER_SIZE = 0x100000;
+
+/* 9MB~11MB: 日志使用（DEBUG） */
+PUBLIC char *log_buffer  = (char *)0x900000;
+PUBLIC const int LOG_BUFFER_SIZE = 0x100000;
+PUBLIC char *log_disk_buffer  = (char *)0xA00000;
+PUBLIC const int LOG_DISK_BUFFER_SIZE = 0x100000;
 
 /* 所有系统任务堆栈的堆栈空间。 （声明为（char *）使其对齐。） */
 PUBLIC char *task_stack[TOT_TASK_STACK_SPACE / sizeof(char *)];

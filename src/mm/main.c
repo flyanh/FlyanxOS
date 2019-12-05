@@ -31,10 +31,10 @@ PUBLIC void mm_main(void){
     int rec_state, call;
     MMProcess *mp;
 
-    mm_print_info("working...\n");
     /* 初始化 */
     mm_init();
 
+    mm_print_info("working...");
     /* 内存管理器开始工作了 */
     while (TRUE){
         /* 等待一条消息 */
@@ -51,7 +51,7 @@ PUBLIC void mm_main(void){
         if((unsigned) call >= NR_CALLS){
             rs = ENOSYS;
         } else {
-            rs = (call_handlers[call])();
+            rs = (mm_call_handlers[call])();
         }
 
         /* 将结果告诉用户以指示此次调用完成 */
@@ -124,7 +124,7 @@ PRIVATE void mm_init(void){
  *				内存管理器输出信息
  *===========================================================================*/
 PUBLIC void mm_print_info(char *info){
-    printf("{MM}-> %s", info);
+    printf("{MM}-> %s\n", info);
 }
 
 

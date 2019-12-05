@@ -14,9 +14,10 @@
  *
  * 注意：请确保PROCS_BASE的值高于任何缓冲区，例如文件系统缓冲区，
  * 内存管理器缓冲区等等。
+ * 现在它们缓冲区的长度为：0xB00000(11MB)
  */
-#define FREE_BASE                   0x501000            /* 可以安全使用的内存空间物理地址：5132KB 约等于 5.01M */
-#define PROCS_BASE                  (FREE_BASE + 0x400)   /* 保证安全，我们远离不安全的空间1KB */
+#define FREE_BASE                   0xB00000            /* 可以安全使用的内存空间物理地址：5132KB 约等于 5.01M */
+#define PROCS_BASE                  FREE_BASE
 #define PROC_IMAGE_SIZE_MAX         0x400000            /* 进程能分配最大的内存空间：4M */
 #define PROC_IMAGE_SIZE_MAX_CLICK   PROC_IMAGE_SIZE_MAX >> CLICK_SHIFT
 #define PROC_ORIGIN_STACK

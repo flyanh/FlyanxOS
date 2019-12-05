@@ -44,7 +44,7 @@ tfly = $t/fly
 # 所需要的软盘镜像，可以自指定已存在的软盘镜像，系统内核将被写入这里面
 FD			= Flyanx.img
 # 硬盘镜像
-HD          = 100M_HD.img
+HD          = 500M_HD.img
 
 # 镜像挂载点，自指定，必须存在于自己的计算机上，如果没有请自行创建一下
 FloppyMountPoint= /media/floppyDisk
@@ -83,7 +83,7 @@ lib = $i/lib.h $h/common.h $h/syslib.h
 # ===============================================
 # 目标程序以及编译中间文件
 
-FlyanxBoot		= $(tb)/boot.bin $(tb)/loader.bin
+FlyanxBoot		= $(tb)/boot.bin $(tb)/loader.bin $(tb)/hd_boot.bin $(tb)/hd_loader.bin
 FlyanxKernel	= $(tk)/kernel.bin
 FlyanxKernelHead = $(tk)/kernel.o
 
@@ -101,12 +101,14 @@ ProcObjs        = $(tog)/origin.o \
                   $(tmm)/table.o $(tmm)/utils.o $(tmm)/alloc.o $(tmm)/forkexit.o \
                   $(tmm)/misc.o \
                   $(tmm)/exec.o \
-                  $(tfs)/main.o \
+                  $(tfs)/main.o $(tfs)/table.o $(tfs)/device.o $(tfs)/utils.o \
+                  $(tfs)/super.o $(tfs)/inode.o \
                   $(tfly)/main.o
 
 LibObjs         = $(tl)/i386/message.o \
                   $(tl)/ansi/string.o $(tl)/syslib/kernel_debug.o $(tl)/syslib/kprintf.o \
-                  $(tl)/putk.o $(tl)/ansi/stringc.o
+                  $(tl)/syslib/putk.o $(tl)/ansi/stringc.o $(tl)/syslib/task_call.o \
+                  $(tl)/syslib/sys_sudden.o $(tl)/syslib/sys_blues.o \
 
 Objs			= $(FlyanxKernelHead) $(KernelObjs) $(LibObjs) $(ProcObjs)
 
@@ -131,23 +133,16 @@ everything: $(FlyanxBoot) $(FlyanxKernel)
 
 only_kernel: $(FlyanxKernel)
 
-# 将生成 boot sector　和　kernel　二进制文件写入系统软盘镜像中
-image: $(FD) $(FlyanxBoot)
-	dd if=$(tb)/boot.bin of=$(FD) bs=512 count=1 conv=notrunc
-	sudo mount -o loop $(FD) $(FloppyMountPoint)
-	sudo cp -fv $(tb)/loader.bin $(FloppyMountPoint)
-	sudo cp -fv $(FlyanxKernel) $(FloppyMountPoint)
-	sudo umount $(FloppyMountPoint)
+image: buildimg
 
 #　使用 bochs 来进行 debug
 debug: $(FD)
 	bochs -q
 
 # flyanx现在使用软盘+硬盘启动
-run: $(FD)
-	@echo "请使用Vbox虚拟机启动Flyanx，先挂载挂生成的Flyanx.img镜像到软盘上，然后下载已经格式化的硬盘从：htttp://。"
-	@echo "然后挂载这个硬盘，启动它！OK :)"
-# 	qemu-system-i386 -drive file=$(FD),if=floppy
+run: $(FD) harddisk.tar.gz
+	@echo "请使用VBox虚拟机先挂载挂生成的Flyanx.img镜像到软盘上，然后解压harddisk.tar.gz下的\
+	硬盘镜像，然后挂载500M_HD.vdi到VBox的硬盘上，Flyanx就可以启动了 :)"
 
 
 # 完全清理，包括生成的boot和内核文件（二进制文件）
@@ -159,10 +154,10 @@ clean:
 	-rm -f $(Objs)
 
 # 制作系统镜像
-buildimg:
+buildimg: $(FD $(HD) $(FlyanxBoot)
 	dd if=$(tb)/boot.bin of=$(FD) bs=512 count=1 conv=notrunc
-	dd if=$(tb)/hd_boot.bin of=$(HD) bs=1 count=446 conv=notrunc
-	dd if=boot/hd_boot.bin of=$(HD) seek=510 skip=510 bs=1 count=2 conv=notrunc
+# 	dd if=$(tb)/hd_boot.bin of=$(HD) bs=1 count=446 conv=notrunc
+# 	dd if=$(tb)/hd_boot.bin of=$(HD) seek=510 skip=510 bs=1 count=2 conv=notrunc
 	sudo mount -o loop $(FD) $(FloppyMountPoint)
 	sudo cp -fv $(tb)/loader.bin $(FloppyMountPoint)
 	sudo cp -fv $(FlyanxKernel) $(FloppyMountPoint)
@@ -170,13 +165,12 @@ buildimg:
 
 # ===============================================
 # 所有的文件生成规则
-
-# 镜像
+# ============ 镜像 ============
 $(FD):
 	dd if=/dev/zero of=$(FD) bs=512 count=2880
 	mkfs.fat $(FD)
 
-# 内核加载器
+# ============ 内核加载器 ============
 $(tb)/boot.bin: src/boot/include/load.inc
 $(tb)/boot.bin: src/boot/include/fat12hdr.inc
 $(tb)/boot.bin : src/boot/boot.asm
@@ -185,7 +179,16 @@ $(tb)/boot.bin : src/boot/boot.asm
 $(tb)/loader.bin : src/boot/loader.asm src/boot/include/load.inc src/boot/include/fat12hdr.inc src/boot/include/pm.inc
 	$(ASM) $(ASMFlagsOfBoot) -o $@ $<
 
-# 内核
+$(tb)/hd_boot.bin: src/boot/include/load.inc
+$(tb)/hd_boot.bin: src/boot/hd_boot.asm
+	$(ASM) $(ASMFlagsOfBoot) -o $@ $<
+
+$(tb)/hd_loader.bin: src/boot/include/load.inc
+$(tb)/hd_loader.bin: src/boot/include/pm.inc
+$(tb)/hd_loader.bin: src/boot/hd_loader.asm
+	$(ASM) $(ASMFlagsOfBoot) -o $@ $<
+
+# ============ 内核 ============
 $(FlyanxKernel): $(Objs)
 	$(LD) $(LDFlags) -o $(FlyanxKernel) $(Objs)
 
@@ -247,16 +250,16 @@ $(tk)/system.o:	$h/callnr.h
 $(tk)/system.o:	$h/common.h
 $(tk)/system.o:	$(sk)/process.h
 $(tk)/system.o:	$(sk)/protect.h
-# $(tk)/system.o:	$(sk)/assert.h
+$(tk)/system.o:	$(sk)/assert.h
 $(tk)/system.o: $(sk)/system.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/table.o:	$(ka)
 $(tk)/table.o:	$i/stdlib.h
-# $(tk)/table.o:	$i/termios.h
+$(tk)/table.o:	$i/termios.h
 $(tk)/table.o:	$h/common.h
 $(tk)/table.o:	$(sk)/process.h
-# $(tk)/table.o:	$(sk)/tty.h
+$(tk)/table.o:	$(sk)/tty.h
 $(tk)/table.o:	$b/int86.h
 $(tk)/table.o: $(sk)/table.c
 	$(CC) $(CFlags) -o $@ $<
@@ -276,10 +279,11 @@ $(tk)/process.o: $(sk)/process.h
 $(tk)/process.o: $(sk)/process.c
 	$(CC) $(CFlags) -o $@ $<
 
-$(tk)/process.o: $(ka)
-$(tk)/process.o: $h/callnr.h
-$(tk)/process.o: $h/common.h
-$(tk)/process.o: $(sk)/process.h
+$(tk)/message.o: $(ka)
+$(tk)/message.o: $h/callnr.h
+$(tk)/message.o: $h/common.h
+$(tk)/message.o: $(sk)/process.h
+$(tk)/message.o: $(sk)/assert.h
 $(tk)/message.o: $(sk)/message.c
 	$(CC) $(CFlags) -o $@ $<
 
@@ -341,17 +345,19 @@ $(tk)/driver.o: $(sk)/driver.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tk)/at_wind.o: $(a)
-$(tk)/at_wind.o: $(sk)/drvlib.h
 $(tk)/at_wind.o: $h/callnr.h
 $(tk)/at_wind.o: $h/common.h
 $(tk)/at_wind.o: $s/ioctl.h
 $(tk)/at_wind.o: $(sk)/process.h
+$(tk)/at_wind.o: $(b)/partition.h
+$(tk)/at_wind.o: $(h)/partition.h
+$(tk)/at_wind.o: $(s)/dev.h
 $(tk)/at_wind.o: $(sk)/hd.h
 $(tk)/at_wind.o: $(sk)/assert.h
 $(tk)/at_wind.o: $(sk)/at_wind.c
 	$(CC) $(CFlags) -o $@ $<
 
-# 系统库
+# ============ 系统库 ============
 $(tl)/i386/message.o: src/lib/i386/message.asm
 	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
 
@@ -361,16 +367,31 @@ $(tl)/syslib/kprintf.o: $i/limits.h
 $(tl)/syslib/kprintf.o: src/lib/syslib/kprintf.c
 	$(CC) $(CFlags) -o $@ $<
 
-$(tl)/putk.o: $i/lib.h
-$(tl)/putk.o: $h/common.h
-$(tl)/putk.o: $h/syslib.h
-$(tl)/putk.o: $h/callnr.h
-$(tl)/putk.o: $h/flylib.h
-$(tl)/putk.o: src/lib/syslib/putk.c
+$(tl)/syslib/putk.o: $i/lib.h
+$(tl)/syslib/putk.o: $h/common.h
+$(tl)/syslib/putk.o: $h/syslib.h
+$(tl)/syslib/putk.o: $h/callnr.h
+$(tl)/syslib/putk.o: $h/flylib.h
+$(tl)/syslib/putk.o: src/lib/syslib/putk.c
 	$(CC) $(CFlags) -o $@ $<
 
-# 服务器和起源进程
-# MM内存管理器服务器
+$(tl)/syslib/task_call.o: $i/lib.h
+$(tl)/syslib/task_call.o: $h/syslib.h
+$(tl)/syslib/task_call.o: src/lib/syslib/task_call.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/syslib/sys_sudden.o: $h/syslib.h
+$(tl)/syslib/sys_sudden.o: $i/stdarg.h
+$(tl)/syslib/sys_sudden.o: $i/unistd.h
+$(tl)/syslib/sys_sudden.o: src/lib/syslib/sys_sudden.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/syslib/sys_blues.o: $h/syslib.h
+$(tl)/syslib/sys_blues.o: src/lib/syslib/sys_blues.c
+	$(CC) $(CFlags) -o $@ $<
+
+# ============ 服务器和起源进程 ============
+# ============ MM内存管理器服务器 ============
 $(tmm)/main.o: $(mma)
 $(tmm)/main.o: $h/callnr.h
 $(tmm)/main.o: $h/common.h
@@ -426,19 +447,74 @@ $(tmm)/exec.o: $(smm)/exec.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tmm)/utils.o: $(mma)
+$(tmm)/utils.o: $i/signal.h
+$(tmm)/utils.o: $(smm)/mmproc.h
+$(tmm)/utils.o: $(smm)/param.h
 $(tmm)/utils.o: $(smm)/utils.c
 	$(CC) $(CFlags) -o $@ $<
 
-# FS文件系统服务器
+# ============ FS文件系统服务器 ============
 $(tfs)/main.o: $(fsa)
+$(tfs)/main.o: $h/callnr.h
+$(tfs)/main.o: $h/common.h
+$(tfs)/main.o: $s/dev.h
+$(tfs)/main.o: $h/partition.h
+$(tfs)/main.o: $s/dev.h
+$(tfs)/main.o: $(sfs)/dev.h
+$(tfs)/main.o: $(sfs)/file.h
+$(tfs)/main.o: $(sfs)/fsproc.h
+$(tfs)/main.o: $(sfs)/inode.h
+$(tfs)/main.o: $(sfs)/dir.h
+$(tfs)/main.o: $(sfs)/super.h
+$(tfs)/main.o: $(sfs)/param.h
 $(tfs)/main.o: $(sfs)/main.c
 	$(CC) $(CFlags) -o $@ $<
 
+$(tfs)/table.o: $(fsa)
+$(tfs)/table.o: $h/callnr.h
+$(tfs)/table.o: $h/common.h
+$(tfs)/table.o: $(sfs)/file.h
+$(tfs)/table.o: $(sfs)/fsproc.h
+$(tfs)/table.o: $(sfs)/inode.h
+$(tfs)/table.o: $(sfs)/super.h
+$(tfs)/table.o: $(sfs)/table.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tfs)/device.o: $(fsa)
+$(tfs)/device.o: $h/callnr.h
+$(tfs)/device.o: $h/common.h
+$(tfs)/device.o: $s/dev.h
+$(tfs)/device.o: $(sfs)/dev.h
+$(tfs)/device.o: $(sfs)/param.h
+$(tfs)/device.o: $(sfs)/device.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tfs)/super.o: $(fsa)
+$(tfs)/super.o: $(sfs)/super.h
+$(tfs)/super.o: $(sfs)/super.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tfs)/inode.o: $(fsa)
+$(tfs)/inode.o: $h/common.h
+$(tfs)/inode.o: $(sfs)/inode.h
+$(tfs)/inode.o: $s/dev.h
+$(tfs)/inode.o: $(sfs)/super.h
+$(tfs)/inode.o: $(sfs)/inode.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tfs)/utils.o: $(fsa)
+$(tfs)/utils.o: $i/unistd.h
+$(tfs)/utils.o: $(sfs)/param.h
+$(tfs)/utils.o: $(sfs)/utils.c
+	$(CC) $(CFlags) -o $@ $<
+
+# ============ FLY拓展管理器 ============
 $(tfly)/main.o: $(flya)
 $(tfly)/main.o: $(sfly)/main.c
 	$(CC) $(CFlags) -o $@ $<
 
-# ORIGIN起源进程
+
+# ============ ORIGIN起源进程 ============
 $(tog)/origin.o: $(sog)/origin.c
 	$(CC) $(CFlags) -o $@ $<
 

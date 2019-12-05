@@ -25,6 +25,8 @@
                          */
 
 /* 任务号，函数索引号(消息类型)和回复代码，将在下面开始定义 */
+#define NO_EXIST_TASK       -808    /* 用于不可能存在的任务号 */
+
 #define TTY_TASK                (CONTROLLER(NR_CONTROLLERS) - 2)  /* 终端I/O任务 */
 #	define CANCEL               0	/* 强制取消任务的一般要求 */
 #	define HARD_INT             2	/* 所有硬件中断的索引代码 */
@@ -58,6 +60,8 @@
 #   define SYS_FORK         3   /* 系统功能索引代码，sys_fork(parent, child, pid) */
 #	define SYS_PUTS         4	/* 系统功能索引代码，sys_puts(count, buf) */
 #   define SYS_FIND_PROC    5   /* 系统功能索引代码，sys_find_proc(name, &task_nr, flags) */
+#   define SYS_SUDDEN       6   /* 系统功能索引代码，sys_sudden() */
+#   define SYS_BLUES        7   /*  系统功能索引代码，sys_bules() */
 
 #define HARDWARE            -1	    /* 用作中断生成消息的源 */
 

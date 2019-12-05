@@ -46,6 +46,6 @@ _PROTOTYPE( int do_block, (void) );
 /* utils.c */
 /*================================================================================================*/
 //_PROTOTYPE( int allowed, (char *name_buf, struct stat *s_buf, int mask)	);
-_PROTOTYPE( int no_sys, (void)						);
-_PROTOTYPE( void mm_panic, (const char *msg, int errno)				);
+_PROTOTYPE( int mm_no_sys, (void) );
+_PROTOTYPE( void mm_panic, (const char *msg, int errno) );
 //_PROTOTYPE( void tell_fs, (int what, int p1, int p2, int p3)		);

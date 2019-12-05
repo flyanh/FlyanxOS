@@ -148,7 +148,6 @@ typedef struct command {
      * 状态寄存器都是8位字节。
      */
     u8_t	count;
-
     u8_t	lba_low;
     u8_t	lba_mid;
     u8_t	lba_high;

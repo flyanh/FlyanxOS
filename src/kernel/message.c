@@ -24,6 +24,8 @@
 #include "protect.h"
 #include "process.h"
 #include "message.h"
+#include "assert.h"
+INIT_ASSERT
 
 #ifdef INTEL
 /* 复制消息的宏，就是简单的调用了phys_copy例程，它通过物理地址复制，
@@ -229,6 +231,10 @@ PUBLIC phys_bytes proc_vir2phys(Process *proc, vir_bytes vir){
     phys_bytes seg_base = ldt_seg_phys(proc, DATA);
     /* 该虚拟地址对应的物理地址 = 进程段地址 + 虚拟地址 */
     phys_bytes vir_phys = seg_base + vir;
+
+    if(proc->nr <= LOW_USER) {
+        assert(vir_phys == vir);
+    }
 
     return vir_phys;
 }

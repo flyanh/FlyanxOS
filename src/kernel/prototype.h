@@ -138,14 +138,14 @@ _PROTOTYPE( void disable_irq, (u32_t intRequest) );
 _PROTOTYPE( void enable_irq, (u32_t intRequest) );
 _PROTOTYPE( void interrupt_lock, (void) );
 _PROTOTYPE( void interrupt_unlock, (void) );
-_PROTOTYPE( void port_read, (u16_t port, void *destination, unsigned bytcount) );
-_PROTOTYPE( void port_write, (unsigned port, void *source, unsigned bytcount) );
+_PROTOTYPE( void port_read, (u16_t port, void *dest, unsigned bytcount) );
+_PROTOTYPE( void port_write, (u16_t port, void *source, unsigned bytcount) );
 _PROTOTYPE( void level0, (void (*func)(void)) );
 _PROTOTYPE( void reset, (void) );
 
 /*================================================================================================*/
 /* system.c  */
-/*====================================================seg_index============================================*/
+/*================================================================================================*/
 _PROTOTYPE( void system_task, (void) );
 _PROTOTYPE( int vir_copy, (int src_proc, vir_bytes src_vir,
         int dest_proc, vir_bytes dest_vir, vir_bytes bytes) );
