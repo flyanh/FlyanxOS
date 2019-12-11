@@ -84,8 +84,8 @@
 #define _POSIX_NO_TRUNC       (-1)
 #define _POSIX_CHOWN_RESTRICTED  1
 
-/* 以下是所有系统调用的函数原型  */
-
+/* 以下是常用的系统调用的函数原型  */
+_PROTOTYPE( int close, (int _fd) );
 
 
 

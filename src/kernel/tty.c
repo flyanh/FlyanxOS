@@ -83,6 +83,8 @@ FORWARD _PROTOTYPE( int back_over, (TTY *tty) );
 FORWARD _PROTOTYPE( int echo, (TTY *tty, int ch) );
 FORWARD _PROTOTYPE( void tty_init, (TTY *tty) );
 FORWARD _PROTOTYPE( void reprint, (TTY *tty) );
+FORWARD _PROTOTYPE( void tty_input_cancel, (TTY *tty) );
+FORWARD _PROTOTYPE( void set_attr, (TTY *tty) );
 FORWARD _PROTOTYPE( void in_transfer, (TTY *tty) );
 
 /*===========================================================================*
@@ -212,7 +214,26 @@ PRIVATE void do_ioctl(TTY *tty, Message *msg){
  *				打开终端
  *===========================================================================*/
 PRIVATE void do_open(TTY *tty, Message *msg){
-    raw_echo(tty, 'p');
+    /* 本例程只执行一个简单的基本动作
+     *  - 增加设备的tty->open_count变量的值以便能够检测是否被打开
+     */
+
+    int rs = OK;
+    if(msg->TTY_LINE == LOG_MINOR) {
+        /* 日志设备是一个只写设备，所以如果师徒以读方式打开它，返回一个访问错误。 */
+        if(msg->FLAGS & R_BIT) rs = EACCES;
+    } else {
+        if(!(msg->FLAGS & O_NOCTTY)){
+            /* 如果O_NOCTTY标志未被置位，且不是日志设备，则该终端成为一个进程组的控制终端。
+		     * 这是通过把调用方的进程号放入到p_group域完成的。
+             */
+            tty->p_group = msg->PROC_NR;
+            rs = 1;
+        }
+        tty->open_count++;
+    }
+    /* 通知进程 */
+    tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, rs);
 }
 
 /*===========================================================================*
@@ -220,7 +241,27 @@ PRIVATE void do_open(TTY *tty, Message *msg){
  *				关闭终端
  *===========================================================================*/
 PRIVATE void do_close(TTY *tty, Message *msg){
-    raw_echo(tty, 'c');
+    /* 关闭一个终端设备，同时会重置终端设备的属性。
+     *
+     * 一个终端设备可能被打开不止一次，所以这里如果该终端设备不是最后一次被关闭，
+     * 那么，就只是减少open_count的值，不执行其他动作。
+     * 但是如果是最后一次被关闭，那么得做一些善后的工作，即判断里面的内容。
+     * 最后需要注意：msg->TTY_LINE != LOG_MINOR 这一句防止了函数试图关闭日志设备(dev/log)。
+     */
+    tty->open_count--;
+    if(msg->TTY_LINE != LOG_MINOR && tty->open_count == 0){
+        /* 善后工作开始，现在没有人使用这个终端，自然就没有控制进程了，直接赋0 */
+        tty->p_group = 0;
+        /* 取消设备的所有输入工作 */
+        tty_input_cancel(tty);
+        /* 执行设备指定的关闭例程 */
+        tty->close(tty);
+        /* 最后，终端和屏幕窗口两个域被重置回它们的默认值 */
+        tty->termios = default_termios;
+        tty->win_frame = default_winframe;
+        set_attr(tty);
+    }
+    tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, OK);
 }
 
 /*===========================================================================*
@@ -858,6 +899,52 @@ PUBLIC void tty_wakeup(clock_t now){
 
     /* 现在可以触发一个中断，唤醒终端任务了 */
     interrupt(TTY_TASK);
+}
+
+/*==========================================================================*
+ *				tty_input_cancel				    *
+ *				取消设备的所有输入
+ *==========================================================================*/
+PRIVATE void tty_input_cancel(register TTY *tty){
+    /* 丢弃所有挂起的输入、终端缓冲区或设备。 */
+
+    /* 删除已在排队的输入-接收到的字符或行的计数被置为0  */
+    tty->input_count = tty->eot_count = 0;
+    /* 队列的处理指针和空闲输入指针重合。 */
+    tty->input_handle = tty->input_free;
+    /* 所有输出任务停止 */
+    tty->input_cancel(tty);
+}
+
+/*===========================================================================*
+ *				set_attr					     *
+ *			应用新的中断属性
+ *===========================================================================*/
+PRIVATE void set_attr(TTY *tty){
+    /* 这些属性例如：标准模式/原始模式，传输速度等等... */
+
+    u32_t *inp;
+    int count;
+
+    if (!(tty->termios.cflag & ICANON)) {
+        /* 处于非规范模式：第一个动作就是将当前输入队列中的所有字符都标上IN_EOF位，
+         * 如同在处于非规范模式下这些字符刚被输入到队列中时所要做的一样。直接这样做
+         * 要比检测字符是否有该位容易一些。
+         */
+        count = tty->eot_count = tty->input_count;
+        inp = tty->input_handle;
+        while (count > 0) {
+            *inp |= IN_EOT;
+            inp++;
+            if (inp == buffer_end(tty->input_buffer)) inp = tty->input_buffer;
+            count--;
+        }
+    }
+
+    /* 检测MIN和TIME值 */
+    interrupt_lock();
+    interrupt_unlock();
+
 }
 
 /*==========================================================================*

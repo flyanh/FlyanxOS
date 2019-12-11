@@ -29,6 +29,7 @@ typedef struct file_desc {
 
 EXTERN FileDesc file[NR_FILES];
 
-#define NIL_FILP (struct file_desc *) 0	/* 表示没有文件插槽 */
+#define NOT_OPEN                      0     /* 表示还没人人打开这个文件 */
+#define NIL_FILE (struct file_desc *) 0	    /* 表示没有文件插槽 */
 
 #endif //_FS_FILE_H

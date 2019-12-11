@@ -32,7 +32,7 @@ EXTERN Message fs_outbox;       /* 文件系统发件箱：发送的消息在这
 EXTERN int who;                 /* 谁发的信？ */
 EXTERN int fs_call;             /* 系统调用号 */
 EXTERN bool need_reply;         /* 此次调用需要回复吗? */
-EXTERN int user_path[PATH_MAX]; /* 用户路径名称 */
+EXTERN char user_path[PATH_MAX]; /* 用户路径名称 */
 
 /* 以下用于将结果返回给调用者 */
 EXTERN int err_code;            /* 临时存储错误号 */

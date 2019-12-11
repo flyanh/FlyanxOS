@@ -56,6 +56,7 @@ CC 				= gcc
 LD				= ld
 ASMFlagsOfBoot	= -I src/boot/include/
 ASMFlagsOfKernel= -f elf -I $(sk)/
+ASMFlagsOfSysCall = -f elf
 CFlags			= -I$i -c -fno-builtin
 LDFlags			= -s -Ttext $(ENTRYPOINT)
 DASMFlags		= -u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
@@ -102,13 +103,18 @@ ProcObjs        = $(tog)/origin.o \
                   $(tmm)/misc.o \
                   $(tmm)/exec.o \
                   $(tfs)/main.o $(tfs)/table.o $(tfs)/device.o $(tfs)/utils.o \
-                  $(tfs)/super.o $(tfs)/inode.o \
+                  $(tfs)/super.o $(tfs)/inode.o $(tfs)/open.o $(tfs)/file.o \
+                  $(tfs)/path.o \
                   $(tfly)/main.o
 
 LibObjs         = $(tl)/i386/message.o \
                   $(tl)/ansi/string.o $(tl)/syslib/kernel_debug.o $(tl)/syslib/kprintf.o \
                   $(tl)/syslib/putk.o $(tl)/ansi/stringc.o $(tl)/syslib/task_call.o \
-                  $(tl)/syslib/sys_sudden.o $(tl)/syslib/sys_blues.o \
+                  $(tl)/syslib/sys_sudden.o $(tl)/syslib/sys_blues.o $(tl)/syslib/sys_copy.o \
+                  $(tl)/other/loadname.o $(tl)/other/syscall.o $(tl)/other/errno.o \
+                  $(tl)/posix/_open.o $(tl)/posix/_creat.o $(tl)/posix/_close.o $(tl)/posix/_mkdir.o \
+                  $(tl)/syscall/__open.o $(tl)/syscall/__creat.o $(tl)/syscall/__close.o \
+                  $(tl)/syscall/__mkdir.o
 
 Objs			= $(FlyanxKernelHead) $(KernelObjs) $(LibObjs) $(ProcObjs)
 
@@ -390,6 +396,59 @@ $(tl)/syslib/sys_blues.o: $h/syslib.h
 $(tl)/syslib/sys_blues.o: src/lib/syslib/sys_blues.c
 	$(CC) $(CFlags) -o $@ $<
 
+$(tl)/syslib/sys_copy.o: $h/syslib.h
+$(tl)/syslib/sys_copy.o: src/lib/syslib/sys_copy.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/other/loadname.o: $i/lib.h
+$(tl)/other/loadname.o: $i/string.h
+$(tl)/other/loadname.o: src/lib/other/loadname.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/other/syscall.o: $i/lib.h
+$(tl)/other/syscall.o: src/lib/other/syscall.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/other/errno.o: src/lib/other/errno.c
+	$(CC) $(CFlags) -o $@ $<
+
+# posix系统调用
+$(tl)/posix/_open.o: $i/lib.h
+$(tl)/posix/_open.o: $i/fcntl.h
+$(tl)/posix/_open.o: $i/stdarg.h
+$(tl)/posix/_open.o: $i/string.h
+$(tl)/posix/_open.o: src/lib/posix/_open.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/posix/_creat.o: $i/lib.h
+$(tl)/posix/_creat.o: $i/fcntl.h
+$(tl)/posix/_creat.o: src/lib/posix/_creat.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/posix/_close.o: $i/lib.h
+$(tl)/posix/_close.o: $i/unistd.h
+$(tl)/posix/_close.o: src/lib/posix/_close.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/posix/_mkdir.o: $i/lib.h
+$(tl)/posix/_mkdir.o: $s/stat.h
+$(tl)/posix/_mkdir.o: $i/string.h
+$(tl)/posix/_mkdir.o: src/lib/posix/_mkdir.c
+	$(CC) $(CFlags) -o $@ $<
+
+# 用户系统调用
+$(tl)/syscall/__open.o: src/lib/syscall/open.asm
+	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
+
+$(tl)/syscall/__creat.o: src/lib/syscall/creat.asm
+	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
+
+$(tl)/syscall/__close.o: src/lib/syscall/close.asm
+	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
+
+$(tl)/syscall/__mkdir.o: src/lib/syscall/mkdir.asm
+	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
+
 # ============ 服务器和起源进程 ============
 # ============ MM内存管理器服务器 ============
 $(tmm)/main.o: $(mma)
@@ -457,14 +516,13 @@ $(tmm)/utils.o: $(smm)/utils.c
 $(tfs)/main.o: $(fsa)
 $(tfs)/main.o: $h/callnr.h
 $(tfs)/main.o: $h/common.h
-$(tfs)/main.o: $s/dev.h
 $(tfs)/main.o: $h/partition.h
 $(tfs)/main.o: $s/dev.h
 $(tfs)/main.o: $(sfs)/dev.h
 $(tfs)/main.o: $(sfs)/file.h
 $(tfs)/main.o: $(sfs)/fsproc.h
 $(tfs)/main.o: $(sfs)/inode.h
-$(tfs)/main.o: $(sfs)/dir.h
+$(tfs)/main.o: $i/dir.h
 $(tfs)/main.o: $(sfs)/super.h
 $(tfs)/main.o: $(sfs)/param.h
 $(tfs)/main.o: $(sfs)/main.c
@@ -490,7 +548,9 @@ $(tfs)/device.o: $(sfs)/device.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tfs)/super.o: $(fsa)
+$(tfs)/super.o: $h/common.h
 $(tfs)/super.o: $(sfs)/super.h
+$(tfs)/super.o: $(sfs)/dev.h
 $(tfs)/super.o: $(sfs)/super.c
 	$(CC) $(CFlags) -o $@ $<
 
@@ -502,8 +562,40 @@ $(tfs)/inode.o: $(sfs)/super.h
 $(tfs)/inode.o: $(sfs)/inode.c
 	$(CC) $(CFlags) -o $@ $<
 
+$(tfs)/open.o: $(fsa)
+$(tfs)/open.o: $h/callnr.h
+$(tfs)/open.o: $h/common.h
+$(tfs)/open.o: $i/fcntl.h
+$(tfs)/open.o: $(sfs)/dev.h
+$(tfs)/open.o: $i/dir.h
+$(tfs)/open.o: $(sfs)/file.h
+$(tfs)/open.o: $(sfs)/param.h
+$(tfs)/open.o: $(sfs)/open.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tfs)/file.o: $(fsa)
+$(tfs)/file.o: $(sfs)/file.h
+$(tfs)/file.o: $(sfs)/fsproc.h
+$(tfs)/file.o: $(sfs)/inode.h
+$(tfs)/file.o: $(sfs)/file.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tfs)/path.o: $(fsa)
+$(tfs)/path.o: $i/string.h
+$(tfs)/path.o: $h/callnr.h
+$(tfs)/path.o: $h/common.h
+$(tfs)/path.o: $(sfs)/file.h
+$(tfs)/path.o: $(sfs)/fsproc.h
+$(tfs)/path.o: $(sfs)/inode.h
+$(tfs)/path.o: $(sfs)/dev.h
+$(tfs)/path.o: $(sfs)/super.h
+$(tfs)/path.o: $i/dir.h
+$(tfs)/path.o: $(sfs)/path.c
+	$(CC) $(CFlags) -o $@ $<
+
 $(tfs)/utils.o: $(fsa)
 $(tfs)/utils.o: $i/unistd.h
+$(tfs)/utils.o: $h/common.h
 $(tfs)/utils.o: $(sfs)/param.h
 $(tfs)/utils.o: $(sfs)/utils.c
 	$(CC) $(CFlags) -o $@ $<
@@ -515,6 +607,9 @@ $(tfly)/main.o: $(sfly)/main.c
 
 
 # ============ ORIGIN起源进程 ============
+$(tog)/origin.o: $i/lib.h
+$(tog)/origin.o: $i/fcntl.h
+$(tog)/origin.o: $i/unistd.h
 $(tog)/origin.o: $(sog)/origin.c
 	$(CC) $(CFlags) -o $@ $<
 

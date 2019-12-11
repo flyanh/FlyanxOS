@@ -6,7 +6,7 @@
  * gitee: https://gitee.com/flyanh/
  *
  * 本文件定义了Flyanx的目录项结构
- * 这个文件只被直接引用了一次，但包含它的文件在整个文件系统
+ * 这个文件只被直接引用了几次，但包含它的文件在整个文件系统
  * 中广为使用。它之所以重要是因为它定义了一个文件名最多有多
  * 少个字符，因为文件名的使用贯穿整个文件系统。
  */
@@ -14,12 +14,12 @@
 #ifndef FLYANX_DIR_H
 #define FLYANX_DIR_H
 
-#include "fs.h"
+#include "../src/fs/fs.h"
 
 #define DIR_BLOCK_SIZE  512 /* 目录块的大小 */
 
 #ifndef NAME_LEN
-#define NAME_LEN	17    /* 目录/文件名长度 */
+#define NAME_LEN	18    /* 目录/文件名长度 */
 #endif
 
 typedef struct directory_entry {

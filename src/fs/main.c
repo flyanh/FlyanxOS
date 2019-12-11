@@ -20,7 +20,7 @@
 #include "file.h"
 #include "fsproc.h"
 #include "inode.h"
-#include "dir.h"
+#include <dir.h>
 #include "super.h"
 #include "param.h"
 
@@ -32,6 +32,7 @@ FORWARD _PROTOTYPE( void load_super_block, (SuperBlock *sb) );
 
 /*===========================================================================*
  *				fs_main					     *
+ *			  文件系统主程序
  *===========================================================================*/
 PUBLIC void fs_main(void){
     int rs;
@@ -64,10 +65,12 @@ PUBLIC void fs_main(void){
 
 /*===========================================================================*
  *				view_inbox					     *
- *
+ *             查看收件箱，等待消息
  *===========================================================================*/
 PRIVATE void view_inbox(void){
-    receive(ANY, &fs_inbox);
+    if(receive(ANY, &fs_inbox) != OK) fs_panic("FS receive error", NO_NUM);
+    who = fs_inbox.source;
+    fs_call = fs_inbox.type;
 }
 
 /*===========================================================================*
@@ -75,7 +78,11 @@ PRIVATE void view_inbox(void){
  *			    回复结果
  *===========================================================================*/
 PRIVATE void reply(int whom, int rs){
-
+    /* 向用户进程发送回复。 它可能会失败（如果该进程刚刚被信号杀死），因此不需要检查返回码。
+     * 如果发送失败，则忽略它。
+     */
+    reply_type = rs;
+    send(whom, &fs_outbox);
 }
 
 /*===========================================================================*
@@ -103,7 +110,7 @@ PRIVATE void fs_init(void){
     }
 
     /* 打开硬盘 */
-    if (dev_open(ROOT_DEV, FS_PROC_NR) == OK) {
+    if (dev_open(ROOT_DEV, FS_PROC_NR, (RWX_MODES)) == OK) {
         /* 先尝试读取根设备超级块 */
         if(READ_SECT(ROOT_DEV, 1) == OK){
             sb = (SuperBlock *) fs_buffer;
@@ -269,27 +276,27 @@ PRIVATE void mkfs_flyanx(void){
     /* ================================== */
     /* 首先是根'/'的 */
     memset(fs_buffer, 0, SECTOR_SIZE);
-    Inode *root_inode = (Inode *)fs_buffer; /* 这相当于我们手动分配空间，不需要编译器给我们瞎分配 */
-    root_inode->mode = INODE_DIRECTORY;     /* '/'是一个目录 */
-    root_inode->size = sizeof(DirectoryEntry) * 5;  /* '/'下有五个文件：
+    Inode *roo_inode = (Inode *)fs_buffer; /* 这相当于我们手动分配空间，不需要编译器给我们瞎分配 */
+    roo_inode->mode = I_DIRECTORY;     /* '/'是一个目录 */
+    roo_inode->size = sizeof(DirectoryEntry) * 5;  /* '/'下有五个文件：
                                                      * '.',
                                                      * 'dev_tty0', 'dev_tty1', 'dev_tty2',
                                                      * 'cmd.tar'
                                                      */
-    root_inode->start_sect = sb.first_sect_nr;      /* 根使用第一个数据扇区 */
-    root_inode->nr_sects = NR_DEFAULT_FILE_SECTS;   /* 占用多少个扇区？ */
+    roo_inode->start_sect = sb.first_sect_nr;      /* 根使用第一个数据扇区 */
+    roo_inode->nr_sects = NR_DEFAULT_FILE_SECTS;   /* 占用多少个扇区？ */
     /* 然后是'/dev_tty0~2' */
     Inode *tty_inode;
     for(i = 0; i < NR_CONSOLES; i++){
         tty_inode = (Inode *) (fs_buffer + (INODE_SIZE * (i + 1))); /* +1防止把'/'的覆盖掉 */
-        tty_inode->mode = INODE_CHAR_SPECIAL;
+        tty_inode->mode = I_CHAR_SPECIAL;
         tty_inode->size = 0;
         tty_inode->start_sect = MAKE_DEV(DEV_CHAR_TTY, i);
         tty_inode->nr_sects = 0;
     }
     /* 最后是'/cmd,tar'的 */
     Inode *cmd_inode = (Inode *)(fs_buffer + (INODE_SIZE * (NR_CONSOLES + 1))); /* 后面这里应该要可以根据NR_CONSOLES动态变化 */
-    cmd_inode->mode = INODE_REGULAR;
+    cmd_inode->mode = I_REGULAR;
     cmd_inode->size = INSTALL_NR_SECTS * SECTOR_SIZE;
     cmd_inode->start_sect = INSTALL_START_SECT;
     cmd_inode->nr_sects = INSTALL_NR_SECTS;
@@ -302,23 +309,23 @@ PRIVATE void mkfs_flyanx(void){
     DirectoryEntry *p_root_dir = (DirectoryEntry *)fs_buffer;
 
     p_root_dir->inode_nr = ROOT_INODE;  /* '/'文件跟索引节点建立关联 */
-    strcpy(p_root_dir->name, ".");
+    strcpy(p_root_dir->name, dot);
 
     /* 根目录下有'/dev_tty0~2'文件，设置它们的目录项 */
     for(i = 0; i < NR_CONSOLES; i++){
         p_root_dir++;
-        p_root_dir->inode_nr = i + 2;   /* dev_tty0文件的索引节点号是2 */
+        p_root_dir->inode_nr = i + ROOT_INODE + 1;   /* dev_tty0文件的索引节点号是2（'/'索引号 + 1） */
         /* 文件名，有9个分支是因为flyanx允许编译开启最多九个终端。 */
         switch (i){
-            case 0: strcpy(p_root_dir->name, "dev_tty0");
-            case 1: strcpy(p_root_dir->name, "dev_tty1");
-            case 2: strcpy(p_root_dir->name, "dev_tty2");
-            case 3: strcpy(p_root_dir->name, "dev_tty3");
-            case 4: strcpy(p_root_dir->name, "dev_tty4");
-            case 5: strcpy(p_root_dir->name, "dev_tty5");
-            case 6: strcpy(p_root_dir->name, "dev_tty6");
-            case 7: strcpy(p_root_dir->name, "dev_tty7");
-            case 8: strcpy(p_root_dir->name, "dev_tty8");
+            case 0: strcpy(p_root_dir->name, "dev_tty0"); break;
+            case 1: strcpy(p_root_dir->name, "dev_tty1"); break;
+            case 2: strcpy(p_root_dir->name, "dev_tty2"); break;
+            case 3: strcpy(p_root_dir->name, "dev_tty3"); break;
+            case 4: strcpy(p_root_dir->name, "dev_tty4"); break;
+            case 5: strcpy(p_root_dir->name, "dev_tty5"); break;
+            case 6: strcpy(p_root_dir->name, "dev_tty6"); break;
+            case 7: strcpy(p_root_dir->name, "dev_tty7"); break;
+            case 8: strcpy(p_root_dir->name, "dev_tty8"); break;
         }
     }
     /* 最后是'cmd.tar'的 */

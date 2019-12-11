@@ -28,27 +28,27 @@ char *core_name = "core";   /* 生成核心映像的文件名 */
  * 都兼容的最简单的办法。
  */
 _PROTOTYPE( int (*mm_call_handlers[NR_CALLS]), (void) ) = {
-        &mm_no_sys,    /* 0 = 没有使用的调用 */
+        &mm_no_sys,     /* 0 = 没有使用的调用 */
         &do_mm_exit,    /* 1 = exit::退出一个进程 */
-        &do_wait,    /* 2 = wait:: */
-        &do_fork,    /* 3 = fork::派生一个新进程 */
-        &do_exec,    /* 4 = exec::执行一个文件 */
-        &do_block,    /* 5 = block::堵塞自己 */
-        &mm_no_sys,    /* 6 = 未实现 */
-        &mm_no_sys,    /* 7 = 未实现 */
-        &mm_no_sys,    /* 8 = 未实现 */
-        &mm_no_sys,    /* 9 = 未实现 */
+        &do_wait,       /* 2 = wait:: */
+        &do_fork,       /* 3 = fork::派生一个新进程 */
+        &do_exec,       /* 4 = exec::执行一个文件 */
+        &do_block,      /* 5 = block::堵塞自己 */
+        &mm_no_sys,     /* 6 = open::打开一个文件 */
+        &mm_no_sys,     /* 7 = close::关闭一个文件 */
+        &mm_no_sys,     /* 8 = read::读取一个文件 */
+        &mm_no_sys,     /* 9 = write::写入内容到一个文件 */
 
-        &mm_no_sys,    /* 10 = 未实现 */
-        &mm_no_sys,    /* 11 = 未实现 */
-        &mm_no_sys,    /* 12 = 未实现 */
-        &mm_no_sys,    /* 13 = 未实现 */
-        &mm_no_sys,    /* 14 = 未实现 */
-        &mm_no_sys,    /* 15 = 未实现 */
-        &mm_no_sys,    /* 16 = 未实现 */
-        &mm_no_sys,    /* 17 = 未实现 */
-        &mm_no_sys,    /* 18 = 未实现 */
-        &mm_no_sys,    /* 19 = 未实现 */
+        &mm_no_sys,     /* 10 = unlink::取消一个文件的链接 */
+        &mm_no_sys,     /* 11 = link::为文件设置一个链接 */
+        &mm_no_sys,     /* 12 = lseek::调整文件读写的指针位置 */
+        &mm_no_sys,     /* 13 = fstat::查看文件状态 */
+        &mm_no_sys,     /* 14 = creat::创建一个新文件 */
+        &mm_no_sys,     /* 15 = 未实现 */
+        &mm_no_sys,     /* 16 = 未实现 */
+        &mm_no_sys,     /* 17 = 未实现 */
+        &mm_no_sys,     /* 18 = 未实现 */
+        &mm_no_sys,     /* 19 = 未实现 */
 
         &mm_no_sys,    /* 20 = 未实现 */
         &mm_no_sys,    /* 21 = 未实现 */

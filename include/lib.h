@@ -36,7 +36,7 @@
 
 _PROTOTYPE( void panic, (const char *_message, int _errnum) );
 _PROTOTYPE( int send_receive, (int src_dest, Message *message_ptr) );
-_PROTOTYPE( int sys_call, (int function, int src_dest, struct message_s *message_ptr) );
-
+_PROTOTYPE( int _syscall, (int who, int syscallnr, struct message_s *msg_ptr) );
+_PROTOTYPE( void load_name, (const char *name, Message *msg_ptr) );
 
 #endif //_LIB_H

@@ -15,6 +15,12 @@
 #include <ansi.h>
 #endif
 
+/* 以下定义也在<unistd.h>中，它们不应该发生冲突！ */
+
+
+/* 关于文件的一些信息 */
+#define FILENAME_LEN    17      /* 文件名最大长度 */
+
 _PROTOTYPE( int printf, (const char *_fmt, ...)				);
 
 #endif //STDIO_H

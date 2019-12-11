@@ -57,11 +57,13 @@ PUBLIC int dev_ioctl(int device, int proc_nr, void *buf){
  *===========================================================================*/
 PUBLIC int dev_open(
         dev_t device,   /* 设备号 */
-        int proc        /*  */
+        int proc,       /* 打开设备的进程 */
+        int flags       /* 以什么方式打开？ */
 ){
     fs_outbox.type = DEVICE_OPEN;
     fs_outbox.DEVICE = MINOR(device);
     fs_outbox.PROC_NR = proc;
+    fs_outbox.FLAGS = flags;
     int task_nr = ddmap[MAJOR(device)].driver_task_nr;
     if(task_nr == NO_EXIST_TASK){
         fs_panic("open: driver no exist", NO_NUM);

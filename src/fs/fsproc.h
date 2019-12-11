@@ -14,13 +14,16 @@
 
 
 typedef struct fs_process_s {
-    mode_t umask;               /* 由umask系统调用设置的掩码 */
+    mode_t umask;                   /* 由umask系统调用设置的掩码 */
+    Inode *work_dir;                /* 进程工作目录 */
+    Inode *root_dir;                /* 根目录（参阅chroot调用） */
+    FileDesc *open_file[OPEN_MAX];   /* 进程打开的所有文件，有限制... */
 
-    uid_t real_uid;		        /* 真实用户ID */
-    uid_t eff_uid;		        /* 有效用户ID */
-    gid_t real_gid;		        /* 真实组ID */
-    gid_t eff_gid;	            /* 有效组ID */
-    dev_t tty;		            /* 控制终端的(主要/次要)设备号 */
+    uid_t real_uid;		            /* 真实用户ID */
+    uid_t eff_uid;		            /* 有效用户ID */
+    gid_t real_gid;		            /* 真实组ID */
+    gid_t eff_gid;	                /* 有效组ID */
+    dev_t tty;		                /* 控制终端的(主要/次要)设备号 */
     
     pid_t pid;
 } FSProcess;

@@ -1,0 +1,3 @@
+
+posix下包含posix系统调用的实现代码，如open，creat。
+posix contains the implementation code of the posix system call, such as open, creat.

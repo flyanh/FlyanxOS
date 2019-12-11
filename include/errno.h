@@ -42,23 +42,23 @@
 
 extern int errno;		  /* 错误编号所在的位置 */
 
-/* Here are the numerical values of the error numbers. */
-#define _NERROR               70  /* number of errors */  
+/* 这是错误编号的数值。 */
+#define _NERROR               70  /* 错误数量 */
 
-#define EGENERIC            (_SIGN 99)  /* generic error */
-#define EPERM               (_SIGN  1)  /* operation not permitted */
-#define ENOENT              (_SIGN  2)  /* no such file or directory */
+#define EGENERIC            (_SIGN 99)  /* 通用错误 */
+#define EPERM               (_SIGN  1)  /* 不允许操作 */
+#define ENOENT              (_SIGN  2)  /* 无此文件或目录 */
 #define ERROR_SEARCH        (_SIGN  3)  /* 没有这个进程 */
 #define EINTR               (_SIGN  4)  /* interrupted function call ：函数调用中断 */
 #define EIO           (_SIGN  5)  /* input/output error */
 #define ENXIO         (_SIGN  6)  /* 没有这样的设备或地址 */
 #define E2BIG         (_SIGN  7)  /* arg list too long */
-#define ENOEXEC       (_SIGN  8)  /* exec format error */
-#define EBADF         (_SIGN  9)  /* bad file descriptor */
+#define ENOEXEC       (_SIGN  8)  /* 可执行文件的格式错误 */
+#define EBADF         (_SIGN  9)  /* 坏的文件描述符 */
 #define ECHILD        (_SIGN 10)  /* no child process */
 #define EAGAIN        (_SIGN 11)  /* resource temporarily unavailable */
 #define ENOMEM        (_SIGN 12)  /* not enough space */
-#define EACCES        (_SIGN 13)  /* permission denied */
+#define EACCES        (_SIGN 13)  /* 没有权限 */
 #define EFAULT        (_SIGN 14)  /* 错误的地址 */
 #define ENOTBLK       (_SIGN 15)  /* Extension: not a block special file */
 #define EBUSY         (_SIGN 16)  /* resource busy */
@@ -68,8 +68,8 @@ extern int errno;		  /* 错误编号所在的位置 */
 #define ENOTDIR       (_SIGN 20)  /* not a directory */
 #define EISDIR        (_SIGN 21)  /* is a directory */
 #define EINVAL        (_SIGN 22)  /* 无效的参数 */
-#define ENFILE        (_SIGN 23)  /* too many open files in system */
-#define EMFILE        (_SIGN 24)  /* too many open files */
+#define ENFILE        (_SIGN 23)  /* 系统中打开的文件过多 */
+#define EMFILE        (_SIGN 24)  /* 进程打开的文件过多 */
 #define ENOTTY        (_SIGN 25)  /* 不适当的I/O控制操作 */
 #define ETXTBSY       (_SIGN 26)  /* no longer used */
 #define EFBIG         (_SIGN 27)  /* file too large */

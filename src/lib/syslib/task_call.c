@@ -5,8 +5,8 @@
  * QQ-Group:909830414
  * gitee: https://gitee.com/flyanh/
  *
- * 提供一个接口给服务器调用，它与sys_call()基本相同，唯一不同
- * 是taskcall()返回负错误直接编码，不需要errno编码。
+ * 提供一个接口给服务器调用，它与_sys_call()基本相同，唯一不同
+ * 是taskcall()返回负错误的直接编码，不需要errno编码。
  */
 
 #include <lib.h>

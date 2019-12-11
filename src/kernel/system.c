@@ -42,6 +42,7 @@ FORWARD _PROTOTYPE( int do_puts, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_find_proc, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_sudden, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_blue_screen, (void) );
+FORWARD _PROTOTYPE( int do_copy, (Message *msg_ptr) );
 
 
 /*===========================================================================*
@@ -64,6 +65,7 @@ PUBLIC void system_task(void){
             case SYS_FIND_PROC: rs = do_find_proc(&msg_in); break;
             case SYS_SUDDEN:    rs = do_sudden(&msg_in);    break;
             case SYS_BLUES:     rs = do_blue_screen();      break;
+            case SYS_COPY:      rs = do_copy(&msg_in);      break;
             default:            rs = ERROR_BAD_FCN;         break;
         }
 
@@ -250,4 +252,67 @@ PRIVATE int do_blue_screen(void){
     blue_screen();
     return OK;
 }
+
+/*===========================================================================*
+ *				do_copy					     *
+ *			它很简单，给服务器提供蓝屏功能
+ *===========================================================================*/
+PUBLIC int do_copy(Message *msg_ptr){
+    /* 处理系统级调用sys_copy。 从MM或FS复制数据。
+     *
+     * SYS_COPY消息是最常用的一条消息。它被用来允许文件系统和存储管理器从用户进程拷贝信息。
+     * 当一个用户进程执行READ调用时，文件系统查看它的缓存中是否有所需的块。如果没有，它就向
+     * 适当的磁盘任务发送一条消息把该块装入缓存。然后文件系统向系统任务发送一条消息通知它把
+     * 该块拷贝到用户进程。在最坏的情况下，读一个块需要7条消息；在最好的情况下，需要4条消息。
+     * 这些消息是现在现在系统开销的主要来源，是高度模块化设计的代价。它参考了MINIX的实现。
+     * 处理SYS_COPY请求是很直接的。它由本例程完成，由提取消息参数和调用phys_copy以及其他的
+     * 一些动作组成。
+     * 如果将phys_copy直接暴露给服务器，那么开销将会变得较小，因为少了几条消息的发送，但是
+     * 如果这么做了，消息通信和高度模块化的意义也就不存在了，它就和Windows的实现一样，混合
+     * 了微内核和宏内核的优点，但作为一个学习的操作系统，我还是高举纯微内核大旗。
+     */
+
+    int src_proc, dest_proc, src_space, dest_space;
+    vir_bytes src_vir, dest_vir;
+    phys_bytes src_phys, dest_phys, bytes;
+
+    /* 得到消息中的参数 */
+    src_proc = msg_ptr->SRC_PROC_NR;
+    src_vir = (vir_bytes)msg_ptr->SRC_BUFFER;
+    src_space = msg_ptr->SRC_SPACE;
+
+    dest_proc = msg_ptr->DEST_PROC_NR;
+    dest_vir = (vir_bytes)msg_ptr->DEST_BUFFER;
+    dest_space = msg_ptr->DEST_SPACE;
+
+    bytes = (phys_bytes)msg_ptr->COPY_BYTES;
+
+    /* 计算数据源地址（物理）和目标地址并进行复制 */
+    if(src_proc == ABSOLUTE){
+        /* 如果源数据来自于系统任务，说明给出的虚拟地址就是物理地址，无需转换 */
+        src_phys = (phys_bytes)src_vir;
+    } else {
+        if(bytes != (vir_bytes)bytes){
+            /* 这将可能发生在64K段和16位vir_bytes上。这种情况在do_fork中经常发生，
+             * 但是MM在这种情况下使用的是ABS副本。
+             */
+            panic("overflow in count in do_copy", NO_NUM);
+        }
+        /* 转换 */
+        src_phys = umap(proc_addr(src_proc), src_space, src_vir, (vir_bytes)bytes);
+    }
+
+    /* 故技重施 */
+    if(dest_proc == ABSOLUTE){
+        dest_phys = (phys_bytes)dest_vir;
+    } else {
+        dest_phys = umap(proc_addr(dest_proc), dest_space, dest_vir, (vir_bytes)bytes);
+    }
+
+    /* 如果源数据和目的地的地址都有效，执行拷贝；否则错误返回。 */
+    if(src_phys == 0 || dest_phys == 0) return EFAULT;
+    phys_copy(src_phys, dest_phys, bytes);
+    return OK;
+}
+
 

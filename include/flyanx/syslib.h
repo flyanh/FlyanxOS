@@ -32,6 +32,8 @@ _PROTOTYPE( int send, (int dest, Message *message_ptr)			);
 _PROTOTYPE( void k_putk, (int c)						);
 _PROTOTYPE( void sys_blues, (void) );
 _PROTOTYPE( int sys_sudden, (int how, ...) );
+_PROTOTYPE( int sys_copy, (int src_proc, int src_seg, phys_bytes src_vir, int dest_proc,
+        int dest_seg, phys_bytes dest_vir, phys_bytes bytes) );
 
 
 

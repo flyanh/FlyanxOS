@@ -23,8 +23,11 @@
 #define READ            8
 #define WRITE           9
 #define UNLINK          10
-#define LSEEK           11
-#define FSTAT           12
+#define LINK            11
+#define LSEEK           12
+#define FSTAT           13
+#define CREAT           14
+#define MKDIR           15
 
 /* 以下不是系统调用，但像它们一样进行处理。 */
 #define KERNEL_SIG	    13	/* 内核检测到信号 */

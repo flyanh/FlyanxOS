@@ -26,23 +26,15 @@ typedef struct inode {
     u8_t _unused[16];   /* 为了对齐32位 */
 
     /* =============== 以下项目将仅存在于内存中 ================== */
-    int device;         /* 这是谁（设备）的索引节点？ */
+    dev_t device;         /* 这是谁（设备）的索引节点？ */
     int count;          /* 多少个进程打开了此索引节点 */
     int num;            /* 索引节点号 */
 } Inode;
 
 EXTERN Inode inode[NR_INODES];
 
-/* Inode::mode (它是八进制，低12位保留待使用) */
-#define INODE_TYPE_MASK     0170000
-#define INODE_REGULAR       0100000
-#define INODE_BLOCK_SPECIAL 0060000
-#define INODE_DIRECTORY     0040000
-#define INODE_CHAR_SPECIAL  0020000
-#define INODE_NAMED_PIPE	0010000
-
-#define	inode_is_special(m)	((((m) & INODE_TYPE_MASK) == INODE_BLOCK_SPECIAL) ||	\
-			 (((m) & INODE_TYPE_MASK) == INODE_CHAR_SPECIAL))
+#define	inode_is_special(m)	((((m) & I_TYPE) == I_BLOCK_SPECIAL) ||	\
+			 (((m) & I_TYPE_MASK) == I_CHAR_SPECIAL))
 
 /* 其他 */
 #define INODE_SIZE      (4 * 4 + 16)    /* 这是设备中结构的大小，不是内存中的 */

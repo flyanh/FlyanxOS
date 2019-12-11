@@ -11,7 +11,10 @@
  *
  * 该文件的入口点是：
  *  - get_inode:        在索引节点表中搜索给定的索引节点； 如果没有，读入它。
+ *  - put_inode         内存中不再需要一个索引节点
  *  - readwrite_inode:  读取/写入磁盘块并提取一个inode。
+ *  - new_inode:
+ *  - sync_inode:       更新目录索引节点
  */
 #include "fs.h"
 #include <flyanx/common.h>
@@ -63,6 +66,27 @@ PUBLIC Inode *get_inode(
 }
 
 /*===========================================================================*
+ *				put_inode				     *
+ *			释放一个索引节点
+ *===========================================================================*/
+PUBLIC void put_inode(
+        register Inode *inp	    /* 指向要释放的索引节点指针 */
+){
+    /* 内存中不再需要一个索引节点，请调用此方法。
+     * 调用者不再使用此索引节点。如果没有其他人正在使用它，立即将其写回到磁盘（保证数据完整性）。
+     * 如果没有链接，则将其截断并将其返回到可用索引节点池。
+     */
+
+    if(inp == NIL_INODE) return;    /* 在这里检查比在调用者中容易 */
+    inp->count--;   /* 减少使用次数 */
+    if(inp->count == 0){        /* 没人用了？ */
+        /* 立即写回磁盘 */
+        readwrite_inode(inp, WRITING);
+    }
+
+}
+
+/*===========================================================================*
  *				readwrite_inode				     *
  *===========================================================================*/
 PUBLIC void readwrite_inode(Inode *np, int type){
@@ -88,4 +112,51 @@ PUBLIC void readwrite_inode(Inode *np, int type){
         /* 写 */
     }
 }
+
+/*===========================================================================*
+ *				new_inode				     *
+ *			生成一个新的索引节点并将其写入磁盘。
+ *===========================================================================*/
+PUBLIC Inode *new_inode(
+        dev_t dev,          /* 索引节点所在设备 */
+        ino_t inode_nr,     /* 索引节点号 */
+        int start_sect      /* 写到哪个扇区(第一个)? */
+){
+    Inode *new_inode = get_inode(dev, inode_nr);
+
+    new_inode->mode = I_REGULAR;
+    new_inode->size = 0;
+    new_inode->start_sect = start_sect;
+    new_inode->nr_sects = NR_DEFAULT_FILE_SECTS;
+
+    new_inode->device = dev;
+    new_inode->count = 1;
+    new_inode->num = inode_nr;
+
+    /* 将索引节点写入到索引节点数组中 */
+    sync_inode(new_inode);
+
+    return new_inode;
+}
+
+/*===========================================================================*
+ *				sync_inode				     *
+ *				更新目录索引节点
+ *===========================================================================*/
+PUBLIC void sync_inode(Inode *ip){
+    Inode * ind;
+    SuperBlock *sb = get_super_block(ip->device);
+    int blk_nr = 1 + 1 + sb->nr_imap_sects + sb->nr_smap_sects +
+                 ((ip->num - 1) / (SECTOR_SIZE / INODE_SIZE));
+    READ_SECT(ip->device, blk_nr);
+    ind = (Inode*)((u8_t*)fs_buffer +
+                   (((ip->num - 1) % (SECTOR_SIZE /INODE_SIZE)) * INODE_SIZE));
+    ind->mode = ip->mode;
+    ind->size = ip->size;
+    ind->start_sect = ip->start_sect;
+    ind->nr_sects = ip->nr_sects;
+    WRITE_SECT(ip->device, blk_nr);
+}
+
+
 

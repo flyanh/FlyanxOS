@@ -126,7 +126,7 @@ PUBLIC int main(){
         /* 初始化寄存器值，上下文环境 */
         proc->regs.cs   = (TEXT * DESCRIPTOR_SIZE) | SA_TIL | rpl;
         proc->regs.ds	=       /* 这里注意：ds es fs ss要相等，因为 */
-            proc->regs.es	=   /* 在C语言编译器看它们是等同的。 */
+            proc->regs.es	=   /* 在C语言编译器看来它们是等同的。 */
                 proc->regs.fs	=
                     proc->regs.ss	= (DATA * DESCRIPTOR_SIZE) | SA_TIL | rpl;
         proc->regs.gs	= (SELECTOR_KERNEL_GS & SA_RPL_MASK) | rpl;
