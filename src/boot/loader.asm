@@ -200,6 +200,8 @@ LABEL_FILE_LOADED:					;　读　内核文件　完毕
 	;	在保护模式下，你可以获得32位CPU给你带来的所有功能，不必要再忍受16位实模式的各种限制！
 	jmp dword SelectorFlatC:(BaseOfLoaderPhyAddr + LAB_PM_START)
 
+	jmp $       ; 如果前面的工作顺利，这行代码将永远不可能执行
+
 ;================================================================================================
 ;变量
 ;----------------------------------------------------------------------------
@@ -217,7 +219,6 @@ MessageLength		equ	12
 LoadMessage:		db	"Loading....."
 Message1		    db	"Enter KERNEL"
 Message2		    db	"No KERNEL!!!"
-
 ;================================================================================================
 ;----------------------------------------------------------------------------
 ; 函数名: DispStrOnRealModel
@@ -352,7 +353,6 @@ KillMotor:
 [SECTION .s32]
 ALIGN	32
 [BITS	32]
-
 LAB_PM_START:	; 程序开始
 	; 寄存器归位
 	mov ax, SelectorVideo
@@ -367,7 +367,7 @@ LAB_PM_START:	; 程序开始
 	; 打印显示内存信息
 	call DispMemInfo
 	; 启动分页机制，分页机制能让我们将所有的物理地址看做是一维的线性空间
-    ;call SetupPaging
+    call SetupPaging
 	; 初始化内核
 	call InitKernel
 

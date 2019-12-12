@@ -9,4 +9,6 @@
 #ifndef _FLY_CONST_H
 #define _FLY_CONST_H
 
+#define printf  printl  /* printf用的是低等级打印printl */
+
 #endif //_FLY_CONST_H

@@ -25,7 +25,7 @@
 #endif  // __i386__
 #endif  // __GNUC__
 
-/* Definitions about chars (8 bits in MINIX, and signed). */
+/* 关于char类型的定义（Flyanx中为8位，并带有符号）。 */
 #define CHAR_BIT           8	/* # bits in a char */
 #define CHAR_MIN        -128	/* minimum value of a char */
 #define CHAR_MAX         127	/* maximum value of a char */
@@ -34,7 +34,7 @@
 #define UCHAR_MAX        255	/* maximum value of an unsigned char */
 #define MB_LEN_MAX         1	/* maximum length of a multibyte char */
 
-/* Definitions about shorts (16 bits in MINIX). */
+/* 关于short类型的定义（Flyanx中为16位）。 */
 #define SHRT_MIN  (-32767-1)	/* minimum value of a short */
 #define SHRT_MAX       32767	/* maximum value of a short */
 #define USHRT_MAX     0xFFFF	/* maximum value of unsigned short */
@@ -57,7 +57,7 @@
 #define LONG_MAX  2147483647L	/* maximum value of a long */
 #define ULONG_MAX 0xFFFFFFFFL	/* maximum value of an unsigned long */
 
-/* Minimum sizes required by the POSIX P1003.1 standard (Table 2-3). */
+/* POSIX P1003.1标准要求的最小尺寸（表2-3）。 */
 #ifdef _POSIX_SOURCE		/* these are only visible for POSIX */
 #define _POSIX_ARG_MAX    4096	/* exec() may have 4K worth of args */
 #define _POSIX_CHILD_MAX     6	/* a process may have 6 children */
@@ -73,9 +73,9 @@
 #define _POSIX_TZNAME_MAX    3	/* time zone names can be at least 3 chars */
 #define _POSIX_SSIZE_MAX 32767	/* read() must support 32767 byte reads */
 
-/* Values actually implemented by MINIX (Tables 2-4, 2-5, 2-6, and 2-7). */
-/* Some of these old names had better be defined when not POSIX. */
-#define _NO_LIMIT        100	/* arbitrary number; limit not enforced */
+/* 我们实际实现的值（表2-4、2-5、2-6和2-7）。 */
+/* 在不使用POSIX时，最好定义一些旧名称。 */
+#define _NO_LIMIT        100	/* 任意数；没有限制 */
 
 #define NGROUPS_MAX        0	/* supplemental group IDs not available */
 #if _WORD_SIZE > 2
@@ -83,13 +83,13 @@
 #else
 #define ARG_MAX         4096	/* args + environ on small machines ：参数 + 小型计算机上的环境 */
 #endif
-#define CHILD_MAX  _NO_LIMIT    /* MINIX does not limit children */
-#define OPEN_MAX          20	/* # open files a process may have */
+#define CHILD_MAX  _NO_LIMIT    /* Flyanx不限制子进程数量*/
+#define OPEN_MAX          21	/* 进程能打开的文件最大数量 */
 #define LINK_MAX         127	/* # links a file may have */
 #define MAX_CANON        255	/* size of the canonical input queue */
 #define MAX_INPUT        255	/* size of the type-ahead buffer */
-#define NAME_MAX          14	/* # chars in a file name */
-#define PATH_MAX         255	/* # chars in a path name ：路径名称最大字符数 */
+#define NAME_MAX          18	/* 文件名称最大字符数 */
+#define PATH_MAX         256	/* 路径名称最大字符数 */
 #define PIPE_BUF        7168	/* # bytes in atomic write to a pipe */
 #define STREAM_MAX        20	/* must be the same as FOPEN_MAX in stdio.h */
 #define TZNAME_MAX         3	/* maximum bytes in a time zone name is 3 */

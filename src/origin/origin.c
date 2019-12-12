@@ -11,11 +11,12 @@
  * 出后，它将会称为一个僵尸进程，但是不会被操作系统清理，它就默默的留在那里等
  * 待操作系统使用它fork新的程序。
  */
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <flyanx/type.h>
-#include <flyanx/common.h>
-#include <flyanx/syslib.h>
+
+#include <lib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
 
 /*===========================================================================*
  *                            origin_main                                        *
@@ -25,12 +26,14 @@ void origin_main(void){
 #define FOREVER -1
     Message msg;
 
+    /* 打开标准输入/输出流（文件描述符） */
+    int stdin_fd = open("/dev_tty0", O_RDWR);
+    int stdout_fd = open("/dev_tty0", O_RDWR);
+
+
+    printf("{ORIGIN}-> do something of init...\n");
 
     /* 现在还没啥事做，先永久堵塞自己 */
-    msg.type = 5;
-    msg.m6_l1 = FOREVER;
-    while (1){
-        send_receive(0, &msg);
-    }
+    sleep(FOREVER);
 }
 

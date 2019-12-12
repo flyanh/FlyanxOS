@@ -25,29 +25,4 @@ typedef struct part_entry {
   unsigned long size;		/* size of partition in sectors	 */
 } PartEntry;
 
-/* 定义主分区的最大次要数目。 如果有2个磁盘，prim_dev的范围为hd [0-9]，则此宏等于9。
- */
-#define	MAX_PRIM		(MAX_DRIVES * NR_PRIM_PER_DRIVE - 1)
-
-#define	MAX_SUBPARTITIONS	(NR_SUB_PER_DRIVE * MAX_DRIVES)
-
-/* 硬盘次设备号 */
-#define	MINOR_hd1a		0x10                                /* A盘 */
-#define	MINOR_hd2a		(MINOR_hd1a + NR_SUB_PER_PART)      /* B盘 */
-#define	MINOR_hd2c		(MINOR_hd1a + NR_SUB_PER_PART + 2)  /* C盘 */
-
-#define	ROOT_DEV		MAKE_DEV(DEV_HD, MINOR_BOOT)
-
-#define	P_PRIMARY	0
-#define	P_EXTENDED	1
-
-#define FLYANX_PART	102	    /* Flyanx的分区结构 */
-#define NO_PART		    0x00	/* 未使用的条目 */
-#define EXT_PART	    0x05	/* 扩展分区 */
-
-#define	NR_FILES	    64
-#define	NR_FILE_DESC	64
-#define	NR_INODE	    64
-#define	NR_SUPER_BLOCK	8
-
 #endif /* _PARTITION_H */

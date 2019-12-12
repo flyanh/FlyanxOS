@@ -73,4 +73,28 @@
 #define CLICK_SHIFT       10	/* log2 of CLICK_SIZE ：内存块位数，用于移位 */
 #endif
 
+#define ABSOLUTE             -0x3EA	    /* 这个进程意味着其是一个系统任务，处于物理地址 */
+
+/* 索引节点中i_mode的标志位。 */
+#define I_TYPE          0170000	/* 该字段给出inode类型 */
+#define I_REGULAR       0100000	/* 常规文件，非目录或特殊文件 */
+#define I_BLOCK_SPECIAL 0060000	/* 块特殊文件 */
+#define I_DIRECTORY     0040000	/* 文件是一个目录 */
+#define I_CHAR_SPECIAL  0020000	/* 字符特殊设备 */
+#define I_NAMED_PIPE	0010000 /* 命名管道（FIFO） */
+#define RWX_MODES       0000777	/* RWX模式位 */
+#define R_BIT           0000004	/* Rwx保护位 */
+#define W_BIT           0000002	/* rWx保护位 */
+#define X_BIT           0000001	/* rwX保护位 */
+#define I_NOT_ALLOC     0000000	/* 这个索引节点是空闲的 */
+
+/* 一些限制 */
+#define MAX_BLOCK_NR  ((block_t) 077777777)	/* 最大块数 */
+#define MAX_INODE_NR      ((ino_t) 0177777)	/* largest inode number ：最大索引节点数 */
+#define MAX_FILE_POS ((off_t) 037777777777)	/* 最大合法文件偏移量 */
+
+#define NO_BLOCK              ((block_t) 0)	/* 缺少块号 */
+#define NO_ENTRY                ((ino_t) 0)	/* 缺少目录项 */
+#define NO_DEV                  ((dev_t) 0)	/* 缺少设备号 */
+
 #endif //_FLYANX_CONST_H

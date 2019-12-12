@@ -17,18 +17,27 @@
 #define WAIT            2
 #define FORK            3
 #define EXEC            4
-#define BLOCK           5
+#define SLEEP           5
+#define OPEN            6
+#define CLOSE           7
+#define READ            8
+#define WRITE           9
+#define UNLINK          10
+#define LINK            11
+#define LSEEK           12
+#define FSTAT           13
+#define CREAT           14
+#define MKDIR           15
+#define STAT            16
 
-
-/* The following are not system calls, but are processed like them. */
 /* 以下不是系统调用，但像它们一样进行处理。 */
-#define KERNEL_SIG	    64	/* 内核检测到信号 */
-#define UNPAUSE		    65	/* 给MM或FS：检查EINTR */
-#define REVIVE	 	    67	/* 给FS：恢复睡眠进程 */
-#define TASK_REPLY	    68	/* 给FS：终端/设备任务回复一个执行代码 */
+#define KERNEL_SIG	    57	/* 内核检测到信号 */
+#define UNPAUSE		    58	/* 给MM或FS：检查EINTR */
+#define REVIVE	 	    59	/* 给FS：恢复挂起的进程 */
+#define TASK_REPLY	    60	/* 给FS：终端/设备任务回复一个执行代码 */
 
 /* Posix signal handling. */
-/* Posix信号处理。 */
+/* Posix信号处理。它们从71 ~ 76 */
 #define SIGACTION	  71
 #define SIGSUSPEND	  72
 #define SIGPENDING	  73

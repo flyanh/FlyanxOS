@@ -30,11 +30,11 @@ typedef unsigned int vir_bytes;
 #endif
 
 
-/* 与消息有关的类型。 */
-#define M1                 1
-#define M3                 3
-#define M4                 4
-#define M3_STRING         14
+/* 与消息类型有关的定义。 */
+#define M1                 1        /* 消息类型1：消息域使用mess_union1 */
+#define M3                 3        /* 同上 */
+#define M4                 4        /* 同上 */
+#define M3_STRING         15        /* 消息类型3携带字符串的长度 */
 
 /* 定义6种消息域将使得更易于在不同的体系结构上重新编译。 */
 typedef struct {int m1i1, m1i2, m1i3; char *m1p1, *m1p2, *m1p3;} mess_union1;

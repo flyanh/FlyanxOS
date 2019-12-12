@@ -18,7 +18,9 @@
 #include <flyanx/common.h>
 #include <sys/ioctl.h>
 #include "process.h"
-#include "drvlib.h"
+#include <ibm/partition.h>
+#include <flyanx/partition.h>
+#include <sys/dev.h>
 #include "hd.h"
 #include "assert.h"
 INIT_ASSERT     /* 初始化assert断言支持 */
@@ -72,8 +74,6 @@ PUBLIC void at_winchester_task(void) {
     wini_task_nr = curr_proc->nr;
 
     init_params();
-    /* 测试打开硬盘A */
-    wini_do_open(MINOR_hd1a);
     /* 驱动程序开始工作了 */
     while (TRUE){
         /* 等待外界的消息 */
@@ -124,63 +124,63 @@ PUBLIC void at_winchester_task(void) {
  *				   硬盘读写
  *===========================================================================*/
 PRIVATE int wini_do_readwrite(Message *msg){
-    int device = msg->DEVICE;
-    int drive = DRIVER_OF_DEVICE(device);
+    int drive = DRIVER_OF_DEVICE(msg->DEVICE);
 
     off_t pos = msg->POSITION;
     assert((pos >> SECTOR_SIZE_SHIFT) < (1 << 31));
 
     /* 我们仅允许从扇区边界进行读/写： */
-    assert((pos & SECTOR_MASK) == 0);
+    assert((pos & 0x1FF) == 0);
 
-    u32_t sect_nr = (u32_t)(pos >> SECTOR_SIZE_SHIFT);  /* pos / SECTOR_SIZE */
-    int logic_index = (device - MINOR_hd1a) % NR_SUB_PER_DRIVE;    /* 得到A盘的逻辑分区索引 */
-    sect_nr += device < MAX_PRIM ?
-            hd_info[drive].primary[device].base : hd_info[drive].logical[logic_index].base;
+    u32_t sect_nr = pos >> SECTOR_SIZE_SHIFT;  /* pos / SECTOR_SIZE */
+    int logidx = (msg->DEVICE - MINOR_hd1a) % NR_SUB_PER_DRIVE;
+    sect_nr += msg->DEVICE < MAX_PRIM ?
+               hd_info[drive].primary[msg->DEVICE].base :
+               hd_info[drive].logical[logidx].base;
 
-    /* 获得读写参数 */
-    int proc_nr = msg->PROC_NR;     /* 谁需要读写服务？ */
-    vir_bytes vir_addr = (vir_bytes)msg->ADDRESS; /* 读到哪里去呢？ */
-    int count = msg->COUNT; /* 要读写多少字节？ */
-    int op_code = msg->type == DEVICE_READ ? ATA_READ : ATA_WRITE;  /* 读还是写命令？ */
+//    printf("%d want to %s %d by %d | pos -> %u\n",
+//           msg->PROC_NR, msg->type == DEVICE_READ ? "read" : "write", msg->COUNT, drive, pos);
 
-    /* 发出预读/写命令，告诉驱动器我们准备读/写了。 */
+    /* 发出读/写命令，告诉驱动器开始读/写了。 */
     Command cmd;
-    cmd.features = 0;
-    cmd.count = (count + SECTOR_SIZE - 1) / SECTOR_SIZE;
-    cmd.lba_low = sect_nr & 0xFF;
-    cmd.lba_mid = (sect_nr >> 8) & 0xFF;
-    cmd.lba_high = (sect_nr >> 16) & 0xFF;
-    cmd.device = MAKE_DEVICE_REG(1, drive, (sect_nr >> 24) & 0xF);
-    cmd.command = op_code;
-    cmd_out(&cmd);
+    cmd.features	= 0;
+    cmd.count	= (msg->COUNT + SECTOR_SIZE - 1) / SECTOR_SIZE;
+    cmd.lba_low	= sect_nr & 0xFF;
+    cmd.lba_mid	= (sect_nr >>  8) & 0xFF;
+    cmd.lba_high	= (sect_nr >> 16) & 0xFF;
+    cmd.device	= MAKE_DEVICE_REG(1, drive, (sect_nr >> 24) & 0xF);
+    cmd.command	= (msg->type == DEVICE_READ) ? ATA_READ : ATA_WRITE;
+    if(cmd_out(&cmd) == OK){
+        /* 用户的缓冲区物理地址 */
+        phys_bytes phys_addr = numap(msg->PROC_NR, (vir_bytes)msg->ADDRESS, msg->COUNT);
 
-    /* 用户的缓冲区物理地址 */
-    phys_bytes phys_addr = numap(proc_nr, vir_addr, count);
-
-    /* 做真正的事情吧 */
-    while (count){
-        /* 如果要读写的太多了，那么先取磁盘能读写的一个扇区大小 */
-        int bytes = MIN(SECTOR_SIZE, count);
-        if(op_code == DEVICE_READ){     /* 读 */
-            wini_interrupt_wait();
-            /* 读到缓冲区中 */
-            port_read(REG_DATA, hdbuf, SECTOR_SIZE);
-            /* 给用户 */
-            phys_copy(hdbuf_phys, phys_addr, SECTOR_SIZE);
-        } else {                        /* 写 */
-            /* 等待控制器到可被写入的状态，如果超时，宕机 */
-            if(!wini_wait_for(STATUS_DRQ, STATUS_DRQ)){
-                panic("HD Controller is already dumb.", NO_NUM);
+        int left = msg->COUNT;
+        /* 做真正的事情吧 */
+        while (left){
+            /* 如果要读写的太多了，那么先取磁盘能读写的一个扇区大小 */
+            int bytes = MIN(SECTOR_SIZE, left);
+            if(msg->type == DEVICE_READ){     /* 读 */
+                wini_interrupt_wait();
+                /* 将磁盘数据读到缓冲区中 */
+                port_read(REG_DATA, hdbuf, SECTOR_SIZE);
+                /* 给用户 */
+                phys_copy(hdbuf_phys, phys_addr, (phys_bytes)bytes);
+            } else {                        /* 写 */
+                /* 等待控制器到可被写入的状态，如果超时，宕机 */
+                if(!wini_wait_for(STATUS_DRQ, STATUS_DRQ)){
+                    panic("HD Controller is already dumb.", NO_NUM);
+                }
+                /* 将用户数据写到磁盘中 */
+                port_write(REG_DATA, (void *) phys_addr, (phys_bytes)bytes);
+                wini_interrupt_wait();
             }
-            port_write(REG_DATA, (void *) phys_addr, bytes);
-            wini_interrupt_wait();
+            /* 一轮完成了 */
+            left -= SECTOR_SIZE;
+            phys_addr += SECTOR_SIZE;
         }
-        /* 一轮完成了 */
-        count -= SECTOR_SIZE;
-        phys_addr += SECTOR_SIZE;
+        return msg->COUNT - left;   /* 成功返回读写的字节总量 */
     }
-    return OK;
+    return EIO;
 }
 
 /*===========================================================================*
@@ -227,21 +227,21 @@ PRIVATE int wini_do_ioctl(
     Partition tmp_par;
     /* 得到用户缓冲区 */
     phys_bytes user_phys = numap(msg->PROC_NR, (vir_bytes)msg->ADDRESS, sizeof(tmp_par));
-    /* 得到现在硬盘分区信息缓冲区的地址 */
-    Partition *par = device < MAX_PRIM ?
-                     &hp->primary[device] : &hp->logical[(device - MINOR_hd1a) % NR_SUB_PER_DRIVE];
-
+    /* 得到现在硬盘分区信息 */
+    Partition *par = device < MAX_PRIM ? &hp->primary[device] : &hp->logical[(device - MINOR_hd1a) % NR_SUB_PER_DRIVE];
+    /* 处理请求 */
     if(request == DIOCTL_GET_GEO){
-        phys_bytes par_phys = vir2phys(&par);
+        phys_bytes par_phys = vir2phys(par);
         /* 复制给用户，OK */
-        phys_copy(par_phys, user_phys, sizeof(par));
+        phys_copy(par_phys, user_phys, (phys_bytes)sizeof(tmp_par));
     } else {    /* DIOCTL_SET_GEO */
-        /* 现将用户的分区信息复制过来 */
-        phys_copy(user_phys, vir2phys(&tmp_par), sizeof(tmp_par));
+        /* 先将用户的分区信息复制过来 */
+        phys_copy(user_phys, vir2phys(&tmp_par), (phys_bytes)sizeof(tmp_par));
         /* 设置分区信息 */
         par->base = tmp_par.base;
         par->size = tmp_par.size;
     }
+    return OK;
 }
 
 /*===========================================================================*
@@ -262,8 +262,6 @@ PRIVATE int wini_do_open(
         partition(drive * (NR_PART_PER_DRIVE + 1), P_PRIMARY);
         printf("{HD}-> Reading partition information succeeded :)\n");
     }
-    /* 记录打开次数 */
-    hd_info[drive].open_count++;
     return OK;
 }
 
@@ -322,7 +320,7 @@ PRIVATE void wini_print_identify_info(u16_t *hdinfo)
     int i, k;
     char s[64];
 
-    struct iden_info_ascii {
+    struct ident_info_ascii {
         int idx;
         int len;
         char * desc;
@@ -422,13 +420,13 @@ PRIVATE void init_params(void){
     /* 从BIOS数据区域获取磁盘驱动器的数量 */
     phys_copy(0x475L, param_phys, 1L);
     if((nr_drives = params[0]) > 2) nr_drives = 2;  /* 就算磁盘驱动器>2，我们也只用两个 */
-    printf("{HD}-> Drives count: %d.\n", nr_drives);
+    printf("{HD}-> Drives count: %d\n", nr_drives);
     if(nr_drives == 0){     /* 没有硬盘 */
         panic("Flyanx Cannot continue, Because no any HardDisks on pc.", NO_NUM);
     }
 
     /* 初始化并得到DMA缓冲区的物理地址 */
-    hdbuf_phys = vir2phys(&hdbuf_phys);
+    hdbuf_phys = vir2phys(&hdbuf);
 
     /* 初始化硬盘参数 */
     for(i = 0; i < (sizeof(hd_info) / sizeof(hd_info[0])); i++){
@@ -450,11 +448,6 @@ PRIVATE int cmd_out(Command *cmd){
         panic("%s: controller no response", NO_NUM);
     }
 
-    /* 选择设备，一旦确定控制器准备好，通过向控制器写一个字节来选择
-     * 驱动器、磁头和操作模式。
-     */
-    out_byte(REG_DEV_CTRL, 0);
-
     /* 安排一个唤醒呼叫闹钟，一些控制器是脆弱的。
      * 磁盘驱动器执行代码时，有时会失败或不能正常的返回一个出错代码。
      * 毕竟驱动器是机械设备，内部有可能发生各种机械故障。所以作为一项
@@ -462,6 +455,8 @@ PRIVATE int cmd_out(Command *cmd){
      */
 //    alarm_clock(WAKEUP, wini_timeout_handler);
 
+    /* 激活中断允许（nIEN）位 */
+    out_byte(REG_DEV_CTRL, 0);
     /* 向各种寄存器写入参数再向命令寄存器写入命令代码来发出一条命令 */
     out_byte(REG_FEATURES, cmd->features);
     out_byte(REG_NSECTOR, cmd->count);
@@ -555,6 +550,7 @@ PRIVATE void partition(
             int dev_nr = i + 1;		  /* 1~4 */
             hdi->primary[dev_nr].base = part_tab[i].start_sec;
             hdi->primary[dev_nr].size = part_tab[i].size;
+//            printf("%d | %d\n", part_tab[i].start_sec, part_tab[i].size);
 
             if (part_tab[i].sysind == EXT_PART) /* extended */
                 partition(device + dev_nr, P_EXTENDED);
@@ -562,7 +558,7 @@ PRIVATE void partition(
         assert(nr_prim_parts != 0);
     } else if(style == P_EXTENDED){
         /* 查找扩展分区 */
-        int j = device % NR_PRIM_PER_DRIVE; /* 1~4 */
+        int j = device % NR_PRIM_PER_DRIVE;     /* 1~4 */
         int ext_start_sect = hdi->primary[j].base;
         int s = ext_start_sect;
         int nr_1st_sub = (j - 1) * NR_SUB_PER_PART; /* 0/16/32/48 */
@@ -598,7 +594,7 @@ PRIVATE void get_part_table(
 )
 {
     Command cmd;
-    cmd.features	= 0;
+    cmd.features = 0;
     cmd.count	= 1;
     cmd.lba_low	= sect_nr & 0xFF;
     cmd.lba_mid	= (sect_nr >>  8) & 0xFF;

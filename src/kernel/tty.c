@@ -83,6 +83,8 @@ FORWARD _PROTOTYPE( int back_over, (TTY *tty) );
 FORWARD _PROTOTYPE( int echo, (TTY *tty, int ch) );
 FORWARD _PROTOTYPE( void tty_init, (TTY *tty) );
 FORWARD _PROTOTYPE( void reprint, (TTY *tty) );
+FORWARD _PROTOTYPE( void tty_input_cancel, (TTY *tty) );
+FORWARD _PROTOTYPE( void set_attr, (TTY *tty) );
 FORWARD _PROTOTYPE( void in_transfer, (TTY *tty) );
 
 /*===========================================================================*
@@ -188,7 +190,9 @@ PUBLIC void tty_task(void){
  *				读终端
  *===========================================================================*/
 PRIVATE void do_read(TTY *tty, Message *msg){
-    raw_echo(tty, 'r');
+    printf("tty read\n");
+
+    tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, OK);
 }
 
 /*===========================================================================*
@@ -196,7 +200,45 @@ PRIVATE void do_read(TTY *tty, Message *msg){
  *				写终端
  *===========================================================================*/
 PRIVATE void do_write(TTY *tty, Message *msg){
-    raw_echo(tty, 'w');
+    /* 一个程序想要写入数据到终端设备中，这个例程和do_read 100%的想死，但是更简单，
+     * 考虑的更少。
+     */
+
+    int rs;
+
+    /* 检查是否有进程挂在写操作上，然后检查参数是否正确，执行io */
+    if(tty->out_left > 0){
+        /* 终端还在完成上一次的写操作，拒绝这次请求 */
+        rs = EIO;
+    } else if(msg->COUNT <= 0) {
+        /* 没打算写入？ */
+        rs = EINVAL;
+    } else if(numap(msg->PROC_NR, (vir_bytes)msg->ADDRESS, msg->COUNT) == 0){
+        /* 写入缓冲区地址有问题 */
+        rs = EFAULT;
+    } else {
+        /* 通过检查，现在将消息参数拷贝到终端结构中 */
+        tty->out_reply_code = TASK_REPLY;
+        tty->out_caller = msg->source;
+        tty->out_proc = msg->PROC_NR;
+        tty->out_vir_addr = (vir_bytes) msg->ADDRESS;
+        tty->out_left = msg->COUNT;
+
+        /* 现在可以去写了 */
+        handle_write(tty);
+        if(tty->out_left == 0) return;     /* 工作完成了 */
+
+        /* 不能写入全部的字节，如果该进程未堵塞，则挂起调用方或者中止写入。 */
+        if(msg->TTY_FLAGS & O_NONBLOCK){    /* 取消写入 */
+            rs = tty->out_cum > 0 ? tty->out_cum : EAGAIN;
+            tty->out_left = tty->out_cum = 0;
+        } else {
+            rs = SUSPEND;
+            tty->out_reply_code = REVIVE;
+        }
+    }
+    /* 答复 */
+    tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, OK);
 }
 
 /*===========================================================================*
@@ -212,7 +254,26 @@ PRIVATE void do_ioctl(TTY *tty, Message *msg){
  *				打开终端
  *===========================================================================*/
 PRIVATE void do_open(TTY *tty, Message *msg){
-    raw_echo(tty, 'p');
+    /* 本例程只执行一个简单的基本动作
+     *  - 增加设备的tty->open_count变量的值以便能够检测是否被打开
+     */
+
+    int rs = OK;
+    if(msg->TTY_LINE == LOG_MINOR) {
+        /* 日志设备是一个只写设备，所以如果师徒以读方式打开它，返回一个访问错误。 */
+        if(msg->FLAGS & R_BIT) rs = EACCES;
+    } else {
+        if(!(msg->FLAGS & O_NOCTTY)){
+            /* 如果O_NOCTTY标志未被置位，且不是日志设备，则该终端成为一个进程组的控制终端。
+		     * 这是通过把调用方的进程号放入到p_group域完成的。
+             */
+            tty->p_group = msg->PROC_NR;
+            rs = 1;
+        }
+        tty->open_count++;
+    }
+    /* 通知进程 */
+    tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, rs);
 }
 
 /*===========================================================================*
@@ -220,7 +281,27 @@ PRIVATE void do_open(TTY *tty, Message *msg){
  *				关闭终端
  *===========================================================================*/
 PRIVATE void do_close(TTY *tty, Message *msg){
-    raw_echo(tty, 'c');
+    /* 关闭一个终端设备，同时会重置终端设备的属性。
+     *
+     * 一个终端设备可能被打开不止一次，所以这里如果该终端设备不是最后一次被关闭，
+     * 那么，就只是减少open_count的值，不执行其他动作。
+     * 但是如果是最后一次被关闭，那么得做一些善后的工作，即判断里面的内容。
+     * 最后需要注意：msg->TTY_LINE != LOG_MINOR 这一句防止了函数试图关闭日志设备(dev/log)。
+     */
+    tty->open_count--;
+    if(msg->TTY_LINE != LOG_MINOR && tty->open_count == 0){
+        /* 善后工作开始，现在没有人使用这个终端，自然就没有控制进程了，直接赋0 */
+        tty->p_group = 0;
+        /* 取消设备的所有输入工作 */
+        tty_input_cancel(tty);
+        /* 执行设备指定的关闭例程 */
+        tty->close(tty);
+        /* 最后，终端和屏幕窗口两个域被重置回它们的默认值 */
+        tty->termios = default_termios;
+        tty->win_frame = default_winframe;
+        set_attr(tty);
+    }
+    tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, OK);
 }
 
 /*===========================================================================*
@@ -577,6 +658,23 @@ PUBLIC void handle_read(TTY *tty){
         tty->device_read(tty);
     } while (tty->events & EVENTS_READ);    /* 如果处理中间标志又被用户的输入置位，那么，接着处理。 */
 
+    /* 把字符从输入队列中传送到调用一个读操作的进程的内部缓冲区中。
+     * 传输完成后，无论是传输了请求的最大字符数还是达到了一行的末尾（规范模式中），
+     * in_transfer本身就会发送一条回答消息，如果是这样的情况，那么在返回到本例程
+     * 时，tty->in_left的值就为0。
+     */
+    in_transfer(tty);
+
+    /* 传输字符数达到了用户请求的最小数目，则发送一条回答消息，
+     * 后面的tty->in_left > 0 的检测是为了防止即使完成后，
+     * 已经发送了一条回复消息，但再次进来，即使用户没有请求，
+     * 却还是再次发送一条消息。
+     */
+    if(tty->in_cum >= tty->min && tty->in_left > 0){
+        tty_reply(tty->in_reply_code, tty->in_caller, tty->in_proc, tty->in_cum);
+        /* 完成，in_left和in_cum还原为0， */
+        tty->in_left = tty->in_cum = 0;
+    }
 }
 
 /*===========================================================================*
@@ -584,29 +682,11 @@ PUBLIC void handle_read(TTY *tty){
  *			 处理挂起的终端设备写操作
  *===========================================================================*/
 PUBLIC void handle_write(TTY *tty){
-//    do{
-//        tty->events &= ~EVENTS_WRITE;
-//        /* 调用终端的写操作例程 */
-//        (*tty->device_write)(tty);
-//    } while (tty->events & EVENTS_WRITE);   /* 如果处理中间标志又被用户的操作置位，那么，接着处理。 */
-//
-//    /* 把字符从输入队列中传送到调用一个读操作的进程的内部缓冲区中。
-//     * 传输完成后，无论是传输了请求的最大字符数还是达到了一行的末尾（规范模式中），
-//     * in_transfer本身就会发送一条回答消息，如果是这样的情况，那么在返回到本例程
-//     * 时，tty->in_left的值就为0。
-//     */
-//    in_transfer(tty);
-//
-//    /* 传输字符数达到了用户请求的最小数目，则发送一条回答消息，
-//     * 后面的tty->in_left > 0 的检测是为了防止即使完成后，
-//     * 已经发送了一条回复消息，但再次进来，即使用户没有请求，
-//     * 却还是再次发送一条消息。
-//     */
-//    if(tty->in_cum >= tty->min && tty->in_left > 0){
-//        tty_reply(tty->in_reply_code, tty->in_caller, tty->in_proc, tty->in_cum);
-//        /* 完成，in_left和in_cum还原为0， */
-//        tty->in_left = tty->in_cum = 0;
-//    }
+    do{
+        tty->events &= ~EVENTS_WRITE;
+        /* 调用终端的写操作例程 */
+        (*tty->device_write)(tty);
+    } while (tty->events & EVENTS_WRITE);   /* 如果处理中间标志又被用户的操作置位，那么，接着处理。 */
 }
 
 /*===========================================================================*
@@ -858,6 +938,52 @@ PUBLIC void tty_wakeup(clock_t now){
 
     /* 现在可以触发一个中断，唤醒终端任务了 */
     interrupt(TTY_TASK);
+}
+
+/*==========================================================================*
+ *				tty_input_cancel				    *
+ *				取消设备的所有输入
+ *==========================================================================*/
+PRIVATE void tty_input_cancel(register TTY *tty){
+    /* 丢弃所有挂起的输入、终端缓冲区或设备。 */
+
+    /* 删除已在排队的输入-接收到的字符或行的计数被置为0  */
+    tty->input_count = tty->eot_count = 0;
+    /* 队列的处理指针和空闲输入指针重合。 */
+    tty->input_handle = tty->input_free;
+    /* 所有输出任务停止 */
+    tty->input_cancel(tty);
+}
+
+/*===========================================================================*
+ *				set_attr					     *
+ *			应用新的中断属性
+ *===========================================================================*/
+PRIVATE void set_attr(TTY *tty){
+    /* 这些属性例如：标准模式/原始模式，传输速度等等... */
+
+    u32_t *inp;
+    int count;
+
+    if (!(tty->termios.cflag & ICANON)) {
+        /* 处于非规范模式：第一个动作就是将当前输入队列中的所有字符都标上IN_EOF位，
+         * 如同在处于非规范模式下这些字符刚被输入到队列中时所要做的一样。直接这样做
+         * 要比检测字符是否有该位容易一些。
+         */
+        count = tty->eot_count = tty->input_count;
+        inp = tty->input_handle;
+        while (count > 0) {
+            *inp |= IN_EOT;
+            inp++;
+            if (inp == buffer_end(tty->input_buffer)) inp = tty->input_buffer;
+            count--;
+        }
+    }
+
+    /* 检测MIN和TIME值 */
+    interrupt_lock();
+    interrupt_unlock();
+
 }
 
 /*==========================================================================*

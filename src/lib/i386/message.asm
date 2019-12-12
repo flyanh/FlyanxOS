@@ -12,7 +12,6 @@ global  send
 global  receive
 global  send_receive
 
-extern	sys_call	        ; 系统调用函数
 
 ; 常量定义，请查看include/flyanx/common.h文件下的定义或其他头文件
 SEND        equ     1

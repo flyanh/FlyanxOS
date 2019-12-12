@@ -22,8 +22,9 @@ EXTERN struct mm_process_s *curr_mp;    /* 指向一个当前正在处理的进�
 /* 外界的调用参数在这 */
 EXTERN Message mmsg_in;     /* 传入的消息保存在这 */
 EXTERN int who;         /* 调用进程的进程号 */
+EXTERN int mm_call;
 
-extern _PROTOTYPE( int (*call_handlers[]), (void) );    /* 系统调用处理函数在这里 */
+extern _PROTOTYPE( int (*mm_call_handlers[]), (void) );    /* 系统调用处理函数在这里 */
 extern char *core_name;     /* 生成核心映像的文件名
                              * 在进程非正常结束时，我们把进程的映像写到一个内核文件中，core_name
                              * 定义了这个文件的文件名。

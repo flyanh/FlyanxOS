@@ -37,6 +37,7 @@ typedef struct mm_process_s {
     Message reply;                      /* 存放进程要回复的消息 */
 } MMProcess;
 EXTERN MMProcess mmproc[NR_PROCS];      /* 进程表 */
+
 /* 标志值 */
 #define IN_USE              0x001	/* 当进程插槽在使用时被设置 */
 #define WAITING             0x002	/* 当WAIT（等待）系统调用时被设置 */

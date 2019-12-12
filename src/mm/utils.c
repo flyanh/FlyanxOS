@@ -5,7 +5,7 @@
  * QQ-Group:909830414
  * gitee: https://gitee.com/flyanh/
  *
- * 本文件包含了内存内存管理器的管理例程。
+ * 本文件包含了内存管理器的管理例程。
  *
  * 该文件的入口点是：
  *  - allowed:	    查看是否允许访问
@@ -15,16 +15,16 @@
  */
 
 #include "mm.h"
-#include <sys/stat.h>
+#include <sys/signal.h>
 #include <flyanx/callnr.h>
-#include <fcntl.h>
-//#include "mproc.h"
+#include "mmproc.h"
+#include "param.h"
 
 /*===========================================================================*
- *				no_sys					     *
+ *				mm_no_sys					     *
  *			  无效调用处理
  *===========================================================================*/
-PUBLIC int no_sys()
+PUBLIC int mm_no_sys()
 {
     /* 请求了MM未实现的系统调用号。
      * 本过程应该永远不被调用，提供它只是为了处理用户用非法的或不是由内存管理器处理的
@@ -37,9 +37,9 @@ PUBLIC int no_sys()
  *                         mm_panic                                   *
  *                       系统无法继续运行                               *
  *===========================================================================*/
-PUBLIC void mm_panic(msg, errno)
+PUBLIC void mm_panic(msg, err_no)
         const char *msg;
-        int errno;
+        int err_no;
 {
     /* 只有在内存管理器检测到一个它无法恢复的严重错误时才会被调用。它向系统任务报告错误，系统任务
      * 紧急停止系统。它不该被轻易调用。例如当检测到内部不一致（例如，编程错误或定义的常数的非法值）时
@@ -48,7 +48,7 @@ PUBLIC void mm_panic(msg, errno)
 
     if(msg != NULL){
         printf("Memory manager panic: %s", msg);
-        if(errno != NO_NUM) printf(" %d", errno);
+        if(err_no != NO_NUM) printf(" %d", err_no);
         printf("\n");
     }
 }

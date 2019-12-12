@@ -73,9 +73,9 @@ typedef char            i8_t;      /* 8位有符号类型 */
 typedef short          i16_t;      /* 16位有符号类型 */
 typedef long           i32_t;      /* 32位有符号类型 */
 
-typedef u8_t            bool;       /* 布尔值 */
+typedef unsigned char   bool;       /* 布尔值 */
 
-typedef struct { u32_t _[2]; }  u64_t;
+typedef unsigned long long u64_t;
 
 /* The following types are needed because MINIX uses K&R style function
  * definitions (for maximum portability).  When a short, such as dev_t, is

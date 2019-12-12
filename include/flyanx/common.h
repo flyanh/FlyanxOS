@@ -25,6 +25,8 @@
                          */
 
 /* 任务号，函数索引号(消息类型)和回复代码，将在下面开始定义 */
+#define NO_EXIST_TASK       -808    /* 用于不可能存在的任务号 */
+
 #define TTY_TASK                (CONTROLLER(NR_CONTROLLERS) - 2)  /* 终端I/O任务 */
 #	define CANCEL               0	/* 强制取消任务的一般要求 */
 #	define HARD_INT             2	/* 所有硬件中断的索引代码 */
@@ -58,16 +60,11 @@
 #   define SYS_FORK         3   /* 系统功能索引代码，sys_fork(parent, child, pid) */
 #	define SYS_PUTS         4	/* 系统功能索引代码，sys_puts(count, buf) */
 #   define SYS_FIND_PROC    5   /* 系统功能索引代码，sys_find_proc(name, &task_nr, flags) */
+#   define SYS_SUDDEN       6   /* 系统功能索引代码，sys_sudden() */
+#   define SYS_BLUES        7   /* 系统功能索引代码，sys_bules() */
+#   define SYS_COPY         8   /* sys_copy(ptr) */
 
 #define HARDWARE            -1	    /* 用作中断生成消息的源 */
-
-/* 块设备和字符设备任务消息中使用的消息字段名称。 */
-#define DEVICE          m2_i1	/* 主-次设备号 */
-#define PROC_NR         m2_i2	/* 哪个进程需要I/O服务？ */
-#define COUNT           m2_i3	/* 有多少字节将要被传送 */
-#define REQUEST         m2_i3	/* io控制请求代码 */
-#define POSITION        m2_l1	/* 文件偏移地址 */
-#define ADDRESS         m2_p1	/* 内核的缓冲区地址 */
 
 /* 终端任务消息中使用的消息字段名称。 */
 #define TTY_LINE        DEVICE      /* 终端线 */
@@ -76,6 +73,15 @@
 #define TTY_FLAGS       m2_l2       /* io控制终端模式 */
 #define TTY_PROC_GROUP  m2_i3       /* 进程组 */
 
+/* 块设备和字符设备任务消息中使用的消息字段名称。 */
+#define DEVICE          m2_i1	/* 主-次设备号 */
+#define PROC_NR         m2_i2	/* 哪个进程需要I/O服务？ */
+#define FLAGS           m2_i3   /* 用于打开设备，以什么权限打开？例如只读。 */
+#define COUNT           m2_i3	/* 有多少字节将要被传送 */
+#define REQUEST         m2_i3	/* io控制请求代码 */
+#define POSITION        m2_l1	/* 文件偏移地址 */
+#define ADDRESS         m2_p1	/* 内核的缓冲区地址 */
+
 /* 时钟任务消息中使用的消息字段名称。 */
 #define DELTA_TICKS     m6_l1	/* 闹钟间隔（时钟滴答数） */
 #define FUNC_TO_CALL    m6_f1	/* 指向要闹钟响起要调用的函数的指针 */
@@ -83,8 +89,18 @@
 #define CLOCK_PROC_NR   m6_i1	/* 哪个进程（或任务）想要一个闹钟？ */
 #define SECONDS_LEFT    m6_l1	/* 还剩几秒钟触发闹钟？ */
 
-/* 系统任务回复消息中使用的消息字段名称。 */
+/* 复制消息到系统任务的消息字段名称。 */
+#define SRC_SPACE       m5_c1	/* 空间类型，代码段或数据段空间，（堆栈段也被认为是数据段） */
+#define SRC_PROC_NR     m5_i1	/* 复制从哪个进程 */
+#define SRC_BUFFER      m5_l1	/* 数据来自的虚拟地址 */
+#define DEST_SPACE      m5_c2	/* 空间类型，代码段或数据段空间，（堆栈段也被认为是数据段） */
+#define DEST_PROC_NR    m5_i2	/* 复制到的进程 */
+#define DEST_BUFFER     m5_l2	/* 数据前往的虚拟地址 */
+#define COPY_BYTES      m5_l3	/* 要复制的字节数 */
+
+/* 任务回复消息中使用的消息字段名称。 */
 #define REPLY_PROC_NR   m2_i1       /* 代表I/O完成的进程索引号 */
 #define REPLY_STATUS    m2_i2       /* 传输的字节数或错误号 */
+
 
 #endif //_FLYANX_COMMON_H
