@@ -18,9 +18,12 @@
 //EXTERN
 
 /* 外界的调用参数在这 */
-EXTERN Message msg_in;     /* 传入的消息保存在这 */
-EXTERN int who;         /* 调用进程的进程号 */
+EXTERN Message flmsg_in;    /* 传入的消息保存在这 */
+EXTERN Message flmsg_out;   /* 传入的消息保存在这 */
+EXTERN int fly_who;             /* 调用进程的进程号 */
+EXTERN int fly_call;        /* 系统调用号 */
+EXTERN bool dont_reply;     /* 不需要回复？ */
 
-extern _PROTOTYPE( int (*call_handlers[]), (void) );    /* 系统调用处理函数在这里 */
+extern _PROTOTYPE( int (*fly_call_handlers[]), (void) );    /* 系统调用处理函数在这里 */
 
 #endif //_FLY_GLOBAL_H

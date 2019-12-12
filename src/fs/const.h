@@ -31,11 +31,10 @@
 #define NO_BIT   ((bit_t) 0)	/* 位图已满，返回以指示分配失败 */
 
 /* 其他 */
+#define printf      printl      /* 实际上用的是printl */
 #define SU_UID      ((uid_t) 0) /* 超级用户的uid */
 #define SYS_UID     ((uid_t) 0) /* 系统uid，分配给其他服务器和起源进程 */
 #define SYS_GID     ((gid_t) 0) /* 系统gid，分配给其他服务器和起源进程 */
-//#define NORMAL              0   /* 强制get_block进行磁盘读取 */
-//#define NO_READ             1   /* 禁止get_block进行磁盘读取 */
-//#define PREFETCH            2   /*  */
+
 
 #endif //_FS_CONST_H

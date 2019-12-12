@@ -224,7 +224,6 @@ PRIVATE void write(TTY *tty){
         user_phys = proc_vir2phys(proc_addr(tty->out_proc), tty->out_vir_addr);
         phys_copy(user_phys, vir2phys(buffer), (phys_bytes)count);
         temp_buffer = buffer;
-
         /* 更新终端数据结构 */
         tty->out_vir_addr += count;
         tty->out_cum += count;
@@ -243,7 +242,7 @@ PRIVATE void write(TTY *tty){
                 out_char(console, *temp_buffer);
             } else {
                 /* 当然了，如果这个字符的非常“简单”，我们直接将该字符连同属性字节直接放入到视频缓冲队列中。 */
-                console->ram_queue[console->ram_words++] = console->attr | (*temp_buffer & BYTE);
+                console->ram_queue[console->ram_words] = console->attr | (*temp_buffer & BYTE);
                 console->ram_words++;   /* 指向视频输出的下一个字（word） */
                 console->column++;      /* 指向下一列 */
             }

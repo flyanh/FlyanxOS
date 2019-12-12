@@ -21,7 +21,7 @@
 #include "param.h"
 
 /*===========================================================================*
- *				no_sys					     *
+ *				mm_no_sys					     *
  *			  无效调用处理
  *===========================================================================*/
 PUBLIC int mm_no_sys()
@@ -37,9 +37,9 @@ PUBLIC int mm_no_sys()
  *                         mm_panic                                   *
  *                       系统无法继续运行                               *
  *===========================================================================*/
-PUBLIC void mm_panic(msg, errno)
+PUBLIC void mm_panic(msg, err_no)
         const char *msg;
-        int errno;
+        int err_no;
 {
     /* 只有在内存管理器检测到一个它无法恢复的严重错误时才会被调用。它向系统任务报告错误，系统任务
      * 紧急停止系统。它不该被轻易调用。例如当检测到内部不一致（例如，编程错误或定义的常数的非法值）时
@@ -48,7 +48,7 @@ PUBLIC void mm_panic(msg, errno)
 
     if(msg != NULL){
         printf("Memory manager panic: %s", msg);
-        if(errno != NO_NUM) printf(" %d", errno);
+        if(err_no != NO_NUM) printf(" %d", err_no);
         printf("\n");
     }
 }

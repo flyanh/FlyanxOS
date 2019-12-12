@@ -22,6 +22,8 @@ struct inode;
 /* 文件系统全局变量 */
 EXTERN struct fs_process_s *call_fp;        /* 一直指向调用者 */
 EXTERN bool super_user;                     /* 超级用户？ */
+EXTERN int suspended_count;                 /* 被挂起的进程数量（管道上） */
+EXTERN int reviving;                        /* 正在恢复运行的进程数量（管道上） */
 extern u8_t *fs_buffer;                     /* 文件系统使用的高速缓冲区首地址 */
 extern int FS_BUFFER_SIZE;                  /* 高速缓冲区长度 */
 EXTERN struct inode *root_inode;            /* 根索引节点 */

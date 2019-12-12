@@ -84,8 +84,17 @@
 #define _POSIX_NO_TRUNC       (-1)
 #define _POSIX_CHOWN_RESTRICTED  1
 
-/* 以下是常用的系统调用的函数原型  */
+/* 以下是POSIX标准系统调用的函数原型  */
 _PROTOTYPE( int close, (int _fd) );
+_PROTOTYPE( ssize_t read, (int _fd, void *_buffer, size_t _bytes) );
+_PROTOTYPE( ssize_t write, (int _fd, const void *_buffer, size_t _bytes) );
+_PROTOTYPE( int link, (const char *_name, const char *_name2) );
+_PROTOTYPE( int unlink, (const char *_name) );
+_PROTOTYPE( off_t lseek, (int _fd, off_t _offset, int _whence) );
+
+#ifdef _FLYANX
+_PROTOTYPE( int sleep, (time_t _mills) );
+#endif
 
 
 

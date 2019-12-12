@@ -22,6 +22,7 @@ EXTERN struct mm_process_s *curr_mp;    /* 指向一个当前正在处理的进�
 /* 外界的调用参数在这 */
 EXTERN Message mmsg_in;     /* 传入的消息保存在这 */
 EXTERN int who;         /* 调用进程的进程号 */
+EXTERN int mm_call;
 
 extern _PROTOTYPE( int (*mm_call_handlers[]), (void) );    /* 系统调用处理函数在这里 */
 extern char *core_name;     /* 生成核心映像的文件名

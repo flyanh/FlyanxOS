@@ -190,7 +190,9 @@ PUBLIC void tty_task(void){
  *				读终端
  *===========================================================================*/
 PRIVATE void do_read(TTY *tty, Message *msg){
-    raw_echo(tty, 'r');
+    printf("tty read\n");
+
+    tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, OK);
 }
 
 /*===========================================================================*
@@ -198,7 +200,45 @@ PRIVATE void do_read(TTY *tty, Message *msg){
  *				写终端
  *===========================================================================*/
 PRIVATE void do_write(TTY *tty, Message *msg){
-    raw_echo(tty, 'w');
+    /* 一个程序想要写入数据到终端设备中，这个例程和do_read 100%的想死，但是更简单，
+     * 考虑的更少。
+     */
+
+    int rs;
+
+    /* 检查是否有进程挂在写操作上，然后检查参数是否正确，执行io */
+    if(tty->out_left > 0){
+        /* 终端还在完成上一次的写操作，拒绝这次请求 */
+        rs = EIO;
+    } else if(msg->COUNT <= 0) {
+        /* 没打算写入？ */
+        rs = EINVAL;
+    } else if(numap(msg->PROC_NR, (vir_bytes)msg->ADDRESS, msg->COUNT) == 0){
+        /* 写入缓冲区地址有问题 */
+        rs = EFAULT;
+    } else {
+        /* 通过检查，现在将消息参数拷贝到终端结构中 */
+        tty->out_reply_code = TASK_REPLY;
+        tty->out_caller = msg->source;
+        tty->out_proc = msg->PROC_NR;
+        tty->out_vir_addr = (vir_bytes) msg->ADDRESS;
+        tty->out_left = msg->COUNT;
+
+        /* 现在可以去写了 */
+        handle_write(tty);
+        if(tty->out_left == 0) return;     /* 工作完成了 */
+
+        /* 不能写入全部的字节，如果该进程未堵塞，则挂起调用方或者中止写入。 */
+        if(msg->TTY_FLAGS & O_NONBLOCK){    /* 取消写入 */
+            rs = tty->out_cum > 0 ? tty->out_cum : EAGAIN;
+            tty->out_left = tty->out_cum = 0;
+        } else {
+            rs = SUSPEND;
+            tty->out_reply_code = REVIVE;
+        }
+    }
+    /* 答复 */
+    tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, OK);
 }
 
 /*===========================================================================*
@@ -618,6 +658,23 @@ PUBLIC void handle_read(TTY *tty){
         tty->device_read(tty);
     } while (tty->events & EVENTS_READ);    /* 如果处理中间标志又被用户的输入置位，那么，接着处理。 */
 
+    /* 把字符从输入队列中传送到调用一个读操作的进程的内部缓冲区中。
+     * 传输完成后，无论是传输了请求的最大字符数还是达到了一行的末尾（规范模式中），
+     * in_transfer本身就会发送一条回答消息，如果是这样的情况，那么在返回到本例程
+     * 时，tty->in_left的值就为0。
+     */
+    in_transfer(tty);
+
+    /* 传输字符数达到了用户请求的最小数目，则发送一条回答消息，
+     * 后面的tty->in_left > 0 的检测是为了防止即使完成后，
+     * 已经发送了一条回复消息，但再次进来，即使用户没有请求，
+     * 却还是再次发送一条消息。
+     */
+    if(tty->in_cum >= tty->min && tty->in_left > 0){
+        tty_reply(tty->in_reply_code, tty->in_caller, tty->in_proc, tty->in_cum);
+        /* 完成，in_left和in_cum还原为0， */
+        tty->in_left = tty->in_cum = 0;
+    }
 }
 
 /*===========================================================================*
@@ -625,29 +682,11 @@ PUBLIC void handle_read(TTY *tty){
  *			 处理挂起的终端设备写操作
  *===========================================================================*/
 PUBLIC void handle_write(TTY *tty){
-//    do{
-//        tty->events &= ~EVENTS_WRITE;
-//        /* 调用终端的写操作例程 */
-//        (*tty->device_write)(tty);
-//    } while (tty->events & EVENTS_WRITE);   /* 如果处理中间标志又被用户的操作置位，那么，接着处理。 */
-//
-//    /* 把字符从输入队列中传送到调用一个读操作的进程的内部缓冲区中。
-//     * 传输完成后，无论是传输了请求的最大字符数还是达到了一行的末尾（规范模式中），
-//     * in_transfer本身就会发送一条回答消息，如果是这样的情况，那么在返回到本例程
-//     * 时，tty->in_left的值就为0。
-//     */
-//    in_transfer(tty);
-//
-//    /* 传输字符数达到了用户请求的最小数目，则发送一条回答消息，
-//     * 后面的tty->in_left > 0 的检测是为了防止即使完成后，
-//     * 已经发送了一条回复消息，但再次进来，即使用户没有请求，
-//     * 却还是再次发送一条消息。
-//     */
-//    if(tty->in_cum >= tty->min && tty->in_left > 0){
-//        tty_reply(tty->in_reply_code, tty->in_caller, tty->in_proc, tty->in_cum);
-//        /* 完成，in_left和in_cum还原为0， */
-//        tty->in_left = tty->in_cum = 0;
-//    }
+    do{
+        tty->events &= ~EVENTS_WRITE;
+        /* 调用终端的写操作例程 */
+        (*tty->device_write)(tty);
+    } while (tty->events & EVENTS_WRITE);   /* 如果处理中间标志又被用户的操作置位，那么，接着处理。 */
 }
 
 /*===========================================================================*

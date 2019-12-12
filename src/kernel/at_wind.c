@@ -141,7 +141,7 @@ PRIVATE int wini_do_readwrite(Message *msg){
 //    printf("%d want to %s %d by %d | pos -> %u\n",
 //           msg->PROC_NR, msg->type == DEVICE_READ ? "read" : "write", msg->COUNT, drive, pos);
 
-    /* 发出预读/写命令，告诉驱动器我们准备读/写了。 */
+    /* 发出读/写命令，告诉驱动器开始读/写了。 */
     Command cmd;
     cmd.features	= 0;
     cmd.count	= (msg->COUNT + SECTOR_SIZE - 1) / SECTOR_SIZE;
@@ -178,7 +178,7 @@ PRIVATE int wini_do_readwrite(Message *msg){
             left -= SECTOR_SIZE;
             phys_addr += SECTOR_SIZE;
         }
-        return OK;
+        return msg->COUNT - left;   /* 成功返回读写的字节总量 */
     }
     return EIO;
 }

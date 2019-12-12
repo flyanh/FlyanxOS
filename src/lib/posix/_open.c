@@ -17,9 +17,9 @@
 #include <string.h>
 
 #if _ANSI
-PUBLIC int _open(const char *name, int flags, ...)
+PUBLIC int open(const char *name, int flags, ...)
 #else
-PUBLIC int _open(
+PUBLIC int open(
         _CONST char *name,
         int flags
 )

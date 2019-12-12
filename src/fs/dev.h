@@ -34,14 +34,16 @@ extern DDMap ddmap[];
 				       FS_PROC_NR,     \
 				       fs_buffer,       \
 				       (sect_nr) * SECTOR_SIZE,		\
-				       SECTOR_SIZE \
+				       SECTOR_SIZE, \
+				       0 \
 				       )
 #define WRITE_SECT(dev, sect_nr) dev_io(DEVICE_WRITE, \
                         dev,				\
 				        FS_PROC_NR,     \
 				        fs_buffer,       \
 				        (sect_nr) * SECTOR_SIZE,		\
-				        SECTOR_SIZE \
-				       )
+				        SECTOR_SIZE, \
+				        0 \
+				        )
 
 #endif //_FS_DEV_H

@@ -32,7 +32,7 @@ PUBLIC int _syscall(
         errno = -msg_ptr->type;
         return -1;
     }
-    /* 大于0，直接返回即可 */
+    /* OK（0）或者大于0？直接返回即可 */
     return msg_ptr->type;
 }
 

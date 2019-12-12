@@ -52,9 +52,9 @@ EXTERN union reg86 reg86;
 
 struct mio_int86 {		/* MIOCINT86 */
 	union reg86 reg86;		/* x86 registers as above */
-	u16_t	off, seg;		/* Address of kernel buffer */
-	void	*buf;			/* User data buffer */
-	size_t	len;			/* Size of user buffer */
+	u16_t	off, seg;		/* Address of kernel in_buffer */
+	void	*buf;			/* User data in_buffer */
+	size_t	len;			/* Size of user in_buffer */
 };
 
 struct mio_ldt86 {		/* MIOCGLDT86, MIOCSLDT86 */

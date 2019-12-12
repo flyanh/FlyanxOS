@@ -10,6 +10,8 @@
 #ifndef _MM_CONST_H
 #define _MM_CONST_H
 
+#define printf  printl  /* printf用的是低等级打印printl */
+
 /* 所有派生（fork）的进程将使用PROCS_BASE之上的内存
  *
  * 注意：请确保PROCS_BASE的值高于任何缓冲区，例如文件系统缓冲区，

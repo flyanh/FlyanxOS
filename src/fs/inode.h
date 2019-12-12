@@ -26,7 +26,7 @@ typedef struct inode {
     u8_t _unused[16];   /* 为了对齐32位 */
 
     /* =============== 以下项目将仅存在于内存中 ================== */
-    dev_t device;         /* 这是谁（设备）的索引节点？ */
+    dev_t device;       /* 这是谁（设备）的索引节点？ */
     int count;          /* 多少个进程打开了此索引节点 */
     int num;            /* 索引节点号 */
 } Inode;
@@ -34,7 +34,7 @@ typedef struct inode {
 EXTERN Inode inode[NR_INODES];
 
 #define	inode_is_special(m)	((((m) & I_TYPE) == I_BLOCK_SPECIAL) ||	\
-			 (((m) & I_TYPE_MASK) == I_CHAR_SPECIAL))
+			 (((m) & I_TYPE) == I_CHAR_SPECIAL))
 
 /* 其他 */
 #define INODE_SIZE      (4 * 4 + 16)    /* 这是设备中结构的大小，不是内存中的 */

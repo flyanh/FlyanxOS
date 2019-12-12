@@ -15,6 +15,7 @@ struct file_desc;
 /* main.c */
 /*================================================================================================*/
 _PROTOTYPE( void fs_print_info, (char *info) );
+_PROTOTYPE( void fs_reply, (int whom, int rs) );
 
 /*================================================================================================*/
 /* open.c */
@@ -25,6 +26,25 @@ _PROTOTYPE( int do_close, (void) );
 _PROTOTYPE( int do_mkdir, (void) );
 _PROTOTYPE( int do_mknod, (void) );
 _PROTOTYPE( int do_lseek, (void) );
+
+/*================================================================================================*/
+/* read_write.c */
+/*================================================================================================*/
+_PROTOTYPE( int read_write, (int rw_flag) );
+_PROTOTYPE( int do_read, (void) );
+_PROTOTYPE( int do_write, (void) );
+
+/*================================================================================================*/
+/* link.c */
+/*================================================================================================*/
+_PROTOTYPE( int do_link, (void) );
+_PROTOTYPE( int do_unlink, (void) );
+
+/*================================================================================================*/
+/* statdir.c */
+/*================================================================================================*/
+_PROTOTYPE( int do_stat, (void) );
+_PROTOTYPE( int do_fstat, (void) );
 
 /*================================================================================================*/
 /* file.c */
@@ -44,8 +64,22 @@ _PROTOTYPE( struct inode *step_dir, (struct inode *dir, char name[NAME_MAX]) );
 /*================================================================================================*/
 _PROTOTYPE( int dev_open, (dev_t device, int proc, int flags) );
 _PROTOTYPE( int dev_close, (dev_t device, int proc) );
-_PROTOTYPE( int dev_io, (int op, dev_t device,int proc_nr,void *buf_addr, off_t pos, int bytes)  );
+_PROTOTYPE( int dev_io, (int op, dev_t device,int proc_nr,
+        void *buf_addr, off_t pos, int bytes, int flags) );
 _PROTOTYPE( int dev_ioctl, (int device, int proc_nr, void *buf) );
+
+/*================================================================================================*/
+/* pipe.c */
+/*================================================================================================*/
+_PROTOTYPE( void suspend, (int task) );
+_PROTOTYPE( void revive, (int proc_nr, int bytes) );
+
+/*================================================================================================*/
+/* misc.c */
+/*================================================================================================*/
+_PROTOTYPE( int do_revive, (void) );
+_PROTOTYPE( int do_fs_fork, (void) );
+_PROTOTYPE( int do_fs_exit, (void) );
 
 /*================================================================================================*/
 /* super.c */

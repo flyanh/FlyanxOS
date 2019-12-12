@@ -12,7 +12,7 @@
 #define close   _close
 #include <unistd.h>
 
-PUBLIC int _close(int fd){
+PUBLIC int close(int fd){
     Message out;
 
     out.m1_i1 = fd;

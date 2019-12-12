@@ -26,7 +26,6 @@
 
 FORWARD _PROTOTYPE( void fs_init, (void) );
 FORWARD _PROTOTYPE( void view_inbox, (void) );
-FORWARD _PROTOTYPE( void reply, (int whom, int rs) );
 FORWARD _PROTOTYPE( void mkfs_flyanx, (void) );
 FORWARD _PROTOTYPE( void load_super_block, (SuperBlock *sb) );
 
@@ -59,7 +58,7 @@ PUBLIC void fs_main(void){
 
         /* 将结果拷贝给用户并发送回复。 */
         if(!need_reply) continue;       /* 不需要回复，这次的工作结束 */
-        reply(who, rs);
+        fs_reply(who, rs);
     }
 }
 
@@ -68,16 +67,40 @@ PUBLIC void fs_main(void){
  *             查看收件箱，等待消息
  *===========================================================================*/
 PRIVATE void view_inbox(void){
+    /* 查看收件箱，等待一条消息得到工作
+     */
+
+//    register FSProcess *fp;
+//    if(reviving != 0){
+//        /* 有需要恢复的进程 */
+//        for(fp = &fsproc[0]; fp < &fsproc[NR_PROCS]; fp++){
+//            if(fp->revived == REVIVING){
+//                who = (int)(fp - fsproc);
+//                fs_call = fp->fd & BYTE;
+//                in_fd = (fp->fd >> 8) & BYTE;
+//                in_buffer = fp->buffer;
+//                in_bytes = fp->bytes;
+//                fp->suspended = NOT_SUSPENDED;  /* 该进程不在挂起 */
+//                fp->revived = NOT_REVIVING;
+//                reviving--;
+//                return;
+//            }
+//        }
+//        /* 很明显，文件系统被通知有进程需要恢复，我们却没找到，内部已经混乱！ */
+//        fs_panic("view_inbox couldn't revive anyone", NO_NUM);
+//    }
+
+    /* 正常情况下，没有人会被管道挂起，也没有人会被恢复 */
     if(receive(ANY, &fs_inbox) != OK) fs_panic("FS receive error", NO_NUM);
     who = fs_inbox.source;
     fs_call = fs_inbox.type;
 }
 
 /*===========================================================================*
- *				reply					     *
+ *				fs_reply					     *
  *			    回复结果
  *===========================================================================*/
-PRIVATE void reply(int whom, int rs){
+PUBLIC void fs_reply(int whom, int rs){
     /* 向用户进程发送回复。 它可能会失败（如果该进程刚刚被信号杀死），因此不需要检查返回码。
      * 如果发送失败，则忽略它。
      */
@@ -112,7 +135,7 @@ PRIVATE void fs_init(void){
     /* 打开硬盘 */
     if (dev_open(ROOT_DEV, FS_PROC_NR, (RWX_MODES)) == OK) {
         /* 先尝试读取根设备超级块 */
-        if(READ_SECT(ROOT_DEV, 1) == OK){
+        if(READ_SECT(ROOT_DEV, 1)){
             sb = (SuperBlock *) fs_buffer;
             if(sb->magic != SUPER_MAGIC) {
                 /* 如果文件系统不是我们flyanx v1.0的，那么我们创建一个新的文件系统 */

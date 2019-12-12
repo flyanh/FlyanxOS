@@ -5,10 +5,10 @@
  * QQ-Group:909830414
  * gitee: https://gitee.com/flyanh/
  *
- * 本文件是内核级格式化打印函数，只能被内核和服务器使用（MM，FS和FLY）
+ * 本文件是低特权级格式化打印函数，只能被内核和服务器使用（MM，FS和FLY）
  *
  * 该文件的入口点是：
- *  - printf            格式化打印字符串
+ *  - printl            格式化打印字符串
  */
 
 #include <stdarg.h>     /* 对可变参数列表操作 */
@@ -29,10 +29,10 @@ void putk(int ch);      /* 引入通用的putk */
 int redirect_printf(const char *fmt, va_list argp, putk_func_t rp_putk);
 
 /*=========================================================================*
- *				        printf				   *
+ *				        printl				   *
  *				    打印一个格式化字符串      *
  *=========================================================================*/
-int printf(const char *fmt, ...)
+int printl(const char *fmt, ...)
 #endif
 {
     va_list argp;

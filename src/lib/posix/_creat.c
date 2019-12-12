@@ -12,7 +12,7 @@
 #define creat   _creat
 #include <fcntl.h>
 
-PUBLIC int _creat(_CONST char *name, Mode_t mode){
+PUBLIC int creat(_CONST char *name, Mode_t mode){
     Message out;
 
     out.m3_i2 = mode;

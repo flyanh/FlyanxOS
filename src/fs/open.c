@@ -20,6 +20,7 @@
 #include <flyanx/common.h>
 #include <string.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include "dev.h"
 #include "dir.h"
 #include "file.h"
@@ -116,13 +117,7 @@ PRIVATE int common_open(register int oflag, mode_t omode){
             if(!((oflag == O_RDWR) || (oflag == (O_RDWR | O_TRUNC)) || (oflag == (O_RDWR | O_TRUNC | O_CREAT)))){
                 fs_panic("FS flags Internal inconsistency", NO_NUM);
             }
-            /* 好了， */
-            char filename[NAME_MAX];
-            Inode *dir_inode;
-            if((dir_inode = last_dir(user_path, filename)) == NIL_INODE){
-                return -1;
-            }
-            inp = get_inode(dir_inode->device, inp->num);
+            /* 好了，文件已经被打开了，后面没事了。 */
         } else {                /* 并不想读写 */
             printf("{FS}-> file exists: %s\n", user_path);
             return -1;
@@ -164,7 +159,6 @@ PRIVATE int common_open(register int oflag, mode_t omode){
                 fs_panic("FS open a file, but not a regular", NO_NUM);
             }
         }
-        printf("open a %s file, fd is %d\n", imode & I_CHAR_SPECIAL ? "char dev" : imode & I_DIRECTORY ? "directory" : "normal", fd );
     } else {
         return -1;
     }
@@ -196,9 +190,13 @@ PRIVATE Inode *create_file(char *path, mode_t bits){
 
 /*===========================================================================*
  *				do_mknod					     *
+ *			执行mknod(name，mode，addr)系统调用。
  *===========================================================================*/
 PUBLIC int do_mknod(void){
+    /* 本例程跟do_creat类似，只是本例程仅仅创建索引节点并为其分配一个目录项。 */
 
+    /* @TODO */
+    return fs_no_sys();
 }
 
 /*===========================================================================*
@@ -219,24 +217,52 @@ PUBLIC int do_close(void){
     /* 执close(fd)系统调用。 */
 
     int fd = in_fd;
-    printf("close file(%d) success!\n", fd);
     /* 释放该文件的索引节点 */
     put_inode(call_fp->open_file[fd]->inode);
     call_fp->open_file[fd]->count--;
     /* 如果该文件已经不再被需要，按次序关闭它 */
     if(call_fp->open_file[fd]->count == 0){
         call_fp->open_file[fd]->inode = NIL_INODE;
-        call_fp->open_file[fd] = NIL_FILE;
     }
+    call_fp->open_file[fd] = NIL_FILE;
+    printf("close file(%d) success!\n", fd);
 
     return OK;
 }
 
 /*===========================================================================*
  *				do_lseek					     *
+ *			   设置文件位置
  *===========================================================================*/
 PUBLIC int do_lseek(void){
+    /* 执行lseek(ls_fd，offset，whence)系统调用。
+     * 进行文件读/写时，可以调用本例程设置新的文件位置。
+     */
 
+    /* 检查文件描述符是否有效 */
+    if(get_file(in_ls_fd) == NIL_FILE) return err_code;
+
+    off_t pos = call_fp->open_file[in_ls_fd]->pos;    /* 当前文件位置 */
+    int file_size = call_fp->open_file[in_ls_fd]->inode->size;  /* 文件大小 */
+
+    switch (in_whence){
+        /* 从文件头开始*/
+        case SEEK_SET:  pos = 0 + in_offset;         break;
+        /* 从文件当前位置开始 */
+        case SEEK_CUR:  pos += in_offset;            break;
+        /* 从文件末尾开始 */
+        case SEEK_END:  pos = file_size + in_offset; break;
+        /* 参数不对？ */
+        default:    return EINVAL;
+    }
+    /* 看看文件置位是否溢出了？ */
+    if((pos > file_size) || (pos < 0)){
+        return EINVAL;
+    }
+    /* 设置新的文件位置 */
+    call_fp->open_file[in_ls_fd]->pos = pos;
+    reply_l1 = pos;     /* 返回文件新的位置 */
+    return OK;
 }
 
 /*===========================================================================*

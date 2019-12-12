@@ -22,7 +22,7 @@ typedef void(*putk_func_t)(int ch);     /* 输出一个字符函数类型 */
 _PROTOTYPE( int send_receive, (int src_dest, Message *message_ptr) );
 _PROTOTYPE( void putk, (int c)						);
 _PROTOTYPE( int redirect_printf, (const char *fmt, char *argp, putk_func_t rp_putk) );
-_PROTOTYPE( int printf, (const char *_fmt, ...)				);
+_PROTOTYPE( int printl, (const char *_fmt, ...)				);
 _PROTOTYPE( int task_call, (int who, int sys_callnr, Message *out) );
 
 

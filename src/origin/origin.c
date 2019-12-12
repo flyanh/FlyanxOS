@@ -15,6 +15,8 @@
 #include <lib.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <string.h>
 
 /*===========================================================================*
  *                            origin_main                                        *
@@ -24,15 +26,14 @@ void origin_main(void){
 #define FOREVER -1
     Message msg;
 
-    /* 测试打开一个文件并关闭 */
-    int fd =open("/hello.cyc", O_RDWR);
-    close(fd);
+    /* 打开标准输入/输出流（文件描述符） */
+    int stdin_fd = open("/dev_tty0", O_RDWR);
+    int stdout_fd = open("/dev_tty0", O_RDWR);
+
+
+    printf("{ORIGIN}-> do something of init...\n");
 
     /* 现在还没啥事做，先永久堵塞自己 */
-    msg.type = 5;
-    msg.m6_l1 = FOREVER;
-    while (1){
-        send_receive(MM, &msg);
-    }
+    sleep(FOREVER);
 }
 

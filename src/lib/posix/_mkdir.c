@@ -13,7 +13,7 @@
 #include <sys/stat.h>
 #include <string.h>
 
-PUBLIC int _mkdir(_CONST char *name, Mode_t mode){
+PUBLIC int mkdir(_CONST char *name, Mode_t mode){
     Message out;
 
     out.m1_i1 = strlen(name) + 1;

@@ -24,18 +24,27 @@ typedef struct fs_process_s {
     gid_t real_gid;		            /* 真实组ID */
     gid_t eff_gid;	                /* 有效组ID */
     dev_t tty;		                /* 控制终端的(主要/次要)设备号 */
-    
-    pid_t pid;
+
+    int fd;                         /* 如果读/写暂时无法完成，保存文件描述符 */
+    char *buffer;                   /* 如果读/写暂时无法完成，保存缓冲区 */
+    int bytes;                      /* 如果读/写暂时无法完成，保存读写字节数量 */
+    int fp_cum_io_partial;          /* 如果读/写暂时无法完成，保存部分字节计数 */
+    bool suspended;                 /* 进程是否被挂起？ */
+    bool revived;                   /* 进程正在恢复？ */
+    char task;                      /* 进程被哪个任务挂起了？ */
+    bool ses_leader;                /* 是否是会话领导者？ */
+
+    pid_t pid;                      /* 进程号 */
 } FSProcess;
 
 FSProcess fsproc[NR_PROCS];
 
 /* 标志值 */
-#define NOT_SUSPENDED      0	/* process is not suspended on pipe or task ：进程未在管道或任务上挂起 */
-#define SUSPENDED          1	/* process is suspended on pipe or task ：进程暂停在管道或任务上 */
-#define NOT_REVIVING       0	/* process is not being revived ：进程没有恢复 */
-#define REVIVING           1	/* process is being revived from suspension ：流程从暂停中恢复 */
-#define PID_FREE	       0	/* process slot free ：无进程插槽 */
-#define PID_SERVER	      (-0x328)/* process has become a server ：进程已成为服务器 */
+#define NOT_SUSPENDED      0	/* 进程未在管道或任务上挂起 */
+#define SUSPENDED          1	/* 进程挂起在管道或任务上 */
+#define NOT_REVIVING       0	/* 进程没有恢复 */
+#define REVIVING           1	/* 进程从挂起中恢复 */
+#define PID_FREE	       0	/* 无进程插槽 */
+#define PID_SERVER	      (-0x328)/* 进程已成为服务器 */
 
 #endif //_FSPROC_H
