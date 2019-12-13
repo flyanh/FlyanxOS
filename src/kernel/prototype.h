@@ -50,7 +50,7 @@ _PROTOTYPE( void ok_print, (char* msg, char* ok) );
 _PROTOTYPE( void protect_init, (void) );
 _PROTOTYPE( phys_bytes seg2phys, (U16_t seg) );
 _PROTOTYPE( void init_seg_desc,
-        (struct seg_descriptor_s *p_desc, vir_bytes base, vir_bytes limit, u16_t attribute) );
+        (struct seg_descriptor_s *p_desc, phys_bytes base, phys_bytes limit, u16_t attribute) );
 _PROTOTYPE( void phys2seg, (vir_bytes *seg, vir_bytes *off, phys_bytes phys) );
 
 /*================================================================================================*/
@@ -127,8 +127,8 @@ _PROTOTYPE( int spurious_irq, (int ) );
 /*================================================================================================*/
 /* kernel_386_lib.asm  */
 /*================================================================================================*/
-_PROTOTYPE(void disp_str, (char* string));                      /* 显示一个字符串 */
-_PROTOTYPE(void disp_color_str, (char *string, int color));     /* 显示一个带颜色的字符串 */
+_PROTOTYPE(void disp_str, (char* string) );                      /* 显示一个字符串 */
+_PROTOTYPE(void disp_color_str, (char *string, int color) );     /* 显示一个带颜色的字符串 */
 _PROTOTYPE( void phys_copy, (phys_bytes source, phys_bytes dest, phys_bytes count) );
 _PROTOTYPE( void out_byte, (port_t port, U8_t value) );
 _PROTOTYPE( U8_t in_byte, (port_t port) );

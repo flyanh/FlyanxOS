@@ -33,7 +33,7 @@ PUBLIC void mm_main(void){
     /* 初始化 */
     mm_init();
 
-    mm_print_info("working...");
+    mm_print_info("Working...");
     /* 内存管理器开始工作了 */
     while (TRUE){
         /* 等待消息，获得工作 */
@@ -122,10 +122,10 @@ PRIVATE void mm_init(void){
 
     /* 准备ORIGIN进程表项 */
     mmproc[ORIGIN_PROC_NR].pid = ORIGIN_PID;
-    procs_in_use = LOW_USER + 1;
+    procs_in_use = LOW_USER + 1;    /* 有多少进程正在使用中？ */
 
     /* 打印内存信息：内存总量、核心内存的使用和空闲内存情况 */
-    printf("You computer's total memory size = %uKB, Available = %uKB.\n\n",
+    printf("{MM}-> You computer's total memory size = %uKB, Available = %uKB.\n",
             click2round_kb(total_clicks), click2round_kb(free_clicks) );
 }
 

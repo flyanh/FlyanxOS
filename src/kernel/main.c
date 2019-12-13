@@ -18,11 +18,11 @@
 #include "kernel.h"
 #include <signal.h>
 #include <unistd.h>
-#include <a.out.h>
-#include <flyanx/callnr.h>
 #include <flyanx/common.h>
 #include "protect.h"
 #include "process.h"
+
+_PROTOTYPE( int sprintf, (char *_buf, const char *_fmt, ...) );
 
 /*===========================================================================*
  *                                   main                                    *
@@ -38,6 +38,7 @@ PUBLIC int main(){
      * 中断在这里初始化，那么则说明只有main函数真正执行起来，中断机制才能成功构建，如果在main函数之前
      * 产生了一个中断，那么将会没有效果。
      */
+
     interrupt_init(1);
 
     /* 进程表的所有表项都被标志为空闲;
@@ -121,6 +122,35 @@ PUBLIC int main(){
                           (kernel_base + kernel_limit) >> LIMIT_4K_SHIFT,
                           DA_32 | DA_LIMIT_4K | DA_DRW | privilege << 5
             );
+        }
+
+        /* 计算该进程的内存映像 */
+        SegDescriptor *sdp = &proc->ldt[TEXT];  /* 首先是正文段的 */
+        proc->map[TEXT].base = reassembly(sdp->base_high, 24,
+                                          sdp->base_middle, 16,
+                                          sdp->base_low);
+        proc->map[TEXT].limit = reassembly(0, 0,
+                                           (sdp->granularity & 0xF), 16,
+                                           sdp->limit_low);
+        proc->map[TEXT].size = ((proc->map[TEXT].limit + 1) *
+                               ((sdp->granularity & (DA_LIMIT_4K >> 8)) ? 4096 : 1));
+        sdp = &proc->ldt[DATA];                 /* 然后是数据段，堆栈段共用这一块区域。 */
+        proc->map[DATA].base = reassembly(sdp->base_high, 24,
+                                          sdp->base_middle, 16,
+                                          sdp->base_low);
+        proc->map[DATA].limit = reassembly((sdp->granularity & 0xF), 16,
+                                           0, 0,
+                                           sdp->limit_low);
+        proc->map[DATA].size = ((proc->map[DATA].limit + 1) *
+                               ((sdp->granularity & (DA_LIMIT_4K >> 8)) ? 4096 : 1));
+        /* 我们不加以细分正文、数据以及堆栈段，所以TEXT和DATA段的内存映像应该是相等的，
+         * 如果不一致，那么系统就不必要继续向下启动了，它有可能为以后带来隐患。
+         */
+        if((proc->map[TEXT].base  != proc->map[DATA].base ) ||
+           (proc->map[TEXT].limit != proc->map[DATA].limit) ||
+           (proc->map[TEXT].size  != proc->map[DATA].size )){
+            disp_str("shit! TEXT segment not equals DATA segment, stop flyanx.\n");
+            for(;;);
         }
 
         /* 初始化寄存器值，上下文环境 */

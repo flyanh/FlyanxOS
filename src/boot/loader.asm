@@ -26,7 +26,7 @@ LABEL_DESC_VIDEO:   Descriptor      0b8000h,        0FFFFFh,        DA_DRW | DA_
 ; GDT全局描述符表--------------------------------------------------------------------------------------------
 GDTLen      equ $ - LABEL_GDT                       ; GDT长度
 GDTPtr      dw  GDTLen - 1                          ; 段界限
-            dd  BaseOfLoaderPhyAddr + LABEL_GDT     ; 基地址
+            dd  LOADER_PHY_ADDR + LABEL_GDT     ; 基地址
 
 ; GDT选择子-------------------------------------------------------------------------------------------------
 SelectorFlatC       equ LABEL_DESC_FLAT_C   -   LABEL_GDT               ; 32位可读代码段选择子
@@ -75,15 +75,15 @@ LABEL_SEARCH_IN_ROOT_DIR_BEGIN:
 	cmp word [wRootDirSizeForLoop], 0	; @
 	jz LABEL_NO_KERNELBIN				; #-> 判断根目录是否已经读完，如果读完则表明没有找到内核文件
 	dec word [wRootDirSizeForLoop]		; @
-	mov ax, BaseOfKernelFile
-	mov es, ax							; es <- BaseOfKernelFile
-	mov bx, OffsetOfKernelFile			; bx <- OffsetOfKernelFile 于是，es:bx 存放的就是内核文件的应该存放的位置基地址
+	mov ax, KERNEL_SEG
+	mov es, ax							; es <- KERNEL_SEG
+	mov bx, KERNEL_OFFSET			; bx <- KERNEL_OFFSET 于是，es:bx 存放的就是内核文件的应该存放的位置基地址
 	mov ax, [wSectorNo]					; ax <- Root Directory 中的某　Sector 号
 	mov cl, 1
 	call ReadSector						; 开始读 ax 存放的　Sector
 
 	mov si, KernelFileName		; ds:si -> "KERNEL  BIN"
-	mov di, OffsetOfKernelFile	; es:di　－＞　BaseOfKernelFile:??? = BaseOfKernelFile * 10h + ???
+	mov di, KERNEL_OFFSET	; es:di　－＞　KERNEL_SEG:??? = KERNEL_SEG * 10h + ???
 	cld
 	mov dx, 10h
 LABEL_SEARCH_FOR_KERNELBIN:
@@ -122,16 +122,23 @@ LABEL_FILENAME_FOUND:	; 如果找到的内核文件，将会跳转到这里继�
 	push eax	; 保存eax的值
 	mov eax, [es:di + 01Ch]			; @
 	mov dword [dwKernelSize], eax	; @-> 保存内核文件的大小
+	cmp eax, KERNEL_HAVE_SPACE      ; 看看内核文件大小有没有超过我们为其保留的大小
+	ja .KERNEL_FILE_TOO_LARGE       ; 超过了！
 	pop eax		;恢复eax
-
+    jmp .KERNEL_FILE_START_LOAD
+.KERNEL_FILE_TOO_LARGE:
+    mov dh, 3
+    call DispStrOnRealModel         ; 相当于printf("Too Large!!!\n");
+    jmp $                           ; 死机，因为内核太大，我们加载不了
+.KERNEL_FILE_START_LOAD:            ; 准备开始加载内核文件
 	add di, 01Ah	; di -> 首　Sector
 	mov cx, word [es:di]
 	push cx			; 保存此　Sector　在　FAT　中的序号
 	add cx, ax
 	add cx, DeltaSectorNo	; 这时 cl 里面是　内核文件　的起始扇区(从 0 开始计数哦) 
-	mov ax, BaseOfKernelFile
-	mov es, ax		; es <- BaseOfKernelFile
-	mov bx, OffsetOfKernelFile	;　不想多解释了，这是偏移地址
+	mov ax, KERNEL_SEG
+	mov es, ax		; es <- KERNEL_SEG
+	mov bx, KERNEL_OFFSET	;　不想多解释了，这是偏移地址
 	mov ax, cx		; ax <- Sector 号
 
 LABEL_GOON_LOADING_FILE:
@@ -171,6 +178,15 @@ LABEL_GOON_LOADING_FILE:
 	add ax, dx
 	add ax, DeltaSectorNo
 	add bx, [BPB_BytsPerSec]
+	jc .4               ; 如果bx重新变成0了，说明内核文件大于64KB
+	jmp .5              ; 加载完毕
+.4:
+    push ax             ; es += 0x1000  <-- es指向下一个段，准备继续加载
+    mov ax, es
+    add ax, 1000h
+    mov es, ax
+    pop ax
+.5:
 	jmp LABEL_GOON_LOADING_FILE		; 继续读写　内核文件　下一个　Sector
 LABEL_FILE_LOADED:					;　读　内核文件　完毕
 	call KillMotor					;　关闭软驱马达
@@ -198,7 +214,7 @@ LABEL_FILE_LOADED:					;　读　内核文件　完毕
 	; 5 真正进入保护模式！前面的4步已经完成了保护模式所需的所有东西
 	; 	现在只需要跳入到一个32位代码段就可以真正进入保护模式了！
 	;	在保护模式下，你可以获得32位CPU给你带来的所有功能，不必要再忍受16位实模式的各种限制！
-	jmp dword SelectorFlatC:(BaseOfLoaderPhyAddr + LAB_PM_START)
+	jmp dword SelectorFlatC:(LOADER_PHY_ADDR + LAB_PM_START)
 
 	jmp $       ; 如果前面的工作顺利，这行代码将永远不可能执行
 
@@ -219,6 +235,7 @@ MessageLength		equ	12
 LoadMessage:		db	"Loading....."
 Message1		    db	"Enter KERNEL"
 Message2		    db	"No KERNEL!!!"
+Message3            db  "Too Large!!!"
 ;================================================================================================
 ;----------------------------------------------------------------------------
 ; 函数名: DispStrOnRealModel
@@ -295,8 +312,8 @@ GetFATEntry:
 	push	es
 	push	bx
 	push	ax
-	mov	ax, BaseOfKernelFile	; ┓
-	sub	ax, 0100h				; ┣ 在 BaseOfKernelFile 后面留出 4K 空间用于存放 FAT
+	mov	ax, KERNEL_SEG	; ┓
+	sub	ax, 0100h				; ┣ 在 KERNEL_SEG 后面留出 4K 空间用于存放 FAT
 	mov	es, ax					; ┛
 	pop	ax
 	mov	byte [bOdd], 0
@@ -313,7 +330,7 @@ LABEL_EVEN:;偶数
 	div	bx						; dx:ax / BPB_BytsPerSec  ==>	ax <- 商   (FATEntry 所在的扇区相对于 FAT 来说的扇区号)
 								;				dx <- 余数 (FATEntry 在扇区内的偏移)。
 	push	dx
-	mov	bx, 0				; bx <- 0	于是, es:bx = (BaseOfKernelFile - 100):00 = (BaseOfKernelFile - 100) * 10h
+	mov	bx, 0				; bx <- 0	于是, es:bx = (KERNEL_SEG - 100):00 = (KERNEL_SEG - 100) * 10h
 	add	ax, SectorNoOfFAT1	; 此句执行之后的 ax 就是 FATEntry 所在的扇区号
 	mov	cl, 2
 	call	ReadSector		; 读取 FATEntry 所在的扇区, 一次读两个, 避免在边界发生错误, 因为一个 FATEntry 可能跨越两个扇区
@@ -375,15 +392,15 @@ LAB_PM_START:	; 程序开始
     mov dword [BOOT_PARAM_ADDR], BOOT_PARAM_MAGIC ; 魔数
     mov eax, [dwMemSize]
     mov [BOOT_PARAM_ADDR + 4], eax  ; 内存大小
-    mov eax, BaseOfKernelFile
+    mov eax, KERNEL_SEG
     shl eax, 4
-    add eax, OffsetOfKernelFile
+    add eax, KERNEL_OFFSET
     mov [BOOT_PARAM_ADDR + 8], eax  ; 内核所在的物理地址
 
     ;*********************************************************************************
 	; 正式进入内核，Loader将CPU控制权转交给内核，至此，Loader的使命也结束了！比Boot厉害吧！
 	; 从这里的函数运行成功后，我们才真正算是进入编写操作系统的门槛
-	jmp SelectorFlatC:KernelEntryPointPhyAddr
+	jmp SelectorFlatC:KERNEL_ENTRY_POINT_PHY_ADDR
 	;*********************************************************************************
 	; 而在此时，内存看上去是这样的：
 	;              ┃                                    ┃
@@ -441,7 +458,7 @@ LAB_PM_START:	; 程序开始
     ;              ┃■■■■■■■■■■■■■■■■■■┃ 7C00h~7DFFh : BOOT 向量, 将会被内核覆盖
     ;              ┃■■■■■■■■■■■■■■■■■■┃
     ;              ┃■■■■■■■■■■■■■■■■■■┃
-    ;        1000h ┃■■■■■■■■KERNEL■■■■■■■┃ 1000h ← KERNEL 入口 (KernelEntryPointPhyAddr)
+    ;        1000h ┃■■■■■■■■KERNEL■■■■■■■┃ 1000h ← KERNEL 入口 (KERNEL_ENTRY_POINT_PHY_ADDR)
     ;              ┣━━━━━━━━━━━━━━━━━━┫
     ;        700h  ┃Boot Params                         ┃
     ;              ┃                                    ┃
@@ -462,8 +479,8 @@ LAB_PM_START:	; 程序开始
     ;		┃      ┃ 未使用空间	┃◇◇◇┃ 可以覆盖的内存
     ;		┗━━━┛		┗━━━┛
     ;
-    ; 注：KERNEL 的位置实际上是很灵活的，可以通过同时改变 LOAD.INC 中的 KernelEntryPointPhyAddr 和 MAKEFILE 中参数 -Ttext 的值来改变。
-    ;     比如，如果把 KernelEntryPointPhyAddr 和 -Ttext 的值都改为 0x400400，则 KERNEL 就会被加载到内存 0x400000(4M) 处，入口在 0x400400。
+    ; 注：KERNEL 的位置实际上是很灵活的，可以通过同时改变 LOAD.INC 中的 KERNEL_ENTRY_POINT_PHY_ADDR 和 MAKEFILE 中参数 -Ttext 的值来改变。
+    ;     比如，如果把 KERNEL_ENTRY_POINT_PHY_ADDR 和 -Ttext 的值都改为 0x400400，则 KERNEL 就会被加载到内存 0x400000(4M) 处，入口在 0x400400。
     ;
 
 ;================================================================================================
@@ -720,9 +737,9 @@ SetupPaging:
 	; 首先，初始化页目录
 	mov ax, SelectorFlatRW
 	mov es, ax
-	mov edi, PageDirBase	; 此段首地址为 PageDirBase
+	mov edi, PAGE_DIR_BASE	; 此段首地址为 PAGE_DIR_BASE
 	xor eax, eax
-	mov eax, PageTblBase | PG_P | PG_US_U | PG_RW_W
+	mov eax, PAGE_TABLE_BASE | PG_P | PG_US_U | PG_RW_W
 .1:
 	stosd
 	add eax, 4096			; 为简化，所有页表在内存中是连续的
@@ -733,7 +750,7 @@ SetupPaging:
 	mov ebx, 1024			; 每个页表 1024 个 PTE
 	mul ebx
 	mov ecx, eax			; PTE个数 = 页表个数 * 1024
-	mov edi, PageTblBase	; 此段首地址为 PageTblBase
+	mov edi, PAGE_TABLE_BASE	; 此段首地址为 PAGE_TABLE_BASE
 	xor eax, eax
 	mov eax,  PG_P | PG_US_U | PG_RW_W
 .2:
@@ -742,7 +759,7 @@ SetupPaging:
 	loop .2
 
 	; 最后，设置cr3和cr0，开启分页机制
-	mov eax, PageDirBase
+	mov eax, PAGE_DIR_BASE
 	mov cr3, eax
 	mov eax, cr0
 	or	eax, 80000000h
@@ -759,17 +776,17 @@ SetupPaging:
 ; --------------------------------------------------------------------------------------------
 InitKernel:
 	xor esi, esi
-	mov cx, word [BaseOfKernelFilePhyAddr + 2Ch]	; @ 
+	mov cx, word [KERNEL_PHY_ADDR + 2Ch]	; @ 
 	movzx ecx, cx									; @-> ecx <- pELFHdr -> e_phnum
-	mov esi, [BaseOfKernelFilePhyAddr + 1Ch]		; esi <- pELFHdr ->e_phoff
-	add esi, BaseOfKernelFilePhyAddr				; esi <- OffsetOfKernel + pELFHdr -> e_phoff
+	mov esi, [KERNEL_PHY_ADDR + 1Ch]		; esi <- pELFHdr ->e_phoff
+	add esi, KERNEL_PHY_ADDR				; esi <- OffsetOfKernel + pELFHdr -> e_phoff
 .Begin:
 	mov eax, [esi + 0]
 	cmp eax, 0 				; PT_NULL
 	jz	.NoAction
 	push dword [esi + 010h]				; @
 	mov eax, [esi + 04h]				; #
-	add eax, BaseOfKernelFilePhyAddr	; # memcpy( (void*))(pPhdr->p_vaddr),
+	add eax, KERNEL_PHY_ADDR	; # memcpy( (void*))(pPhdr->p_vaddr),
 	push eax							; #			uchCode + pPHdr->p_offset,
 	push dword [esi + 08h]				; #			pPHdr->p_filesz
 	call MemCpy							; #		   );
@@ -807,24 +824,24 @@ _ARDStruct:			    ; Address Range Descriptor Structure
 _MemChkBuf:	times	256	db	0
 ;
 ; 保护模式下需要使用这些符号
-szRAMSize		    equ	BaseOfLoaderPhyAddr + _szRAMSize
-szMSizeKb           equ BaseOfLoaderPhyAddr + _szMSizeKb
-szReturn		    equ	BaseOfLoaderPhyAddr + _szReturn
-szThreeSpace        equ BaseOfLoaderPhyAddr + _szThreeSpace
-dwDispPos		    equ	BaseOfLoaderPhyAddr + _dwDispPos
-dwMemSize		    equ	BaseOfLoaderPhyAddr + _dwMemSize
-dwMCRNumber		    equ	BaseOfLoaderPhyAddr + _dwMCRNumber
-ARDStruct		    equ	BaseOfLoaderPhyAddr + _ARDStruct
-	dwBaseAddrLow	equ	BaseOfLoaderPhyAddr + _dwBaseAddrLow
-	dwBaseAddrHigh	equ	BaseOfLoaderPhyAddr + _dwBaseAddrHigh
-	dwLengthLow	    equ	BaseOfLoaderPhyAddr + _dwLengthLow
-	dwLengthHigh	equ	BaseOfLoaderPhyAddr + _dwLengthHigh
-	dwType		    equ	BaseOfLoaderPhyAddr + _dwType
-MemChkBuf		    equ	BaseOfLoaderPhyAddr + _MemChkBuf
+szRAMSize		    equ	LOADER_PHY_ADDR + _szRAMSize
+szMSizeKb           equ LOADER_PHY_ADDR + _szMSizeKb
+szReturn		    equ	LOADER_PHY_ADDR + _szReturn
+szThreeSpace        equ LOADER_PHY_ADDR + _szThreeSpace
+dwDispPos		    equ	LOADER_PHY_ADDR + _dwDispPos
+dwMemSize		    equ	LOADER_PHY_ADDR + _dwMemSize
+dwMCRNumber		    equ	LOADER_PHY_ADDR + _dwMCRNumber
+ARDStruct		    equ	LOADER_PHY_ADDR + _ARDStruct
+	dwBaseAddrLow	equ	LOADER_PHY_ADDR + _dwBaseAddrLow
+	dwBaseAddrHigh	equ	LOADER_PHY_ADDR + _dwBaseAddrHigh
+	dwLengthLow	    equ	LOADER_PHY_ADDR + _dwLengthLow
+	dwLengthHigh	equ	LOADER_PHY_ADDR + _dwLengthHigh
+	dwType		    equ	LOADER_PHY_ADDR + _dwType
+MemChkBuf		    equ	LOADER_PHY_ADDR + _MemChkBuf
 
 
 ; 堆栈就在数据段的末尾
 StackSpace:	times	1000h	db	0
-TopOfStack	equ	BaseOfLoaderPhyAddr + $	    ; 栈顶
+TopOfStack	equ	LOADER_PHY_ADDR + $	    ; 栈顶
 
 ;================================================================================================

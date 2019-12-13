@@ -29,7 +29,7 @@ char *core_name = "core";   /* 生成核心映像的文件名 */
  */
 _PROTOTYPE( int (*mm_call_handlers[NR_CALLS]), (void) ) = {
         &mm_no_sys,     /* 0 = 没有使用的调用 */
-        &do_mm_exit,    /* 1 = exit::退出一个进程 */
+        &do_exit,       /* 1 = exit::退出一个进程 */
         &do_wait,       /* 2 = wait:: */
         &do_fork,       /* 3 = fork::派生一个新进程 */
         &do_exec,       /* 4 = exec::执行一个文件 */

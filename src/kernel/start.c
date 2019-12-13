@@ -25,8 +25,6 @@ PUBLIC BootParams bootParams;
  *==========================================================================*/
 PUBLIC void cstart(void)
 {
-    register char* p_env;
-
     /* 记录内核的代码、数据段位置。 */
     code_base = seg2phys(SELECTOR_KERNEL_CS);
     data_base = seg2phys(SELECTOR_KERNEL_DS);

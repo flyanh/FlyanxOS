@@ -110,6 +110,15 @@ typedef struct message_s{
 #define m6_l1   m_u.m_u6.m6l1
 #define m6_f1   m_u.m_u6.m6f1
 
+/* 内存映像
+ * 这个结构能够描述一个内存块信息
+ */
+typedef struct memory_map{
+    phys_bytes base;    /* 这块内存的基地址 */
+    phys_bytes limit;   /* 这块内存的界限在哪 */
+    phys_bytes size;    /* 这块内存有多大？ */
+} MemoryMap;
+
 /* 启动参数 */
 typedef struct boot_params_s {
     u32_t memory_size;          /* 内存大小 */

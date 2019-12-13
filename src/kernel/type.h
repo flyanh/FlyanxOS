@@ -72,7 +72,7 @@ typedef struct seg_descriptor_s {		    /* 受保护模式的段描述符 */
     u16_t base_low;
     u8_t base_middle;
     u8_t access;			  /* | P | DL | 1 | X | E | R | A | */
-    u8_t granularity;		/* | G | X  | 0 | A |   LIMT    | */
+    u8_t granularity;		/* | G | X  | 0 | A | LIMIT HIGHT | */
     u8_t base_high;
 } SegDescriptor;
 

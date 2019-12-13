@@ -39,7 +39,7 @@ PUBLIC void fs_main(void){
     /* 文件系统初始化 */
     fs_init();
 
-    fs_print_info("working...");
+    fs_print_info("Working...");
     /* 文件系统开始工作了 */
     while (TRUE){
         view_inbox();   /* 查看收件箱，等待来信 */
@@ -69,26 +69,6 @@ PUBLIC void fs_main(void){
 PRIVATE void view_inbox(void){
     /* 查看收件箱，等待一条消息得到工作
      */
-
-//    register FSProcess *fp;
-//    if(reviving != 0){
-//        /* 有需要恢复的进程 */
-//        for(fp = &fsproc[0]; fp < &fsproc[NR_PROCS]; fp++){
-//            if(fp->revived == REVIVING){
-//                who = (int)(fp - fsproc);
-//                fs_call = fp->fd & BYTE;
-//                in_fd = (fp->fd >> 8) & BYTE;
-//                in_buffer = fp->buffer;
-//                in_bytes = fp->bytes;
-//                fp->suspended = NOT_SUSPENDED;  /* 该进程不在挂起 */
-//                fp->revived = NOT_REVIVING;
-//                reviving--;
-//                return;
-//            }
-//        }
-//        /* 很明显，文件系统被通知有进程需要恢复，我们却没找到，内部已经混乱！ */
-//        fs_panic("view_inbox couldn't revive anyone", NO_NUM);
-//    }
 
     /* 正常情况下，没有人会被管道挂起，也没有人会被恢复 */
     if(receive(ANY, &fs_inbox) != OK) fs_panic("FS receive error", NO_NUM);

@@ -51,8 +51,8 @@ boot_strap:
     mov ax, SUPER_BLOCK_SEG
     mov fs, ax
 
-    mov dword [disk_address_packet + 4], OffsetOfLoader
-    mov dword [disk_address_packet + 6], BaseOfLoader
+    mov dword [disk_address_packet + 4], LOADER_OFFSET
+    mov dword [disk_address_packet + 6], LOADER_SEG
 
     ;; 获取根目录'/'的扇区号（ROOT_INODE），它将存储到eax寄存器中
     mov eax, [fs:SB_ROOT_INODE]     ; eax = [fs:SB_ROOT_INODE]
@@ -120,7 +120,7 @@ load_loader2mem:            ;; 现在开始将Loader载入内存中
 .done:
     mov dh, 1
     call print      ; print("HD Boot.....");
-    jmp BaseOfLoader:OffsetOfLoader
+    jmp LOADER_SEG:LOADER_OFFSET
     jmp $
 ;;==================================================================================
 ;;                       字符串

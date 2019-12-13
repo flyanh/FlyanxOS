@@ -31,7 +31,7 @@ void origin_main(void){
     int stdout_fd = open("/dev_tty0", O_RDWR);
 
 
-    printf("{ORIGIN}-> do something of init...\n");
+    printf("{ORIGIN}-> Do something for init...\n");
 
     /* 现在还没啥事做，先永久堵塞自己 */
     sleep(FOREVER);

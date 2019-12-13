@@ -16,7 +16,7 @@
 #endif
 
 /* 全局变量 */
-EXTERN int procs_in_use;            /* 有多少进程被标记为正在使用 */
+EXTERN int procs_in_use;                /* 有多少进程被标记为正在使用 */
 EXTERN struct mm_process_s *curr_mp;    /* 指向一个当前正在处理的进程 */
 
 /* 外界的调用参数在这 */

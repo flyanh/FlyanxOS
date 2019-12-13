@@ -42,19 +42,19 @@ PUBLIC void protect_init(void)
 
     // 首先，将LOADER中的GDT复制到新的GDT中
     memcpy(	&gdt,				    		                // New GDT
-               (void*)(*((u32_t *)(&gdt_ptr[2]))),   	// Base  of Old GDT
+               (void *) (*((u32_t *) (&gdt_ptr[2]))),   	// Base  of Old GDT
                *((u16_t *)(&gdt_ptr[0])) + 1	    	// Limit of Old GDT
     );
 
     // gdt_ptr[6] 共 6 个字节: 0~15:Limit  16~47:Base。用作 sgdt 以及 lgdt 的参数。
-    u16_t * p_gdtLimit	= (u16_t *)(&gdt_ptr[0]);
-    u32_t * p_gdtBase 	= (u32_t *)(&gdt_ptr[2]);
+    u16_t *p_gdtLimit	= (u16_t *)(&gdt_ptr[0]);
+    u32_t *p_gdtBase 	= (u32_t *)(&gdt_ptr[2]);
     *p_gdtLimit = GDT_SIZE * DESCRIPTOR_SIZE - 1;
     *p_gdtBase	= (u32_t)&gdt;
 
-    // idt_ptr[6] 共 6 个字节：0~15 u16_t* p_idt_limit = (u16_t*)(&idt_ptr[0]);
-    u16_t * p_idtLimit = (u16_t*)(&idt_ptr[0]);
-    u32_t * p_idtBase  = (u32_t*)(&idt_ptr[2]);
+    // idt_ptr[6] 共 6 个字节：0~15:Limit  16~47:Base。用作 sidt 以及 lidt 的参数。
+    u16_t *p_idtLimit = (u16_t*)(&idt_ptr[0]);
+    u32_t *p_idtBase  = (u32_t*)(&idt_ptr[2]);
     *p_idtLimit = IDT_SIZE * sizeof(Gate) - 1;
     *p_idtBase  = (u32_t)&idt;
 
@@ -118,14 +118,12 @@ PUBLIC void protect_init(void)
      */
     Process *proc;
     unsigned ldt_index;
-    int c = 0;
     for(proc = BEG_PROC_ADDR, ldt_index = LDT_FIRST_INDEX;
-        proc < END_PROC_ADDR; ++proc, ldt_index++){
+        proc < END_PROC_ADDR; proc++, ldt_index++){
         init_seg_desc(&gdt[ldt_index],
                       vir2phys(proc->ldt),
-                      LDT_SIZE * DESCRIPTOR_SIZE,
+                      LDT_SIZE * DESCRIPTOR_SIZE - 1,
                       DA_LDT);
-        gdt[ldt_index].access = 0x82;
         proc->ldt_selector = ldt_index * DESCRIPTOR_SIZE;
     }
 }
@@ -136,8 +134,8 @@ PUBLIC void protect_init(void)
  *=========================================================================*/
 PUBLIC void init_seg_desc(p_desc, base, limit, attribute)
 register SegDescriptor *p_desc;
-vir_bytes base;
-vir_bytes limit;
+phys_bytes base;
+phys_bytes limit;
 u16_t attribute;
 {
     /* 初始化一个数据段描述符 */

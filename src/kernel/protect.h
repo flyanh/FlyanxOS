@@ -84,7 +84,11 @@ typedef struct tss_s
 /*================================================================================================*/
 #define GDT_SIZE (LDT_FIRST_INDEX + NR_TASKS + NR_PROCS) /* 全局描述符表 */
 #define IDT_SIZE (INT_VECTOR_IRQ8 + 8)	    /* 只取最高的向量 */
-#define LDT_SIZE         4	                /* 包含CS, DS和两个额外的；否则应为2 */
+#define LDT_SIZE         2	                /* flyanx1.0 每个进程只有两个LDT，一个是正文段（代码段），
+                                             * 另一个是数据段，而堆栈段则和数据段共用，以后可能会分的更
+                                             * 细，但对于现在来说，这样就够了。
+                                             */
+//#define LDT_SIZE         4	                /* 包含CS, DS和SS和一个拓展；否则应为2 */
 
 /*================================================================================================*/
 /* 固定的全局描述符。 */
@@ -206,5 +210,11 @@ typedef struct tss_s
 #define	INT_VECTOR_PROTECTION		0xD
 #define	INT_VECTOR_PAGE_FAULT		0xE
 #define	INT_VECTOR_COPROC_ERR		0x10
+
+/* 反推：通过一个段描述符，反向得到对应的物理地址，例如正文段的基地址。 */
+#define	reassembly(high, high_shift, mid, mid_shift, low)	\
+	(((high) << (high_shift)) +				\
+	 ((mid)  << (mid_shift)) +				\
+	 (low))
 
 #endif //FLYANX_PROTECT_H

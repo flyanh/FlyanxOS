@@ -25,8 +25,6 @@ PUBLIC int do_sleep(void){
 #define FOREVER -1      /* 永久堵塞 */
     time_t daze = in_daze_time;        /* 什么时候唤醒自己(ms)？ */
 
-    printf("sleep %dms...\n", daze);
-
     /* 不是用户进程或则唤醒时间无效则不行，返回一个OK，让他们继续运行 */
     if(fly_who < ORIGIN_PROC_NR || daze < FOREVER || daze == 0) return OK;
 

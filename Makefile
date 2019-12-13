@@ -113,7 +113,7 @@ LibObjs         = $(tl)/i386/message.o \
                   $(tl)/syslib/putk.o $(tl)/ansi/stringc.o $(tl)/syslib/task_call.o \
                   $(tl)/syslib/sys_sudden.o $(tl)/syslib/sys_blues.o $(tl)/syslib/sys_copy.o \
                   $(tl)/other/loadname.o $(tl)/other/syscall.o $(tl)/other/errno.o $(tl)/other/_sleep.o \
-                  $(tl)/stdio/vsprintf.o $(tl)/stdio/printf.o \
+                  $(tl)/stdio/vsprintf.o $(tl)/stdio/printf.o $(tl)/stdio/sprintf.o \
                   $(tl)/posix/_open.o $(tl)/posix/_creat.o $(tl)/posix/_close.o $(tl)/posix/_mkdir.o \
                   $(tl)/posix/_read.o $(tl)/posix/_write.o $(tl)/posix/_link.o $(tl)/posix/_unlink.o \
                   $(tl)/posix/_lseek.o $(tl)/posix/_stat.o $(tl)/posix/_fstat.o \
@@ -219,8 +219,8 @@ $(tk)/i8259.o: $(sk)/i8259.c
 $(tk)/main.o: $(ka)
 $(tk)/main.o: $i/unistd.h
 $(tk)/main.o: $i/signal.h
-$(tk)/main.o: $h/callnr.h
 $(tk)/main.o: $h/common.h
+$(tk)/main.o: $(sk)/protect.h
 $(tk)/main.o: $(sk)/process.h
 $(tk)/main.o: $(sk)/main.c
 	$(CC) $(CFlags) -o $@ $<
@@ -440,6 +440,11 @@ $(tl)/stdio/printf.o: $i/string.h
 $(tl)/stdio/printf.o: src/lib/stdio/printf.c
 	$(CC) $(CFlags) -o $@ $<
 
+$(tl)/stdio/sprintf.o: $i/stdio.h
+$(tl)/stdio/sprintf.o: $i/stdarg.h
+$(tl)/stdio/sprintf.o: src/lib/stdio/sprintf.c
+	$(CC) $(CFlags) -o $@ $<
+
 # posix系统调用
 $(tl)/posix/_open.o: $i/lib.h
 $(tl)/posix/_open.o: $i/fcntl.h
@@ -567,6 +572,8 @@ $(tmm)/alloc.o: $(smm)/alloc.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tmm)/forkexit.o: $(mma)
+$(tmm)/forkexit.o: $s/wait.h
+$(tmm)/forkexit.o: $h/callnr.h
 $(tmm)/forkexit.o: $i/signal.h
 $(tmm)/forkexit.o: $(smm)/mmproc.h
 $(tmm)/forkexit.o: $(smm)/param.h

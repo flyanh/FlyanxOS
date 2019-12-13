@@ -32,5 +32,7 @@
 
 _PROTOTYPE( int vsprintf, (char *_buf, const char *_fmt, char *_args) );
 _PROTOTYPE( int printf, (const char *_fmt, ...) );
+_PROTOTYPE( int sprintf, (char *_buf, const char *_fmt, ...) );
+
 
 #endif //STDIO_H

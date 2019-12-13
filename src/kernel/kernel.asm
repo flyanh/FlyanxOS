@@ -14,6 +14,7 @@
 %include "asmconst.inc"
 
 ; 导入函数
+extern  display_position    ; 简单显示函数disp_str需要这个标识显示位置
 extern  cstart				; 改变gdt_ptr，让它指向新的GDT
 extern  main	            ; 内核主函数
 extern	spurious_irq	    ; 默认中断请求处理程序
@@ -144,11 +145,12 @@ _start:
     mov	ss, ax
     ; 把　esp 从　LOADER 挪到 KERNEL　处
 	mov esp, StackTop       ; 堆栈在 bss 段中
-    
-    sgdt    [gdt_ptr]    ; cstart() 中将会用到 gdt_ptr
 
+    ; 初始化disp_str的显示位置。
+    mov dword [display_position], 0
+
+    sgdt    [gdt_ptr]    ; protect.c 中将会用到 gdt_ptr
     call    cstart      ; 在此函数中改变了gdt_ptr，让它指向新的GDT
-
     lgdt    [gdt_ptr]    ; 使用新的GDT
 
     lidt    [idt_ptr]	; 加载idtr

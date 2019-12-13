@@ -39,10 +39,14 @@
 #define NR_CPVECTOR         16  /* 一次SYS_VCOPY请求最多可以复制多少 */
 #define NR_IO_REQUESTS  MIN(NR_BUFS, 64)        /* 一次io请求最多传输数量 */
 
-#define NR_SEGS             3   /* 每个进程的拥有的段数量 */
+#define NR_SEGS             2   /* 每个进程的拥有的段数量 */
 #define TEXT                0   /* 正文段索引号，也称为代码段 */
-#define DATA                1   /* 数据段索引号 */
-#define STACK               2   /* 堆栈段索引号 */
+#define DATA                1   /* 数据段索引号，堆栈段共用这个空间 */
+
+//#define NR_SEGS             3   /* 每个进程的拥有的段数量 */
+//#define TEXT                0   /* 正文段索引号，也称为代码段 */
+//#define DATA                1   /* 数据段索引号 */
+//#define STACK               2   /* 堆栈段索引号 */
 
 /* 一些重要进程的进程号 */
 #define MM_PROC_NR         0	/* 内存管理器 */

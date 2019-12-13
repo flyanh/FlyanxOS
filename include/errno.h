@@ -56,7 +56,7 @@ extern int errno;		  /* 错误编号所在的位置 */
 #define ENOEXEC       (_SIGN  8)  /* 可执行文件的格式错误 */
 #define EBADF         (_SIGN  9)  /* 坏的文件描述符 */
 #define ECHILD        (_SIGN 10)  /* no child process */
-#define EAGAIN        (_SIGN 11)  /* resource temporarily unavailable */
+#define EAGAIN        (_SIGN 11)  /* 资源暂时不可用，例如进程表满了 */
 #define ENOMEM        (_SIGN 12)  /* not enough space */
 #define EACCES        (_SIGN 13)  /* 没有权限 */
 #define EFAULT        (_SIGN 14)  /* 错误的地址 */

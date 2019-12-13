@@ -17,14 +17,13 @@ typedef struct process_s {
 
 #if (CHIP == INTEL)
     reg_t ldt_selector;		            /* LDT选择子 */
-    SegDescriptor ldt[4];	            /* LDT的数据，4是LDT_SIZE，它定义在头文件protect.h中*/
-    /* 4 is LDT_SIZE - avoid include protect.h */
+    SegDescriptor ldt[2];	            /* LDT的数据，2是LDT_SIZE，它定义在头文件protect.h中 */
 #endif /* (CHIP == INTEL) */
 
     reg_t *stack_guard_word;        /* 堆栈保护字 */
 
     int nr;                         /* 进程索引号，主要用于快速访问 */
-
+    MemoryMap map[2];         /* 进程的内存映像，现在包括正文段和数据段（堆栈段） */
     char int_blocked;               /* 被置位，当目标进程有一条中断消息被繁忙的任务堵塞了 */
     char int_held;                  /* 被置位，当目标进程有一条中断消息被繁忙的系统调用挂起保留了 */
     struct process_s *next_held;    /* 被挂起保留的中断过程队列 */

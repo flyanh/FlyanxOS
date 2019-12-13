@@ -28,7 +28,7 @@ _PROTOTYPE( void free_mem, (phys_clicks base, phys_clicks clicks) );
 /* forkexit.c */
 /*================================================================================================*/
 _PROTOTYPE( int do_fork, (void) );
-_PROTOTYPE( int do_mm_exit, (void) );
+_PROTOTYPE( int do_exit, (void) );
 _PROTOTYPE( void mm_exit, (struct mm_process_s *rmp, int exit_status) );
 _PROTOTYPE( int do_wait, (void) );
 

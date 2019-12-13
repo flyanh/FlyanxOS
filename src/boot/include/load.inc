@@ -10,29 +10,31 @@
 
 ;; 内核挂载点
 ; 注意：1、必须与 MAKEFILE 中参数 -Ttext 的值相等!!
-;      2、这是个地址而非仅仅是个偏移，如果 -Ttext 的值为 0x400400，则它的值也应该是 0x400400。
-KernelEntryPointPhyAddr	equ	0x1000
+;      2、这是个物理地址而非仅仅是个偏移，如果 -Ttext 的值为 0x328000，则它的值也应该是 0x328000。
+KERNEL_ENTRY_POINT_PHY_ADDR     equ 0x1000
 
 ; 页目录开始地址:		1M
-PageDirBase		equ	0x100000
+PAGE_DIR_BASE		equ	0x100000
 ; 页表开始地址:		1M + 4K
-PageTblBase		equ	0x101000
+PAGE_TABLE_BASE		equ	0x101000
 
 ; LOADER.BIN 被加载的位置　--- 段地址
-BaseOfLoader        equ     0x9000
+LOADER_SEG        equ     0x9000
+
 ; LOADER.BIN 被加载的位置　--- 偏移地址  
 OffsetOfLoader      equ     0x100
-; LOADER.BIN 被加载到的位置　--- 物理地址　(= BaseOfLoader * 10h)
-BaseOfLoaderPhyAddr equ BaseOfLoader * 10h
+LOADER_OFFSET      equ     0x100
+; LOADER.BIN 被加载到的位置　--- 物理地址　(= LOADER_SEG * 10h)
+LOADER_PHY_ADDR     equ LOADER_SEG * 10h
 
 ; KERNEL.BIN 被加载到的位置 ----  段地址
-BaseOfKernelFile	equ	    0x7000
+KERNEL_SEG	        equ	    0x7000
 ; KERNEL.BIN 被加载到的位置 ---- 偏移地址
-OffsetOfKernelFile	equ	    0
-BaseOfKernelFilePhyAddr	equ	BaseOfKernelFile * 10h
+KERNEL_OFFSET	equ	    0
+KERNEL_PHY_ADDR	equ	KERNEL_SEG * 10h
 
-;; 为kernel.bin装载保留的内存大小(字节)
-KERNEL_HAVE_SPACE   equ BaseOfLoaderPhyAddr - BaseOfKernelFilePhyAddr
+;; 为kernel.bin装载保留的内存大小(字节)，内核文件大小不应该超过这个大小！
+KERNEL_HAVE_SPACE   equ LOADER_PHY_ADDR - KERNEL_PHY_ADDR
 
 ;; 超级块将被存储在的位置：[SUPER_BLOCK_SEG:0x900]
 SUPER_BLOCK_SEG     equ 0x70

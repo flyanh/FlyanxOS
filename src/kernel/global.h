@@ -24,7 +24,7 @@ EXTERN phys_clicks kernel_base; /* 内核所在基地址 */
 EXTERN phys_clicks kernel_limit;/* 内核界限 */
 
 /* GDT 和 IDT 以及显示位置 */
-EXTERN u16_t display_position;       /* 256显示模式下，文字显示位置，注意：这不是光标，
+EXTERN int display_position;       /* 256显示模式下，文字显示位置，注意：这不是光标，
                                         且只使用在没有完成终端的时候进行调试编译 */
 extern SegDescriptor gdt[];         /* 全局描述符表 */
 EXTERN u8_t gdt_ptr[6];             /* GDT指针，0~15：Limit 16~47：Base */

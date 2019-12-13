@@ -63,6 +63,7 @@
 #   define SYS_SUDDEN       6   /* 系统功能索引代码，sys_sudden() */
 #   define SYS_BLUES        7   /* 系统功能索引代码，sys_bules() */
 #   define SYS_COPY         8   /* sys_copy(ptr) */
+#   define SYS_GETMAP       9   /*  */
 
 #define HARDWARE            -1	    /* 用作中断生成消息的源 */
 
