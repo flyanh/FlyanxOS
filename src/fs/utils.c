@@ -77,7 +77,7 @@ PUBLIC int get_pathname(
         rs = OK;
     } else {
         /* 路径名称太长了，不适合放在消息中，它现在在用户的缓冲区中，我们复制过来 */
-        rs = sys_copy(who, DATA, (phys_bytes) path,
+        rs = sys_copy(fs_who, DATA, (phys_bytes) path,
                 FS_PROC_NR, DATA, (phys_bytes) user_path, (phys_bytes) len);
     }
     return rs;

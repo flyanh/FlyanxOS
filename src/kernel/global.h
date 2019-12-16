@@ -20,11 +20,11 @@
 /* 内核内存 */
 EXTERN phys_bytes code_base;	/* 内核代码段基地址 */
 EXTERN phys_bytes data_base;	/* 内核数据段基地址 */
-EXTERN phys_clicks kernel_base; /* 内核所在基地址 */
-EXTERN phys_clicks kernel_limit;/* 内核界限 */
+EXTERN phys_bytes kernel_base; /* 内核所在基地址 */
+EXTERN phys_bytes kernel_limit;/* 内核界限 */
 
 /* GDT 和 IDT 以及显示位置 */
-EXTERN u16_t display_position;       /* 256显示模式下，文字显示位置，注意：这不是光标，
+EXTERN int display_position;       /* 256显示模式下，文字显示位置，注意：这不是光标，
                                         且只使用在没有完成终端的时候进行调试编译 */
 extern SegDescriptor gdt[];         /* 全局描述符表 */
 EXTERN u8_t gdt_ptr[6];             /* GDT指针，0~15：Limit 16~47：Base */
@@ -40,7 +40,7 @@ extern struct tss_s tss;                            /* 任务状态段 */
 EXTERN struct process_s *curr_proc;	                /* 当前运行进程的指针 */
 
 /* 其他 */
-extern BootParams bootParams;           /* 加载器（LOADER）传递的启动参数 */
+extern BootParams boot_params;           /* 加载器（LOADER）传递的启动参数 */
 extern TaskTab tasktab[];               /* 系统任务表 */
 extern char *task_stack[];		        /* 系统任务栈task_stack，每个任务在task_stack中都有其自己的堆栈 */
 EXTERN unsigned int lost_ticks;	        /* 时钟滴答在时钟任务之外的计数 */

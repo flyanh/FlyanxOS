@@ -15,7 +15,7 @@
 #define addr                fs_inbox.m2_l1
 #define in_buffer           fs_inbox.m1_p1
 #define in_fd               fs_inbox.m1_i1
-#define in_child	        fs_inbox.m1_i2
+#define in_child	        fs_inbox.m1_i1
 #define in_fd2              fs_inbox.m1_i2
 #define in_ls_fd            fs_inbox.m2_i1
 #define fmode	            fs_inbox.m3_i2
@@ -27,7 +27,7 @@
 #define	pathname_length     fs_inbox.m3_i1
 #define pathname1_length    fs_inbox.m1_i1
 #define pathname2_length    fs_inbox.m1_i2
-#define in_parent	        fs_inbox.m1_i1
+#define in_parent	        fs_inbox.m1_i2
 #define pathname_in_msg     fs_inbox.m3_ca1     /* 如果路径名较短，将被存放在消息中 */
 #define in_pid	            fs_inbox.m1_i3
 #define in_bytes            fs_inbox.m1_i2

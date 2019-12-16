@@ -16,7 +16,7 @@
 PUBLIC int _syscall(
         int who,        /* 想发给谁？ */
         int syscallnr,  /* 想请求什么调用？ */
-        register Message *msg_ptr   /* 发送的消息 */
+        Message *msg_ptr   /* 发送的消息 */
 ){
     int status;
 

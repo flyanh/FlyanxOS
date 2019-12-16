@@ -126,9 +126,13 @@ PUBLIC void tty_task(void){
            protected_mode ? "16-bit protected" : "real");
 #endif  /* _WORD_SIZE == 4 */
 #endif  /* (CHIP == INTEL) */
-    /* 显示现在进程的运行情况 */
+    /* 显示现在进程的运行情况和它们的内存映像 */
 //    proc_dmp();
-    /* 时钟任务主循环，一直得到工作，处理工作，回复处理结果 */
+//    map_dmp();
+//    printf("kernel_base: %d, kernel_limit: %d, ORIGIN size: %ld\n", kernel_base, kernel_limit,
+//            proc_addr(ORIGIN_PROC_NR)->map.size);
+
+    /* 终端任务主循环，一直得到工作，处理工作，回复处理结果 */
     while (TRUE){
         /* 首先检查所有的终端，看看有没有挂起的事件，如果有则调用相应的处理函数来处理
          * 未完成的事务。

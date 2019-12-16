@@ -115,7 +115,7 @@ typedef struct sequence_s {
 
 
 FORWARD _PROTOTYPE( void out_char, (Console *console_data, int ch) );
-FORWARD _PROTOTYPE( void scroll_screen, (unsigned direction) );
+//FORWARD _PROTOTYPE( void scroll_screen, (unsigned direction) );
 FORWARD _PROTOTYPE( void flush, (Console *console_data) );
 FORWARD _PROTOTYPE( void parse_escape, (Console *console_data, char ch) );
 FORWARD _PROTOTYPE( void beep, (void) );
@@ -417,7 +417,7 @@ PRIVATE void out_char(
  *			        滚屏
  * direction: 上滚（SCROLL_UP）或下滚（SCROLL_DOWN）
  *===========================================================================*/
-PRIVATE void scroll_screen(unsigned direction){
+PUBLIC void scroll_screen(unsigned direction){
     /* 滚屏（只能对当前正在使用的控制台生效）
      * 处理在屏幕最后一行已满时的向上滚屏，以及向下滚屏，主要导致原因是其在光标定位命令试图
      * 把光标移到屏幕之外。对每个方向的滚动，有三种可能的处理方法。它们要用来支持不同类型的
@@ -479,7 +479,7 @@ PRIVATE void scroll_screen(unsigned direction){
         } else {                            /* 硬件滚屏 */
             curr_console->origin = (curr_console->origin - screen_width) & video_mask;
         }
-        /* 得到出现的新行，它从屏幕底部出现。 */
+        /* 得到出现的新行，它从屏幕顶部出现。 */
         new_line = curr_console->origin;
     }
     /* 清空新出现的行（最后或顶部） */
@@ -649,7 +649,7 @@ PRIVATE void parse_escape(
 PRIVATE void do_escape(Console *console, char ch){
     int value, n;
     unsigned int src, dest, count;
-    int *parmp;
+//    int *parmp;
 
     /* 在处理转义序列时，可能会有字符需要添加到视频中，所以最好保证视频显示应该是最新的 */
     flush(console);

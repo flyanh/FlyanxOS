@@ -33,7 +33,7 @@ PUBLIC void mm_main(void){
     /* 初始化 */
     mm_init();
 
-    mm_print_info("working...");
+    mm_print_info("Working...");
     /* 内存管理器开始工作了 */
     while (TRUE){
         /* 等待消息，获得工作 */
@@ -47,11 +47,12 @@ PUBLIC void mm_main(void){
         }
 
         /* 将结果告诉用户以指示此次调用完成 */
-        if(rs != ERROR_NO_MESSAGE) set_reply(who, rs);
+        if(rs != ERROR_NO_MESSAGE) set_reply(mm_who, rs);
 
         /* 发送所有未处理的回复消息，包括上述调用的结果。不能换出进程。 */
         for(proc_nr = 0, curr_mp = mmproc; proc_nr < NR_PROCS; proc_nr++, curr_mp++){
             if(curr_mp->flags & REPLY){      /* 存在回复标记 */
+//                printf("MM --> %d\n", proc_nr);
                 if(send(proc_nr, &curr_mp->reply) != OK){    /* 回答它并检查回复成功状态 */
                     mm_panic("MM can't reply a message to any", proc_nr);
                 }
@@ -59,7 +60,6 @@ PUBLIC void mm_main(void){
             }
         }
     }
-
 }
 
 /*===========================================================================*
@@ -85,16 +85,15 @@ PUBLIC void set_reply(
  *===========================================================================*/
 PRIVATE void get_work(void){
     int rec_state;
-
     /* 等待一条消息 */
     rec_state = receive(ANY, &mmsg_in);
     /* 接收消息错误 */
     if(rec_state != OK) mm_panic("MM receive msg error", NO_NUM);
     /* 得到调用者和功能调用号 */
-    who = mmsg_in.source;
+    mm_who = mmsg_in.source;
     mm_call = mmsg_in.type;
     /* 得到调用的进程实例，如果调用者插槽号<0，则可能是系统任务在调用，设置为MM的插槽号 */
-    curr_mp = &mmproc[who < 0 ? MM_PROC_NR : who];
+    curr_mp = &mmproc[mm_who < 0 ? MM_PROC_NR : mm_who];
 }
 
 /*===========================================================================*
@@ -111,21 +110,23 @@ PRIVATE void mm_init(void){
     for(proc_nr = 0; proc_nr <= ORIGIN_PROC_NR; proc_nr++){
         rmp = &mmproc[proc_nr];
         rmp->flags |= IN_USE;
+        /* 拿到该进程的内存映像，它很重要对于MM，这些信息用于FORK。 */
+        sys_get_map(proc_nr, &rmp->map);
     }
 
     /* 得到机器的内存总量（包含了不可用的） */
-    total_clicks = bootParams.memory_size >> CLICK_SHIFT;
+    total_clicks = boot_params.memory_size >> CLICK_SHIFT;
     /* 得到剩余可用的空闲内存，总内存减去程序可以使用的空间即可 */
-    free_clicks = total_clicks - (PROCS_BASE >> CLICK_SHIFT);
+    free_clicks = total_clicks - PROCS_BASE_CLICK;
     /* 初始化内存空洞表，将表初始化为所有可用的物理内存 */
     mem_init(total_clicks, free_clicks);
 
     /* 准备ORIGIN进程表项 */
     mmproc[ORIGIN_PROC_NR].pid = ORIGIN_PID;
-    procs_in_use = LOW_USER + 1;
+    procs_in_use = LOW_USER + 1;    /* 有多少进程正在使用中？ */
 
     /* 打印内存信息：内存总量、核心内存的使用和空闲内存情况 */
-    printf("You computer's total memory size = %uKB, Available = %uKB.\n\n",
+    printf("{MM}-> You computer's total memory size = %uKB, Available = %uKB.\n",
             click2round_kb(total_clicks), click2round_kb(free_clicks) );
 }
 

@@ -13,18 +13,23 @@
 
 /* 进程，也称进程表项 */
 typedef struct process_s {
-    Stackframe regs;   /* 进程寄存器保存在堆栈结构中 */
-
-#if (CHIP == INTEL)
-    reg_t ldt_selector;		            /* LDT选择子 */
-    SegDescriptor ldt[4];	            /* LDT的数据，4是LDT_SIZE，它定义在头文件protect.h中*/
-    /* 4 is LDT_SIZE - avoid include protect.h */
-#endif /* (CHIP == INTEL) */
+    /***********************************************************************************************/
+    /* 这里面的结构是必须固定在这几个位置的，因为CPU识别一个进程会按这样的结构去找寄存器的值和LDT选择符 */
+    Stackframe regs;                    /* 进程寄存器保存在堆栈结构中 */
+    reg_t ldt_sel;		                /* LDT选择子 */
+    SegDescriptor ldt[2];	            /* LDT的数据，2是LDT_SIZE，它定义在头文件protect.h中 */
+    /***********************************************************************************************/
+    /* 从这后面的都是可以自定义的，跟硬件无关。 */
 
     reg_t *stack_guard_word;        /* 堆栈保护字 */
 
-    int nr;                         /* 进程索引号，主要用于快速访问 */
+    /* 进程的内存映像，现在包括正文段和数据段（堆栈段），
+     * 但只有一个，因为当前flyanx并不加以细分这几个段，
+     * 它们都使用同一个段区域。
+     */
+    MemoryMap map;
 
+    int nr;                         /* 进程索引号，主要用于快速访问 */
     char int_blocked;               /* 被置位，当目标进程有一条中断消息被繁忙的任务堵塞了 */
     char int_held;                  /* 被置位，当目标进程有一条中断消息被繁忙的系统调用挂起保留了 */
     struct process_s *next_held;    /* 被挂起保留的中断过程队列 */
@@ -40,7 +45,7 @@ typedef struct process_s {
     /* 时间相关 */
     clock_t user_time;          /* 用户时间(以时钟滴答为单位)，即进程使用的时间 */
     clock_t sys_time;           /* 系统时间(以时钟滴答为单位)，即进程调用了系统任务的时间，或者说进程本身就是系统任务 */
-    clock_t child_utime;        /* 子进程累积的用户时间 */
+    clock_t child_user_time;        /* 子进程累积的用户时间 */
     clock_t child_sys_time;     /* 子进程累积的系统时间 */
     clock_t alarm;              /* 进程下一次闹钟(警报)的时间 */
 
@@ -57,11 +62,6 @@ typedef struct process_s {
     int send_to;            /* 消息需要发送给谁？ */
 
     struct process_s *next_ready;       /* 用于将进程链接在调度程序队列中 */
-    /* pending是一个位图,用于记录那些尚未被传送到内存管理器的信号(因为内存管理器没有在等待一条消息)
-     * 下边的pend_count域是这些信号的计数值。
-     */
-    sigset_t pending;
-    unsigned pend_count;
 
     char name[32];          /* 这个没啥好说的，就是进程的名称，记得起个好名字哦 */
 } Process;
@@ -74,7 +74,7 @@ typedef struct process_s {
  * NO_MAP：在执行一个FORK操作后,如果子进程的内存映像尚未建立起来,那么NO_MAP将被置位以阻止子进程运行。
  * SENDING和RECEIVING:表示该进程被阻塞,其原因是它正在试图发送或接收一条消息。
  * PENDING和SIG_PENDING：前者：正在等待一个信号；后者：一个进程正在发送信号
- * P_STOP：在调试期间为跟踪提供支持。
+ * PROC_STOP：在调试期间为跟踪提供支持。
  */
 #define NO_MAP		    0x01	/* keeps unmapped forked child from running */
 #define SENDING		    0x02	/* set when process blocked trying to send */
@@ -103,8 +103,8 @@ typedef struct process_s {
 
 #define NIL_PROC          ((Process *) 0)   /* 空进程指针 */
 #define is_idle_hardware(n) ((n) == IDLE_TASK || (n) == HARDWARE)
-#define is_ok_procn(n)      ((unsigned) ((n) + NR_TASKS) < NR_PROCS + NR_TASKS)
-#define is_ok_src_dest(n)   (is_ok_procn(n) || (n) == ANY)
+#define is_ok_proc_nr(n)      ((unsigned) ((n) + NR_TASKS) < NR_PROCS + NR_TASKS)
+#define is_ok_src_dest(n)   (is_ok_proc_nr(n) || (n) == ANY)
 #define is_any_hardware(n)   ((n) == ANY || (n) == HARDWARE)
 #define is_sys_server(n)      ((n) == FS_PROC_NR || (n) == MM_PROC_NR || (n) == FLY_PROC_NR)      /* 是系统服务？ */
 #define is_empty_proc(p)       ((p)->priority == PROC_PRI_NONE)          /* 是个空进程？ */
@@ -120,6 +120,9 @@ typedef struct process_s {
  */
 #define proc_addr(n)      (p_process_addr + NR_TASKS)[(n)]  /* 得到进程的指针 */
 #define cproc_addr(n)     (&(process + NR_TASKS)[(n)])      /* 得到进程的地址 */
+/* 进程的虚拟地址转物理地址 */
+#define proc_vir2phys(p, vir) \
+    ((phys_bytes)(p)->map.base + (vir_bytes)(vir))
 
 /* process.c文件所需要的两个函数，发送消息和接收消息，放在这是因为这两个函数不需要全部人都知道。 */
 _PROTOTYPE( int flyanx_send, (struct process_s *caller_ptr, int dest, struct message_s *message_ptr) );

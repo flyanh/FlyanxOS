@@ -25,7 +25,7 @@ PUBLIC void proc_dmp(void)
     printf("----------------------------------------------\n");
     printf("#\tpid\tname\t\tpriority\n");
     printf("----------------------------------------------\n");
-    for(t = -NR_TASKS; t <= LOW_USER;++t){
+    for(t = -NR_TASKS; t <= LOW_USER + 1;++t){
         Process *proc =  proc_addr(t);
         printf("%d\t%d\t%s\t", proc->nr,proc->pid, proc->name);
         if(t < 0){  /* 任务 */
@@ -50,6 +50,28 @@ PUBLIC void proc_dmp(void)
  *				map_dmp    				     *
  *===========================================================================*/
 PUBLIC void map_dmp(void){
-
+    int t, proc_count = 0;
+    printf("\tprocess(all) memory map information\n");
+    printf("----------------------------------------------\n");
+    printf("#\tname\t\tbase\tsize\tpriority\n");
+    printf("----------------------------------------------\n");
+    for(t = -NR_TASKS; t <= LOW_USER + 1;++t){
+        Process *proc =  proc_addr(t);
+        
+        printf("%d\t%s\t%d\t%d\t", proc->nr, proc->name, proc->map.base, proc->map.size);
+        if(t < 0){  /* 任务 */
+            printf("%s\n", "system task");
+        } else {    /* 服务或用户进程 */
+            if (t < LOW_USER) {
+                /* 服务 */
+                printf("\t%s\n", "system server");
+            } else {
+                /* 用户进程 */
+                printf("\t%s\n", "user process");
+            }
+        }
+        proc_count++;
+    }
+    printf("----------------------------------------------\n");
 }
 

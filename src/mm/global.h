@@ -16,12 +16,12 @@
 #endif
 
 /* 全局变量 */
-EXTERN int procs_in_use;            /* 有多少进程被标记为正在使用 */
+EXTERN int procs_in_use;                /* 有多少进程被标记为正在使用 */
 EXTERN struct mm_process_s *curr_mp;    /* 指向一个当前正在处理的进程 */
 
 /* 外界的调用参数在这 */
 EXTERN Message mmsg_in;     /* 传入的消息保存在这 */
-EXTERN int who;         /* 调用进程的进程号 */
+EXTERN pid_t mm_who;         /* 调用进程的进程号 */
 EXTERN int mm_call;
 
 extern _PROTOTYPE( int (*mm_call_handlers[]), (void) );    /* 系统调用处理函数在这里 */
@@ -30,10 +30,10 @@ extern char *core_name;     /* 生成核心映像的文件名
                              * 定义了这个文件的文件名。
                              */
 
-/* 导入内核变量，这些变量已经由内核初始化并设置，现在只需要感知以下就可以了 */
+/* 导入内核变量，这些变量已经由内核初始化并设置，现在只需要感知一下就可以了 */
 extern phys_clicks kernel_base; /* 内核所在基地址 */
 extern phys_clicks kernel_limit;/* 内核界限 */
-extern BootParams bootParams;   /* 系统启动参数 */
+extern BootParams boot_params;   /* 系统启动参数 */
 
 
 #endif //_MM_GLOBAL_H

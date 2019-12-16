@@ -31,11 +31,11 @@ INIT_ASSERT
 /* 复制消息的宏，就是简单的调用了phys_copy例程，它通过物理地址复制，
  * 速度较慢。后期将会改进。
  */
-#define CopyMsg(src, src_msg, dest,  dest_msg) src_msg->source = src; \
-    phys_copy(proc_vir2phys(proc_addr(src), (vir_bytes)src_msg), proc_vir2phys(proc_addr(dest), (vir_bytes)dest_msg), MESSAGE_SIZE)
+#define CopyMsg(src, src_msg, dest, dest_msg) ( \
+    phys_copy(proc_vir2phys(src, (vir_bytes)src_msg), \
+        proc_vir2phys(dest, (vir_bytes)dest_msg), \
+        MESSAGE_SIZE) )
 #endif
-
-FORWARD _PROTOTYPE( void copy_msg, (int src, Message *src_msg, Message *dest_msg) );
 
 /*===========================================================================*
  *				flyanx_send	    		     *
@@ -44,7 +44,7 @@ FORWARD _PROTOTYPE( void copy_msg, (int src, Message *src_msg, Message *dest_msg
 PUBLIC int flyanx_send(caller_ptr, dest, message_ptr)
 register struct process_s *caller_ptr;	/* 调用进程，即谁想发消息？ */
 int dest;			                    /* 目标进程号，即谁将接收这条消息？或说这条消息将发给谁？ */
-Message *message_ptr;          /* 消息 */
+Message *message_ptr;                   /* 消息 */
 {
     /* 发送一条消息从发送进程到接收进程，消息在发送进程的数据空间中，所以我们
      * 需要将其复制到接收进程的数据空间的消息缓冲中。
@@ -53,7 +53,7 @@ Message *message_ptr;          /* 消息 */
      */
     register Process *dest_proc, *next_proc;
     vir_bytes v_bytes;      /* 消息缓冲区指针的虚拟地址 */
-    vir_clicks vlo, vhi;    /* 虚拟内存块包含要发送的消息 */
+    phys_bytes p_bytes, limit_bytes;     /* 消息缓冲区指针的物理地址和界限 */
 
     /* 如果用户试图绕过系统服务直接发送消息给系统任务，返回错误，这是禁止的操作 */
     if(is_user_proc(caller_ptr) && !is_sys_server(dest)) return ERROR_BAD_DEST;
@@ -62,9 +62,16 @@ Message *message_ptr;          /* 消息 */
     /* 如果目标进程已经不是一个活跃进程，出错返回 */
     if(is_empty_proc(dest_proc)) return ERROR_BAD_DEST;
 
-//    printf("%s want to send message to %s\n", caller_ptr->name, dest_proc->name);
-
-    /* 检查消息位置@TODO */
+    /* 检查用户的消息位置 */
+    if(is_user_proc(caller_ptr)){
+        v_bytes = (vir_bytes) message_ptr;
+        p_bytes = proc_vir2phys(caller_ptr, v_bytes);
+        limit_bytes = caller_ptr->map.base + caller_ptr->map.size - 1;
+        if(p_bytes > limit_bytes){
+            /* 消息位置越界了，那么这是一条无效消息 */
+            panic("invalid message, over proc data segment", p_bytes);
+        }
+    }
 
     /* 通过‘调用进程’和‘目标进程’相互发送消息来检查是否存在死锁
      * 它确保消息的目标进程没有正在试图向调用进程发送一条反向的
@@ -75,13 +82,15 @@ Message *message_ptr;          /* 消息 */
         next_proc = proc_addr(dest_proc->send_to);  /* 得到对方想要发送消息给的目标 */
         while (TRUE){
             /* 巧了这不，发送链上果真有人也想发送消息给我，为了避免循环死锁，这次消息我主动放弃发送 */
-            if(next_proc == caller_ptr) return (ERROR_LOCKED);
+            if(next_proc == caller_ptr) return ERROR_LOCKED;
             if(next_proc->flags & SENDING){     /* 只要发送链上的人是处于发消息的状态，继续往下找 */
                 /* 如果发送链上的人没想发消息给我，那么得到他的下一个目标，继续查找 */
                 next_proc = proc_addr(next_proc->send_to);
             } else break;       /* 很好，整个发送链上都没有人会再反向发送一条消息给我，说明这次的消息发送很安全 */
         }
     }
+
+//    printf("%s want to send message to %s\n", caller_ptr->name, dest_proc->name);
 
     /* 开始最关键的测试
      * 我们首先看一下对方是不是在接收消息的状态上，如果他在等待，我们就问一下他：“你在等谁啊？”
@@ -90,8 +99,9 @@ Message *message_ptr;          /* 消息 */
     if((dest_proc->flags & (RECEIVING | SENDING)) == RECEIVING  /* RECEIVING|SENDING是为了保证对方不处于SEND_REC调用上 */
         && (dest_proc->get_form == ANY || dest_proc->get_form == caller_ptr->nr)){
         /* 调用CopyMsg复制消息给对方 */
-        CopyMsg(caller_ptr->nr, message_ptr, dest_proc->nr, dest_proc->message);
-        /* 好了，拿到了消息，解除对方接收消息堵塞的状态 */
+        CopyMsg(caller_ptr, message_ptr, dest_proc, dest_proc->message);
+        /* 好了，拿到了消息，解除对方接收消息堵塞的状态并清空消息指针 */
+        dest_proc->message = NIL_MESSAGE;
         dest_proc->flags &= ~RECEIVING;
 
         /* 如果对方收到消息后不再堵塞，那么让对方可以就绪了 */
@@ -100,7 +110,6 @@ Message *message_ptr;          /* 消息 */
         /* 如果对方并没有堵塞，或者他被堵塞但不是在等待我
          * 那么堵塞我自己（发送消息的人）并开始排队。
          */
-//        printf("unready self\n");
         caller_ptr->message = message_ptr;  /* 保存我没送成功的消息 */
         if(caller_ptr->flags == 0) unready(caller_ptr); /* 堵塞我自己 */
         caller_ptr->flags |= SENDING;   /* 进入状态：发送消息中 */
@@ -131,8 +140,7 @@ PUBLIC int flyanx_receive(
         register Process *caller_ptr,	    /* 准备获取(接收)消息的进程 */
         int src,			                /* 准备从哪个源进程接收消息（可以是任何），也就是发送消息的进程 */
         Message *message_ptr			    /* 消息 */
-)
-{
+){
     /* 一个进程想要接收一条消息
      *
      * 如果对方已经在排队了，那么就接收他的消息并唤醒对方。如果没有所需来源的消息，那么
@@ -158,7 +166,7 @@ PUBLIC int flyanx_receive(
             previous_proc = sender_proc, sender_proc = sender_proc->caller_link){
             /* 我如果接收任何人的消息 或者 找到了我期望发送消息给我的对方，那么可以拿到对方的消息了 */
             if(src == ANY || src == sender_proc->nr){
-                CopyMsg(sender_proc->nr, sender_proc->message, caller_ptr->nr,  message_ptr);
+                CopyMsg(sender_proc, sender_proc->message, caller_ptr, message_ptr);
                 if(sender_proc == caller_ptr->caller_head){
                     /* 如果对方是排队队列的第一个（头），那么排队队列的头更改为下一个 */
                     caller_ptr->caller_head = sender_proc->caller_link;
@@ -166,6 +174,7 @@ PUBLIC int flyanx_receive(
                     /* 如果对方不是队头，那么对方出队，然后下一个排队的人顶替在对方原来的位置 */
                     previous_proc->caller_link = sender_proc->caller_link;
                 }
+                sender_proc->message = NIL_MESSAGE;
                 sender_proc->flags &= ~SENDING;
                 if(sender_proc->flags == 0){
                     /* 取消对方的发送状态，如果对方不再堵塞，那么就绪他 */
@@ -184,6 +193,7 @@ PUBLIC int flyanx_receive(
          * 中断而进入堵塞导致无法收发消息的问题。这里解决后，我就可以继续正常接收消息了。
          */
         if(caller_ptr->int_blocked && is_any_hardware(src)){
+            msg_reset(message_ptr); /* 重置消息 */
             message_ptr->source = HARDWARE;
             message_ptr->type = HARD_INT;
             caller_ptr->int_blocked = FALSE;
@@ -205,48 +215,18 @@ PUBLIC int flyanx_receive(
 
     /* 处理信号 @TODO */
 
+
     return OK;
 }
 
 /*===========================================================================*
- *				proc_vir2phys				     *
- *			进程的虚拟地址转化为物理地址
+ *				msg_reset				     *
+ *				重置消息
  *===========================================================================*/
-PUBLIC phys_bytes proc_vir2phys(Process *proc, vir_bytes vir){
-    /* 这个函数和vir2phys宏的区别就是，本例程的虚拟地址是针对于
-     * 一个进程的段地址转换的，而vir2phys只能转换内核和任务的物
-     * 理地址。
-     */
-
-    /* 如果该进程是系统任务，那么它的数据段就是内核数据段，
-     * 所以直接用vir2phys宏去计算即可
-     */
-    if(proc->priority == PROC_PRI_TASK) {
-        return vir2phys(vir);
-    }
-
-    /* ===== 进程是服务或用户进程，需要我们计算一下 ===== */
-
-    /* 首先得到该进程数据段的物理地址 */
-    phys_bytes seg_base = ldt_seg_phys(proc, DATA);
-    /* 该虚拟地址对应的物理地址 = 进程段地址 + 虚拟地址 */
-    phys_bytes vir_phys = seg_base + vir;
-
-    if(proc->nr <= LOW_USER) {
-        assert(vir_phys == vir);
-    }
-
-    return vir_phys;
+PUBLIC void msg_reset(Message *msg){
+    memset(msg, 0, MESSAGE_SIZE);
 }
 
-/*===========================================================================*
- *				ldt_seg_phys				     *
- *		得到一个进程本地段描述符的物理地址
- *===========================================================================*/
-PUBLIC phys_bytes ldt_seg_phys(Process *proc, int seg_index){
-    SegDescriptor *d = &proc->ldt[seg_index];
-    return d->base_high << 24 | d->base_middle << 16 | d->base_low;
-}
 
 /*===========================================================================*
  *				sys_call				     *
@@ -263,11 +243,21 @@ Message *message_ptr;   /* 消息地址 */
      */
 
     register Process *caller;
+    Message *phys_msg;        /* 消息的物理地址 */
     int n;
 
     /* 检查并保证该消息指定的源进程目标地址合法，不合法直接返回错误代码E_BAD_SRC，即错误的源地址 */
     if(!is_ok_src_dest(src_dest)) return ERROR_NO_PERM;
     caller = curr_proc;     /* 通过检查,那么当前运行的进程就是发起一个合法的系统调用的消息发送方 */
+    /* 获取消息的物理地址但是，这里请一定注意！！！
+     * 因为这行代码，我找了将近三天四夜的BUG，之前的系统运行的都很不错，
+     * 是因为那时候还没有真正的用户进程，所以传过来的地址就相当于物理地
+     * 址，但当我完成FORK调用时，发现分支子进程不能正常工作，最后才发现
+     * 是因为消息源不能正确传达，因为它的消息地址已经不再是物理地址了，
+     * 需要这一步的转换才能真正获取到发送消息的物理地址，所以如果你正在
+     * 阅读flyanx的代码，请吸取这个教训。
+     */
+    phys_msg = (Message*)proc_vir2phys(caller, message_ptr);
 
     /* 我们继续检查，检查该调用是否从一个用户进程发出
      * 如果是用户进程，但它请求了一个非SEND_REC的请求，那么返回一个E_NO_PERM的错误码，表示用户
@@ -283,7 +273,11 @@ Message *message_ptr;   /* 消息地址 */
 
     /* 处理发送消息（包括SEND_REC里的SEND操作）操作 */
     if(function & SEND){
-        n = flyanx_send(caller, src_dest, message_ptr); /* 发送消息 */
+        /* 发送前，设置消息中的消息源 */
+        phys_msg->source = caller->nr;
+
+        /* 发送消息 */
+        n = flyanx_send(caller, src_dest, message_ptr);
 
         /* 如果是发送操作，不管成功与否，返回代码 */
         if(function == SEND){

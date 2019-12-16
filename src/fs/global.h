@@ -31,7 +31,7 @@ EXTERN struct inode *root_inode;            /* 根索引节点 */
 /* 通信 */
 EXTERN Message fs_inbox;        /* 文件系统收件箱：收到的消息在这里 */
 EXTERN Message fs_outbox;       /* 文件系统发件箱：发送的消息在这里 */
-EXTERN int who;                 /* 谁发的信？ */
+EXTERN int fs_who;                 /* 谁发的信？ */
 EXTERN int fs_call;             /* 系统调用号 */
 EXTERN bool need_reply;         /* 此次调用需要回复吗? */
 EXTERN char user_path[PATH_MAX]; /* 用户路径名称 */

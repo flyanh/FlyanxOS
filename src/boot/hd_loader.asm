@@ -19,8 +19,8 @@ disk_address_packet:    db 0x10                 ;; [ 0] 磁盘地址大小（字
                         db 0                    ;; [ 1] 保留，必须为0
 sect_count:             db TRANS_SECT_NR        ;; [ 2] 多少块要被传输
                         db 0                    ;; [ 3] 保留使用，必须为0
-                        dw OffsetOfKernelFile   ;; [ 4] 传输偏移地址
-                        dw BaseOfKernelFile     ;; [ 6] 缓冲段地址，即要传输到的地方
+                        dw KERNEL_OFFSET   ;; [ 4] 传输偏移地址
+                        dw KERNEL_SEG     ;; [ 6] 缓冲段地址，即要传输到的地方
 lba_addr:               dd 0                    ;; [ 8] LBA低32位
                         dd 0                    ;; [12] LBA高32位
 
@@ -35,7 +35,7 @@ LABEL_DESC_VIDEO:   Descriptor      0b8000h,        0FFFFFh,        DA_DRW | DA_
 ; GDT全局描述符表--------------------------------------------------------------------------------------------
 GDTLen      equ $ - LABEL_GDT                       ; GDT长度
 GDTPtr      dw  GDTLen - 1                          ; 段界限
-            dd  BaseOfLoaderPhyAddr + LABEL_GDT     ; 基地址
+            dd  LOADER_PHY_ADDR + LABEL_GDT     ; 基地址
 ; GDT选择子-------------------------------------------------------------------------------------------------
 SelectorFlatC       equ LABEL_DESC_FLAT_C   -   LABEL_GDT               ; 32位可读代码段选择子
 SelectorFlatRW      equ LABEL_DESC_FLAT_RW  -   LABEL_GDT               ; 32位可读写数据段选择子
@@ -160,7 +160,7 @@ load_kernel2mem:                    ;; 找到内核文件了！我们将它载�
 	; 5 真正进入保护模式！前面的4步已经完成了保护模式所需的所有东西
 	; 	现在只需要跳入到一个32位代码段就可以真正进入保护模式了！
 	;	在保护模式下，你可以获得32位CPU给你带来的所有功能，不必要再忍受16位实模式的各种限制！
-	jmp dword SelectorFlatC:(BaseOfLoaderPhyAddr + LAB_PM_START)
+	jmp dword SelectorFlatC:(LOADER_PHY_ADDR + LAB_PM_START)
 
 	jmp $       ; 如果前面的工作顺利，这行代码将永远不可能执行
 
@@ -300,15 +300,15 @@ LAB_PM_START:	; 程序开始
     mov dword [BOOT_PARAM_ADDR], BOOT_PARAM_MAGIC ; 魔数
     mov eax, [dwMemSize]
     mov [BOOT_PARAM_ADDR + 4], eax  ; 内存大小
-    mov eax, BaseOfKernelFile
+    mov eax, KERNEL_SEG
     shl eax, 4
-    add eax, OffsetOfKernelFile
+    add eax, KERNEL_OFFSET
     mov [BOOT_PARAM_ADDR + 8], eax  ; 内核所在的物理地址
 
     ;*********************************************************************************
 	; 正式进入内核，Loader将CPU控制权转交给内核，至此，Loader的使命也结束了！比Boot厉害吧！
 	; 从这里的函数运行成功后，我们才真正算是进入编写操作系统的门槛
-	jmp SelectorFlatC:KernelEntryPointPhyAddr
+	jmp SelectorFlatC:KERNEL_ENTRY_POINT_PHY_ADDR
 	;*********************************************************************************
 	; 而在此时，内存看上去是这样的：
 	;              ┃                                    ┃
@@ -366,7 +366,7 @@ LAB_PM_START:	; 程序开始
     ;              ┃■■■■■■■■■■■■■■■■■■┃ 7C00h~7DFFh : BOOT 向量, 将会被内核覆盖
     ;              ┃■■■■■■■■■■■■■■■■■■┃
     ;              ┃■■■■■■■■■■■■■■■■■■┃
-    ;        1000h ┃■■■■■■■■KERNEL■■■■■■■┃ 1000h ← KERNEL 入口 (KernelEntryPointPhyAddr)
+    ;        1000h ┃■■■■■■■■KERNEL■■■■■■■┃ 1000h ← KERNEL 入口 (KERNEL_ENTRY_POINT_PHY_ADDR)
     ;              ┣━━━━━━━━━━━━━━━━━━┫
     ;        700h  ┃Boot Params                         ┃
     ;              ┃                                    ┃
@@ -387,8 +387,8 @@ LAB_PM_START:	; 程序开始
     ;		┃      ┃ 未使用空间	┃◇◇◇┃ 可以覆盖的内存
     ;		┗━━━┛		┗━━━┛
     ;
-    ; 注：KERNEL 的位置实际上是很灵活的，可以通过同时改变 LOAD.INC 中的 KernelEntryPointPhyAddr 和 MAKEFILE 中参数 -Ttext 的值来改变。
-    ;     比如，如果把 KernelEntryPointPhyAddr 和 -Ttext 的值都改为 0x400400，则 KERNEL 就会被加载到内存 0x400000(4M) 处，入口在 0x400400。
+    ; 注：KERNEL 的位置实际上是很灵活的，可以通过同时改变 LOAD.INC 中的 KERNEL_ENTRY_POINT_PHY_ADDR 和 MAKEFILE 中参数 -Ttext 的值来改变。
+    ;     比如，如果把 KERNEL_ENTRY_POINT_PHY_ADDR 和 -Ttext 的值都改为 0x400400，则 KERNEL 就会被加载到内存 0x400000(4M) 处，入口在 0x400400。
     ;
 
 ;================================================================================================
@@ -645,9 +645,9 @@ SetupPaging:
 	; 首先，初始化页目录
 	mov ax, SelectorFlatRW
 	mov es, ax
-	mov edi, PageDirBase	; 此段首地址为 PageDirBase
+	mov edi, PAGE_DIR_BASE	; 此段首地址为 PAGE_DIR_BASE
 	xor eax, eax
-	mov eax, PageTblBase | PG_P | PG_US_U | PG_RW_W
+	mov eax, PAGE_TABLE_BASE | PG_P | PG_US_U | PG_RW_W
 .1:
 	stosd
 	add eax, 4096			; 为简化，所有页表在内存中是连续的
@@ -658,7 +658,7 @@ SetupPaging:
 	mov ebx, 1024			; 每个页表 1024 个 PTE
 	mul ebx
 	mov ecx, eax			; PTE个数 = 页表个数 * 1024
-	mov edi, PageTblBase	; 此段首地址为 PageTblBase
+	mov edi, PAGE_TABLE_BASE	; 此段首地址为 PAGE_TABLE_BASE
 	xor eax, eax
 	mov eax,  PG_P | PG_US_U | PG_RW_W
 .2:
@@ -667,7 +667,7 @@ SetupPaging:
 	loop .2
 
 	; 最后，设置cr3和cr0，开启分页机制
-	mov eax, PageDirBase
+	mov eax, PAGE_DIR_BASE
 	mov cr3, eax
 	mov eax, cr0
 	or	eax, 80000000h
@@ -684,17 +684,17 @@ SetupPaging:
 ; --------------------------------------------------------------------------------------------
 InitKernel:
 	xor esi, esi
-	mov cx, word [BaseOfKernelFilePhyAddr + 2Ch]	; @
+	mov cx, word [KERNEL_PHY_ADDR + 2Ch]	; @
 	movzx ecx, cx									; @-> ecx <- pELFHdr -> e_phnum
-	mov esi, [BaseOfKernelFilePhyAddr + 1Ch]		; esi <- pELFHdr ->e_phoff
-	add esi, BaseOfKernelFilePhyAddr				; esi <- OffsetOfKernel + pELFHdr -> e_phoff
+	mov esi, [KERNEL_PHY_ADDR + 1Ch]		; esi <- pELFHdr ->e_phoff
+	add esi, KERNEL_PHY_ADDR				; esi <- OffsetOfKernel + pELFHdr -> e_phoff
 .Begin:
 	mov eax, [esi + 0]
 	cmp eax, 0 				; PT_NULL
 	jz	.NoAction
 	push dword [esi + 010h]				; @
 	mov eax, [esi + 04h]				; #
-	add eax, BaseOfKernelFilePhyAddr	; # memcpy( (void*))(pPhdr->p_vaddr),
+	add eax, KERNEL_PHY_ADDR	; # memcpy( (void*))(pPhdr->p_vaddr),
 	push eax							; #			uchCode + pPHdr->p_offset,
 	push dword [esi + 08h]				; #			pPHdr->p_filesz
 	call MemCpy							; #		   );
@@ -730,25 +730,25 @@ _ARDStruct:			    ; Address Range Descriptor Structure
 _MemChkBuf:	times	256	db	0
 ;
 ; 保护模式下需要使用这些符号
-szRAMSize		    equ	BaseOfLoaderPhyAddr + _szRAMSize
-szMSizeKb           equ BaseOfLoaderPhyAddr + _szMSizeKb
-szReturn		    equ	BaseOfLoaderPhyAddr + _szReturn
-szThreeSpace        equ BaseOfLoaderPhyAddr + _szThreeSpace
-dwDispPos		    equ	BaseOfLoaderPhyAddr + _dwDispPos
-dwMemSize		    equ	BaseOfLoaderPhyAddr + _dwMemSize
-dwMCRNumber		    equ	BaseOfLoaderPhyAddr + _dwMCRNumber
-ARDStruct		    equ	BaseOfLoaderPhyAddr + _ARDStruct
-	dwBaseAddrLow	equ	BaseOfLoaderPhyAddr + _dwBaseAddrLow
-	dwBaseAddrHigh	equ	BaseOfLoaderPhyAddr + _dwBaseAddrHigh
-	dwLengthLow	    equ	BaseOfLoaderPhyAddr + _dwLengthLow
-	dwLengthHigh	equ	BaseOfLoaderPhyAddr + _dwLengthHigh
-	dwType		    equ	BaseOfLoaderPhyAddr + _dwType
-MemChkBuf		    equ	BaseOfLoaderPhyAddr + _MemChkBuf
+szRAMSize		    equ	LOADER_PHY_ADDR + _szRAMSize
+szMSizeKb           equ LOADER_PHY_ADDR + _szMSizeKb
+szReturn		    equ	LOADER_PHY_ADDR + _szReturn
+szThreeSpace        equ LOADER_PHY_ADDR + _szThreeSpace
+dwDispPos		    equ	LOADER_PHY_ADDR + _dwDispPos
+dwMemSize		    equ	LOADER_PHY_ADDR + _dwMemSize
+dwMCRNumber		    equ	LOADER_PHY_ADDR + _dwMCRNumber
+ARDStruct		    equ	LOADER_PHY_ADDR + _ARDStruct
+	dwBaseAddrLow	equ	LOADER_PHY_ADDR + _dwBaseAddrLow
+	dwBaseAddrHigh	equ	LOADER_PHY_ADDR + _dwBaseAddrHigh
+	dwLengthLow	    equ	LOADER_PHY_ADDR + _dwLengthLow
+	dwLengthHigh	equ	LOADER_PHY_ADDR + _dwLengthHigh
+	dwType		    equ	LOADER_PHY_ADDR + _dwType
+MemChkBuf		    equ	LOADER_PHY_ADDR + _MemChkBuf
 
 
 ; 堆栈就在数据段的末尾
 StackSpace:	times	1000h	db	0
-TopOfStack	equ	BaseOfLoaderPhyAddr + $	    ; 栈顶
+TopOfStack	equ	LOADER_PHY_ADDR + $	    ; 栈顶
 
 ;================================================================================================
 

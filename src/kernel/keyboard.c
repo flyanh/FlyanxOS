@@ -453,6 +453,12 @@ PRIVATE int function_key(int scan_code){
             printf("****** QQ exchange group: 909830414 ******\n");
             printf("*********** Welcome to disturb ***********\n");
             break;
+        case CF11:
+            scroll_screen(1);
+            break;
+        case CF12:
+            scroll_screen(0);
+            break;
         /* CF7、CF8和CF9扫描码将引起对sigchar的调用，发送信号不同 */
         case CF7:
 //            sigchar(&tty_table[CONSOLE], SIGQUIT);

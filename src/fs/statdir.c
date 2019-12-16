@@ -69,7 +69,7 @@ PRIVATE int stat_inode(Inode *indp, char *user_buf){
     stat_buf.size = indp->size;
 
     int rs = sys_copy(FS_PROC_NR, DATA, (phys_bytes)&stat_buf,  /* 从这 */
-                who, DATA, (phys_bytes)user_buf,                /* 到这 */
+                      fs_who, DATA, (phys_bytes)user_buf,                /* 到这 */
                 (phys_bytes)sizeof(Stat));                      /* 拷贝多少？ */
 
     return rs;

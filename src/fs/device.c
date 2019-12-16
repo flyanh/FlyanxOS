@@ -30,7 +30,7 @@
  *				处理设备io控制
  *===========================================================================*/
 PUBLIC int do_ioctl(){
-    return dev_ioctl(fs_inbox.DEVICE, who, in_buffer);
+    return dev_ioctl(fs_inbox.DEVICE, fs_who, in_buffer);
 }
 
 /*===========================================================================*

@@ -20,7 +20,7 @@ FORWARD _PROTOTYPE( void get_work, (void) );
 PUBLIC void fly_main(void){
     int rs;
 
-    fly_print_info("working...\n");
+    fly_print_info("Working...\n");
     while (TRUE){
         get_work();
 

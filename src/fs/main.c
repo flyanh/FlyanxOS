@@ -39,14 +39,14 @@ PUBLIC void fs_main(void){
     /* 文件系统初始化 */
     fs_init();
 
-    fs_print_info("working...");
+    fs_print_info("Working...");
     /* 文件系统开始工作了 */
     while (TRUE){
         view_inbox();   /* 查看收件箱，等待来信 */
 
-        call_fp = &fsproc[who]; /* 得到调用进程 */
+        call_fp = &fsproc[fs_who];  /* 得到调用进程 */
         super_user = (call_fp->eff_uid == SU_UID ? TRUE : FALSE);   /* su超级用户？ */
-        need_reply = TRUE;      /* 默认情况下的调用 有回复 */
+        need_reply = TRUE;          /* 默认情况下的调用 有回复 */
 
         /* 如果调用号有效，则执行调用完成工作 */
         /* 如果调用号有效，则执行调用 */
@@ -58,7 +58,7 @@ PUBLIC void fs_main(void){
 
         /* 将结果拷贝给用户并发送回复。 */
         if(!need_reply) continue;       /* 不需要回复，这次的工作结束 */
-        fs_reply(who, rs);
+        fs_reply(fs_who, rs);
     }
 }
 
@@ -70,30 +70,11 @@ PRIVATE void view_inbox(void){
     /* 查看收件箱，等待一条消息得到工作
      */
 
-//    register FSProcess *fp;
-//    if(reviving != 0){
-//        /* 有需要恢复的进程 */
-//        for(fp = &fsproc[0]; fp < &fsproc[NR_PROCS]; fp++){
-//            if(fp->revived == REVIVING){
-//                who = (int)(fp - fsproc);
-//                fs_call = fp->fd & BYTE;
-//                in_fd = (fp->fd >> 8) & BYTE;
-//                in_buffer = fp->buffer;
-//                in_bytes = fp->bytes;
-//                fp->suspended = NOT_SUSPENDED;  /* 该进程不在挂起 */
-//                fp->revived = NOT_REVIVING;
-//                reviving--;
-//                return;
-//            }
-//        }
-//        /* 很明显，文件系统被通知有进程需要恢复，我们却没找到，内部已经混乱！ */
-//        fs_panic("view_inbox couldn't revive anyone", NO_NUM);
-//    }
-
     /* 正常情况下，没有人会被管道挂起，也没有人会被恢复 */
     if(receive(ANY, &fs_inbox) != OK) fs_panic("FS receive error", NO_NUM);
-    who = fs_inbox.source;
+    fs_who = fs_inbox.source;
     fs_call = fs_inbox.type;
+//    printf("get whom: %d | call: %d\n", fs_who, fs_call);
 }
 
 /*===========================================================================*
@@ -104,6 +85,7 @@ PUBLIC void fs_reply(int whom, int rs){
     /* 向用户进程发送回复。 它可能会失败（如果该进程刚刚被信号杀死），因此不需要检查返回码。
      * 如果发送失败，则忽略它。
      */
+//    printf("reply whom: %d | rs: %d\n", whom, rs);
     reply_type = rs;
     send(whom, &fs_outbox);
 }

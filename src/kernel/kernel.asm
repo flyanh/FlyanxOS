@@ -14,13 +14,15 @@
 %include "asmconst.inc"
 
 ; 导入函数
+extern  display_position    ; 简单显示函数disp_str需要这个标识显示位置
 extern  cstart				; 改变gdt_ptr，让它指向新的GDT
-extern  main	            ; 内核主函数
+extern  flyanx_main	        ; 内核主函数
 extern	spurious_irq	    ; 默认中断请求处理程序
 extern	exception_handler	; 异常处理程序
 extern  level0              ; 系统任务提权
 extern  unhold              ; 处理所有挂起的中断并释放它们
 extern  simple_brk_point    ; 简单断点
+extern  disp_str
 
 ; 导入全局变量
 extern  gdt_ptr;			; GDT指针
@@ -144,11 +146,12 @@ _start:
     mov	ss, ax
     ; 把　esp 从　LOADER 挪到 KERNEL　处
 	mov esp, StackTop       ; 堆栈在 bss 段中
-    
-    sgdt    [gdt_ptr]    ; cstart() 中将会用到 gdt_ptr
 
-    call    cstart      ; 在此函数中改变了gdt_ptr，让它指向新的GDT
+    ; 初始化disp_str的显示位置。
+    mov dword [display_position], 0
 
+    sgdt    [gdt_ptr]    ; protect.c 中将会用到 gdt_ptr
+    call    cstart       ; 在此函数中改变了gdt_ptr，让它指向新的GDT
     lgdt    [gdt_ptr]    ; 使用新的GDT
 
     lidt    [idt_ptr]	; 加载idtr
@@ -166,7 +169,7 @@ csinit:         ; “这个跳转指令强制使用刚刚初始化的结构”�
 
 	; 跳入c语言编写的内核主函数，以后我们的工作将主要在c语言下开发
 	; 这里,我们又迎来一个质的飞跃,汇编虽然好,只是不够骚
-    jmp main
+    jmp flyanx_main
     ; call hwint05		; 手动触发5号中断处理程序
     ; jmp $
 
@@ -420,7 +423,6 @@ flyanx_386_syscall:
 	mov		[esi + EAXREG - P_STACKBASE], eax   ; 系统调用函数必须保留 esi
 	cli			; 关闭中断
 ; 在这里，直接陷入restart的代码以重新启动进程/任务运行。
-
 ;================================================================================================
 ; restart : 进程重新启动
 restart:

@@ -22,9 +22,7 @@
 #include <flyanx/callnr.h>
 #include <flyanx/common.h>
 #include "process.h"
-#if (CHIP == INTEL)
 #include "protect.h"
-#endif
 #include "assert.h"
 INIT_ASSERT     /* 初始化断言 */
 
@@ -35,6 +33,7 @@ INIT_ASSERT     /* 初始化断言 */
 
 PRIVATE Message msg_in;
 
+_PROTOTYPE( int sprintf, (char *_buf, const char *_fmt, ...) );
 FORWARD _PROTOTYPE( int do_fork, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_get_sp, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_exit, (Message *msg_ptr) );
@@ -43,6 +42,8 @@ FORWARD _PROTOTYPE( int do_find_proc, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_sudden, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_blue_screen, (void) );
 FORWARD _PROTOTYPE( int do_copy, (Message *msg_ptr) );
+FORWARD _PROTOTYPE( int do_get_map, (Message *msg_ptr) );
+FORWARD _PROTOTYPE( int do_new_map, (Message *msg_ptr) );
 
 
 /*===========================================================================*
@@ -66,6 +67,8 @@ PUBLIC void system_task(void){
             case SYS_SUDDEN:    rs = do_sudden(&msg_in);    break;
             case SYS_BLUES:     rs = do_blue_screen();      break;
             case SYS_COPY:      rs = do_copy(&msg_in);      break;
+            case SYS_GET_MAP:   rs = do_get_map(&msg_in);   break;
+            case SYS_NEW_MAP:   rs = do_new_map(&msg_in);   break;
             default:            rs = ERROR_BAD_FCN;         break;
         }
 
@@ -76,9 +79,40 @@ PUBLIC void system_task(void){
 
 /*===========================================================================*
  *				do_fork					     *
+ *			处理系统级调用sys_fork()
  *===========================================================================*/
 PRIVATE int do_fork(Message *msg_ptr){
+    /* msg_ptr->PROC_NR1是新创建的进程，它的父进程在msg_ptr->PROC_NR2中，
+     * msg_ptr->PID是新进程的进程号。
+     */
 
+    register Process *child;
+    reg_t old_ldt_sel;
+    Process *parent;
+
+    child = proc_addr(msg_ptr->PROC_NR1);   /* 得到子进程 */
+    assert(is_empty_proc(child));   /* 子进程一定要是一个空进程 */
+    parent = proc_addr(msg_ptr->PROC_NR2);  /* 父进程 */
+    assert(is_user_proc(parent));   /* 父进程必须是一个用户进程 */
+
+    /* 将父进程拷贝给子进程（所有） */
+    old_ldt_sel = child->ldt_sel;  /* 防止LDT选择子被覆盖，我们备份它 */
+    *child = *parent;                   /* 拷贝进程结构体 */
+    child->ldt_sel = old_ldt_sel;  /* 恢复LDT选择子 */
+    /* 设置子进程一些独有的信息 */
+    child->nr = msg_ptr->PROC_NR1;      /* 子进程要记住自己的索引号 */
+    child->flags |= NO_MAP;             /* 禁止子进程运行，因为它刚刚出生 */
+    child->flags &= ~(PENDING | SIG_PENDING | PROC_STOP);   /* 复位标志，它们不应该继承父进程的这些状态 */
+    child->pid = msg_ptr->PID;          /* 记住自己的进程号 */
+    child->regs.eax = 0;                /* 子进程看到ax是0.就知道自己是fork出来的了。 */
+    sprintf(child->name, "%s_fk_%d",
+            parent->name, child->pid);  /* 还是给它起个默认名字吧：父名_fk_子号 */
+
+    /* 清零子进程的时间记账信息 */
+    child->user_time = child->sys_time =
+            child->child_user_time = child->child_sys_time = 0;
+
+    return OK;  /* OK了 */
 }
 
 /*===========================================================================*
@@ -183,21 +217,10 @@ PUBLIC phys_bytes umap(
      * 检查。所有从/向用户进程空间拷贝数据的任务都使用umap计算缓冲区的物理地址。
      */
 
-    vir_clicks vc;              /* 虚拟地址块 */
-    phys_bytes vir_phys;        /* 转换完成的物理地址 */
-
     /* 检查@TODO */
     if(bytes <= 0) return ( (phys_bytes) 0 );
-
-    if(seg_index == DATA){  /* 如果要的是数据段，那么直接使用proc_vir2phys即可实现 */
-        return proc_vir2phys(proc, vir_addr);
-    } else {
-        /* 首先得到该进程的段物理地址 */
-        phys_bytes seg_base = ldt_seg_phys(proc, seg_index);
-        /* 该虚拟地址对应的物理地址 = 进程段地址 + 虚拟地址 */
-        vir_phys = seg_base + vir_addr;
-    }
-    return vir_phys;
+    /* flyanx0.1暂时不区分三段，所以直接转换即可 */
+    return proc_vir2phys(proc, vir_addr);
 }
 
 /*===========================================================================*
@@ -289,7 +312,7 @@ PUBLIC int do_copy(Message *msg_ptr){
 
     /* 计算数据源地址（物理）和目标地址并进行复制 */
     if(src_proc == ABSOLUTE){
-        /* 如果源数据来自于系统任务，说明给出的虚拟地址就是物理地址，无需转换 */
+        /* 如果源数据来自于系统任务或源进程，说明给出的虚拟地址就是物理地址，无需转换 */
         src_phys = (phys_bytes)src_vir;
     } else {
         if(bytes != (vir_bytes)bytes){
@@ -309,10 +332,97 @@ PUBLIC int do_copy(Message *msg_ptr){
         dest_phys = umap(proc_addr(dest_proc), dest_space, dest_vir, (vir_bytes)bytes);
     }
 
-    /* 如果源数据和目的地的地址都有效，执行拷贝；否则错误返回。 */
-    if(src_phys == 0 || dest_phys == 0) return EFAULT;
+    /* 如果目的地的地址有效，执行拷贝；否则错误返回。 */
+    if( src_phys == 0 || dest_phys == 0 ) return EFAULT;
     phys_copy(src_phys, dest_phys, bytes);
+//    printf("%ld ---%d---> %ld\n", src_phys, bytes, dest_phys);
     return OK;
 }
 
+/*===========================================================================*
+ *				do_get_map					     *
+ *			报告某个进程的内存映像
+ *===========================================================================*/
+PRIVATE int do_get_map(Message *msg_ptr){
+    /* 虽然这个系统级调用是提供给所有服务器的，但是一般只有MM需要，
+     * 我们报告一个进程的内存映像给调用者，它不难实现。
+     */
+
+    register Process *proc;
+    phys_bytes dest_phys;       /* 内存映像应该送到的物理地址 */
+    int caller;                 /* 调用者索引号 */
+    int who;                    /* 想要谁的内存映像？ */
+    MemoryMap *map_ptr;
+
+    /* 获取消息中的参数 */
+    caller = msg_ptr->source;
+    who = msg_ptr->PROC_NR1;
+    map_ptr = (MemoryMap*)msg_ptr->MEM_MAP_PTR;
+
+    assert(is_ok_proc_nr(who));   /* 我们断言：这是个正确的进程索引号，因为服务器不应该传一个错误的值 */
+
+    proc = proc_addr(who);      /* 得到进程实例，里面有我们需要的内存映像 */
+
+    /* 好了，可以复制给服务器了。 */
+    dest_phys = umap(proc_addr(caller), DATA, (vir_bytes)map_ptr, sizeof(proc->map));
+    assert(dest_phys != 0);     /* 它也不应该发生 */
+    phys_copy(vir2phys(&proc->map), dest_phys, sizeof(proc->map));
+
+    return OK;
+}
+
+
+/*===========================================================================*
+ *				do_new_map					     *
+ *		MM报告了一个新进程的内存映像
+ *===========================================================================*/
+PRIVATE int do_new_map(Message *msg_ptr){
+    /* 在一个FORK调用之后，存储管理器为子进程分配内存。内核必须知道子进程位于内存何处以在运行子进程时能正确
+     * 设置段寄存器。SYS_NEW_MAP消息允许存储管理器传给内核任何进程的存储映象。
+     */
+
+    register Process *proc;
+    phys_bytes src_phys;    /* 内存映像所在的物理地址 */
+    int callnr;             /* 调用者索引号 */
+    int who;                /* 谁的内存映像？ */
+    int old_flags;          /* 修改前标记的值 */
+    MemoryMap *map_ptr;     /* 映像的虚拟地址 */
+
+    /* 获取消息中的参数 */
+    callnr = msg_ptr->source;
+    who = msg_ptr->PROC_NR1;
+    map_ptr = (MemoryMap*)msg_ptr->MEM_MAP_PTR;
+    if(!is_ok_proc_nr(who)) return (ERROR_BAD_PROC);    /* 啊哈，这个进程索引号不正确 */
+    proc = proc_addr(who);
+
+    /* 将映像复制过来 */
+    src_phys = umap(proc_addr(callnr), DATA, (vir_bytes)map_ptr, sizeof(proc->map));
+    assert(src_phys != 0);  /* 不可思议，MM竟然发送了一个错误的地址 */
+    phys_copy(src_phys, vir2phys(&proc->map), (phys_bytes) sizeof(proc->map));
+
+    /* 现在根据新的内存映像设置进程的LDT信息
+     *  limit = size - 1
+     */
+    init_seg_desc(&proc->ldt[CS_LDT_INDEX],
+                  proc->map.base,
+                  (proc->map.size - 1) >> LIMIT_4K_SHIFT,
+                  DA_32 | DA_LIMIT_4K | DA_C | USER_PRIVILEGE << 5
+    );
+    init_seg_desc(&proc->ldt[DS_LDT_INDEX],
+                  proc->map.base,
+                  (proc->map.size - 1) >> LIMIT_4K_SHIFT,
+                  DA_32 | DA_LIMIT_4K | DA_DRW | USER_PRIVILEGE << 5
+    );
+//    printf("%s(nr-%d) base: %d, size: %d | ldt_sel: (c-%d|p-%d)\n", proc->name, proc->nr,
+//            proc->map.base, proc->map.size, proc->ldt_sel, proc_addr(proc->nr - 1)->ldt_sel);
+
+    old_flags = proc->flags;        /* 保存标志 */
+    proc->flags &= ~NO_MAP;         /* 解开封印！将NO_MAP复位，等同于YES_MAP！！！ */
+    /* 最后一步：确定旧的flags位上是否还存在除了NO_MAP以外限制进程运行的堵塞位，
+     * 如果没有了，那么就可以将这个新生儿加入就绪队列了！
+     */
+    if(old_flags != 0 && proc->flags == 0) lock_ready(proc);
+    /* Over!!! */
+    return OK;
+}
 

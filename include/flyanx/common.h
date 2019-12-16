@@ -16,13 +16,13 @@
 #ifndef _FLYANX_COMMON_H
 #define _FLYANX_COMMON_H
 
-/* System calls. */
+/* 系统调用，系统层次上的，区别与posix系统调用。 */
 #define SEND		    1	/* function code for sending messages */
 #define RECEIVE		    2	/* function code for receiving messages */
 #define SEND_REC	    3	/* function code for SEND + RECEIVE */
-#define ANY		    0x7fac	/* a magic, invalid process number.
-                         * receive(ANY, buf) accepts from any source
-                         */
+#define ANY		    0x679	/* 魔数，它是一个错误的进程索引号，用于接收消息
+                             * receive(ANY, buf)表示想接收任何人的消息
+                             */
 
 /* 任务号，函数索引号(消息类型)和回复代码，将在下面开始定义 */
 #define NO_EXIST_TASK       -808    /* 用于不可能存在的任务号 */
@@ -63,6 +63,8 @@
 #   define SYS_SUDDEN       6   /* 系统功能索引代码，sys_sudden() */
 #   define SYS_BLUES        7   /* 系统功能索引代码，sys_bules() */
 #   define SYS_COPY         8   /* sys_copy(ptr) */
+#   define SYS_GET_MAP      9   /* sys_get_map(proc_nr, mm_ptr) */
+#   define SYS_NEW_MAP      10  /* sys_new_map(proc_nr, mm_ptr)  */
 
 #define HARDWARE            -1	    /* 用作中断生成消息的源 */
 
@@ -102,5 +104,10 @@
 #define REPLY_PROC_NR   m2_i1       /* 代表I/O完成的进程索引号 */
 #define REPLY_STATUS    m2_i2       /* 传输的字节数或错误号 */
 
+/* 系统任务使用的消息字段名称 */
+#define MEM_MAP_PTR     m1_p1   /* 存放一个内存映像指针，sys_get_map和sys_new_map需要这个消息字段。 */
+#define PROC_NR1        m1_i1	/* 一个进程号 */
+#define PROC_NR2        m1_i2	/* 同上 */
+#define PID             m1_i3   /* 进程号 */
 
 #endif //_FLYANX_COMMON_H

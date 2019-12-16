@@ -38,7 +38,7 @@ _PROTOTYPE( void get_boot_params, (BootParams *bp) );
 /*================================================================================================*/
 /* main.c */
 /*================================================================================================*/
-_PROTOTYPE(int main, (void)						);
+_PROTOTYPE(void flyanx_main, (void)						);
 _PROTOTYPE( void panic, (const char *msg, int errno)				);
 _PROTOTYPE(void raw_clear_screen, (void) );
 _PROTOTYPE( void idle_test_task, (void) );
@@ -50,15 +50,14 @@ _PROTOTYPE( void ok_print, (char* msg, char* ok) );
 _PROTOTYPE( void protect_init, (void) );
 _PROTOTYPE( phys_bytes seg2phys, (U16_t seg) );
 _PROTOTYPE( void init_seg_desc,
-        (struct seg_descriptor_s *p_desc, vir_bytes base, vir_bytes limit, u16_t attribute) );
+        (struct seg_descriptor_s *p_desc, phys_bytes base, phys_bytes limit, u16_t attribute) );
 _PROTOTYPE( void phys2seg, (vir_bytes *seg, vir_bytes *off, phys_bytes phys) );
 
 /*================================================================================================*/
 /* message.c */
 /*================================================================================================*/
 _PROTOTYPE( int sys_call, (int function, int src_dest, struct message_s *message_ptr) );
-_PROTOTYPE( phys_bytes proc_vir2phys, (struct process_s *proc, vir_bytes vir) );
-_PROTOTYPE( phys_bytes ldt_seg_phys, (struct process_s *proc, int seg_index) );
+_PROTOTYPE( void msg_reset, (Message *msg) );
 
 /*================================================================================================*/
 /* clock.c */
@@ -91,6 +90,7 @@ _PROTOTYPE( void switch_to, (int line) );
 _PROTOTYPE( void clear_screen, (struct tty_s *tty) );
 _PROTOTYPE( void screen_init, (void) );
 _PROTOTYPE( void blue_screen, (void) );
+_PROTOTYPE( void scroll_screen, (unsigned direction) );
 
 /*================================================================================================*/
 /* keyboard.c */
@@ -127,8 +127,8 @@ _PROTOTYPE( int spurious_irq, (int ) );
 /*================================================================================================*/
 /* kernel_386_lib.asm  */
 /*================================================================================================*/
-_PROTOTYPE(void disp_str, (char* string));                      /* 显示一个字符串 */
-_PROTOTYPE(void disp_color_str, (char *string, int color));     /* 显示一个带颜色的字符串 */
+_PROTOTYPE(void disp_str, (char* string) );                      /* 显示一个字符串 */
+_PROTOTYPE(void disp_color_str, (char *string, int color) );     /* 显示一个带颜色的字符串 */
 _PROTOTYPE( void phys_copy, (phys_bytes source, phys_bytes dest, phys_bytes count) );
 _PROTOTYPE( void out_byte, (port_t port, U8_t value) );
 _PROTOTYPE( U8_t in_byte, (port_t port) );
@@ -179,7 +179,7 @@ _PROTOTYPE( void map_dmp, (void) );
 /*================================================================================================*/
 /* misc.c */
 /*================================================================================================*/
-_PROTOTYPE( int get_kernel_map, (phys_clicks *base, phys_clicks *limit) );
+_PROTOTYPE( int get_kernel_map, (phys_bytes *base, phys_bytes *limit) );
 
 /*================================================================================================*/
 /*  硬件中断处理程序。 */

@@ -214,6 +214,19 @@ register Process *proc;      /* 就绪的进程 */
         return;
     }
 
+    /* 正常调度：将其挂到队尾
+     * 下面注释的有另一种调度算法，将用户进程挂到队头，具体使用哪种，
+     * 请权衡选择，但对于系统内可能会有I/O请求较多的进程，请使用下面
+     * 的调度方式。
+     */
+//    if(ready_head[USER_QUEUE] != NIL_PROC){
+//        ready_tail[USER_QUEUE]->next_ready = proc;
+//    } else{
+//        curr_proc = ready_head[USER_QUEUE] = proc;
+//    }
+//    ready_tail[USER_QUEUE] = proc;
+//    proc->next_ready = NIL_PROC;
+
     /* 用户进程的处理稍微有所不同
      * 我们将用户进程添加到队列的最前面。（对于受I/O约束的进程来说更公平一些。）
      */
@@ -241,9 +254,9 @@ register Process *proc;     /* 未就绪的进程 */
 //    printf("%s unready\n", proc->name);
     if(is_task_proc(proc)){        /* 系统任务？ */
          /* 如果系统任务的堆栈已经不完整，内核出错。 */
-         if(*proc->stack_guard_word != SYS_TASK_STACK_GUARD){
-             panic("stack over run by task", proc->nr);
-         }
+//         if(*proc->stack_guard_word != SYS_TASK_STACK_GUARD){
+//             panic("stack over run by task", proc->nr);
+//         }
 
          xp = ready_head[TASK_QUEUE];   /* 得到就绪队列头的进程 */
          if(xp == NIL_PROC) return;     /* 并无就绪的系统任务 */

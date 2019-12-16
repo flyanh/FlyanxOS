@@ -14,8 +14,8 @@
 #define _MM_MMPROC_H
 
 typedef struct mm_process_s {
+    MemoryMap map;          /* 参考内核中的进程结构map */
     char exit_status;       /* 退出状态：在进程已经结束而父进程还没有执行对它的WAIT时的终止状态。 */
-    char sig_status;        /* 终止进程信号的状态 */
     pid_t pid;           /* 进程号 */
     pid_t proc_group;       /* 进程组长的pid（用于信号） */
     pid_t wiat_pid;         /* 正在等待的进程的进程号 */
@@ -26,8 +26,6 @@ typedef struct mm_process_s {
     uid_t effective_uid;		/* 有效用户号 */
     gid_t real_gid;		        /* 真实组号 */
     gid_t effective_gid;		/* 有效组号 */
-
-    /* 文件相关@TODO */
 
     /* 信号处理相关@TODO */
 
@@ -44,7 +42,6 @@ EXTERN MMProcess mmproc[NR_PROCS];      /* 进程表 */
 #define ZOMBIE              0x004	/* 当EXIT时被置位，当WAIT时被复位清除。 */
 #define PAUSED              0x008	/* set by PAUSE system call */
 #define ALARM_ON            0x010	/* set when SIGALRM timer started */
-#define SEPARATE	        0x020	/* 文件是单独的I&D空间 */
 #define	TRACED		        0x040	/* set if process is to be traced */
 #define STOPPED		        0x080	/* set if process stopped for tracing */
 #define SIG_SUSPENDED 	    0x100	/* 系统调用SIGSUSPEND */

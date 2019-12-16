@@ -74,6 +74,8 @@ PUBLIC void at_winchester_task(void) {
     wini_task_nr = curr_proc->nr;
 
     init_params();
+    printf("{HD}-> Drives count: %d\n", nr_drives);
+    printf("{HD}-> Hard Disk Driver Working...\n");
     /* 驱动程序开始工作了 */
     while (TRUE){
         /* 等待外界的消息 */
@@ -420,7 +422,6 @@ PRIVATE void init_params(void){
     /* 从BIOS数据区域获取磁盘驱动器的数量 */
     phys_copy(0x475L, param_phys, 1L);
     if((nr_drives = params[0]) > 2) nr_drives = 2;  /* 就算磁盘驱动器>2，我们也只用两个 */
-    printf("{HD}-> Drives count: %d\n", nr_drives);
     if(nr_drives == 0){     /* 没有硬盘 */
         panic("Flyanx Cannot continue, Because no any HardDisks on pc.", NO_NUM);
     }

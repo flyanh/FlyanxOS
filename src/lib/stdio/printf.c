@@ -14,13 +14,13 @@
 
 int printf(const char *format, ...){
     va_list ap;
-    int rs;
+    int len, rs;
     char buf[STR_DEFAULT_LEN];
 
     va_start(ap, format);
 
-    rs = vsprintf(buf, format, ap);
-    write(STDOUT, buf, rs); /* 输出到标准输出上 */
+    len = vsprintf(buf, format, ap);
+    rs = write(STDOUT, buf, len);   /* 输出到标准输出上 */
 
     va_end(ap);
     return rs;

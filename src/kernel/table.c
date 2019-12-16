@@ -28,10 +28,11 @@
 /* 下面从系统任务号从小到大给出每个系统任务的启动例程。此处的名称循序
  * 与<flyanx/common.h>中分配给任务的数值一致。
  */
-/* 一个128字的小栈 */
+/* 进程堆栈相关 */
+/* 一个128字节的小栈 */
 #define SMALL_STACK (128 * sizeof(char*))
 /* 这是一个普通进程堆栈大小，16KB */
-#define NORMAL_STACK (0x2000 * sizeof(char*))
+#define NORMAL_STACK (0x4000 * sizeof(char*))
 
 /* 终端任务栈大小  -17 */
 #define TTY_TASK_STASK      (3 * SMALL_STACK)
@@ -53,20 +54,18 @@
 /* 虚拟硬件任务，使用内核堆栈，但它没有空间 */
 #define	HARDWARE_STACK	    0
 /* 内存管理器服务，使用内核堆栈 */
-#define MM_STACK            NORMAL_STACK
+#define MM_STACK            (5 * SMALL_STACK)
 /* 文件系统服务，使用内核堆栈 */
-#define FS_STACK            NORMAL_STACK
+#define FS_STACK            (5 * SMALL_STACK)
 /* 飞彦扩展器服务，使用内核堆栈 */
-#define FLY_STACK           NORMAL_STACK
+#define FLY_STACK           (5 * SMALL_STACK)
 /* 起源进程，使用内核堆栈 */
 #define ORIGIN_STACK        NORMAL_STACK
 
-
-
 /* 所有系统任务的栈空间大小 */
-#define TOT_TASK_STACK_SPACE    (TTY_TASK_STASK + IDLE_TASK_STACK + CLOCK_TASK_STACK + \
-                                 MM_STACK + FS_STACK + FLY_STACK + ORIGIN_STACK + \
-                                 NR_CONTROLLERS * CONTROLLER_STACK + SYS_TASK_STACK)
+#define TOT_TASK_STACK_SPACE    (TTY_TASK_STASK + CLOCK_TASK_STACK + (NR_CONTROLLERS * CONTROLLER_STACK) + \
+                                 IDLE_TASK_STACK + SYS_TASK_STACK + MM_STACK + FS_STACK + FLY_STACK + ORIGIN_STACK \
+                                 )
 
 /* 为系统任务表的所有表象分配空间 */
 PUBLIC TaskTab tasktab[] = {
@@ -103,19 +102,20 @@ PUBLIC TaskTab tasktab[] = {
         /* 飞彦扩展管理器 */
         { &fly_main, FLY_STACK, "FLY"		},
         /* 起源进程 */
-        { &origin_main, ORIGIN_STACK, "ORIGIN"		},
+        { &origin_main, ORIGIN_STACK, "ORIGIN"		}
 };
 
-/* 驱动任务 */
+/* 驱动任务定义 */
 typedef struct driver_tab {
     char name[8];
     task_t *driver;
 } DriverTab;
+
 /* 从驱动程序名称到驱动程序功能的映射，例如 “bios”-> bios_wini */
 PRIVATE DriverTab driver_tab[] = {
 #if ENABLE_AT_WINI
         /* 默认硬盘驱动 */
-        {"AT_HD", &at_winchester_task },
+        {"AT_HD0", &at_winchester_task },
 #endif
 };
 #define FIRST_DRIVER_TASK   NR_CONTROLLERS + 1   /* 第一个驱动任务所处任务表中的位置， */
@@ -125,7 +125,9 @@ PRIVATE DriverTab driver_tab[] = {
  *                                   映射驱动程序              *
  *===========================================================================*/
 PUBLIC void map_drivers(void){
-    /* 将驱动程序映射到控制器，并将任务表更新为该选择。 */
+    /* 将驱动程序映射到控制器，并将任务表更新为该选择。
+     * 这段程序不难理解，只要你多加琢磨。
+     */
 
     DriverTab *driver;
     char *driver_name;
@@ -142,6 +144,22 @@ PUBLIC void map_drivers(void){
         driver++;
     }
 }
+
+/* 所有系统任务堆栈的堆栈空间。 （声明为（char *）使其对齐。） */
+PUBLIC char *task_stack[TOT_TASK_STACK_SPACE / sizeof(char *)];
+
+/* 虽然已经尽量将所有用户可设置的配置消息单独放在include/flyanx/config.h中,但是在将tasktab的大小与
+ * NR_TASKS相匹配时仍可能会导致错误。在table.c的结尾处使用一个小技巧对这个错误进行检测。方法是在这里声明
+ * 一个dummy_tasktab,声明的方式是假如发生了前述的错误,则dummy_tasktab的大小是非法的,从而导致编译错误。
+ * 由于哑数组声明为extern,此处并不为它分配空间(其他地方也不为其分配空间)。因为在代码中任何地方都不会
+ * 引用到它,所以编译器不会受任何影响。
+ *
+ * 简单解释：减去的是MM、FS、FLY和ORIGIN，这些都不属于系统任务
+ */
+#define NKT (sizeof(tasktab) / sizeof(struct tasktab_s) - (ORIGIN_PROC_NR + 1))
+//#define NKT ( sizeof(tasktab) / sizeof(struct tasktab_s) - 1 )
+
+extern int dummy_tasktab_check[NR_TASKS == NKT ? 1 : -1];
 
 /* 下面给系统服务分配高速缓冲区 */
 /* 6MB~7MB: 文件系统使用 */
@@ -162,20 +180,5 @@ PUBLIC const int LOG_BUFFER_SIZE = 0x100000;
 PUBLIC char *log_disk_buffer  = (char *)0xA00000;
 PUBLIC const int LOG_DISK_BUFFER_SIZE = 0x100000;
 
-/* 所有系统任务堆栈的堆栈空间。 （声明为（char *）使其对齐。） */
-PUBLIC char *task_stack[TOT_TASK_STACK_SPACE / sizeof(char *)];
-
-/* 虽然已经尽量将所有用户可设置的配置消息单独放在include/flyanx/config.h中,但是在将tasktab的大小与
- * NR_TASKS相匹配时仍可能会导致错误。在table.c的结尾处使用一个小技巧对这个错误进行检测。方法是在这里声明
- * 一个dummy_tasktab,声明的方式是假如发生了前述的错误,则dummy_tasktab的大小是非法的,从而导致编译错误。
- * 由于哑数组声明为extern,此处并不为它分配空间(其他地方也不为其分配空间)。因为在代码中任何地方都不会
- * 引用到它,所以编译器不会受任何影响。
- *
- * 简单解释：减去的是MM、FS、FLY和ORIGIN，这些都不属于系统任务
- */
-#define NKT (sizeof(tasktab) / sizeof(struct tasktab_s) - (ORIGIN_PROC_NR + 1))
-//#define NKT ( sizeof(tasktab) / sizeof(struct tasktab_s) - 1 )
-
-extern int dummy_tasktab_check[NR_TASKS == NKT ? 1 : -1];
 
 
