@@ -28,4 +28,5 @@ add_executable(Flyanx ./src/kernel/main.c src/kernel/kernel.h include/flyanx/con
         src/lib/posix/_creat.c src/lib/posix/_close.c src/lib/posix/_mkdir.c src/fs/read_write.c src/lib/posix/_read.c
         src/lib/posix/_write.c src/fs/link.c src/lib/ansi/memcmp.c src/lib/posix/_unlink.c src/lib/posix/_link.c src/fs/misc.c
         src/lib/posix/_lseek.c src/fs/statdir.c src/lib/posix/_fstat.c src/lib/posix/_stat.c src/fs/pipe.c src/lib/stdio/printf.c
-        src/lib/stdio/vsprintf.c src/lib/other/_sleep.c src/fly/misc.c src/fly/utils.c src/fly/param.h src/lib/stdio/sprintf.c)
+        src/lib/stdio/vsprintf.c src/lib/other/_sleep.c src/fly/misc.c src/fly/utils.c src/fly/param.h src/lib/stdio/sprintf.c
+        src/lib/syslib/sys_get_map.c src/lib/syslib/sys_fork.c src/lib/syslib/sys_new_map.c src/lib/posix/_fork.c)

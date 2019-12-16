@@ -31,34 +31,32 @@ FORWARD _PROTOTYPE(void init_gate, (u8_t vector, u8_t desc_type, int_handler_t h
  *=========================================================================*/
 PUBLIC void protect_init(void)
 {
-    /*
-     * 建立CPU的保护机制和中断表
-     *
+    /* 建立CPU的保护机制和中断表
      * 每个进程在进程表中LDT的空间都分配，每个包含有两个描述符，
      * 分别是代码段和数据段描述符-这个讨论的段由硬件定义。这些段
-     * 与操作系统中的段不同，操作系统中的段将硬件定于的数据段进一
+     * 与操作系统中的段不同，操作系统中的段将硬件定义的数据段进一
      * 步分为数据段和堆栈段。
      */
 
-    // 首先，将LOADER中的GDT复制到新的GDT中
-    memcpy(	&gdt,				    		                // New GDT
-               (void *) (*((u32_t *) (&gdt_ptr[2]))),   	// Base  of Old GDT
-               *((u16_t *)(&gdt_ptr[0])) + 1	    	// Limit of Old GDT
-    );
+    /* 首先，将LOADER中的GDT复制到新的GDT中 */
+    phys_copy((phys_bytes) (*((u32_t *) (&gdt_ptr[2]))),      /* LOADER中的旧GDT基地址 */
+            (phys_bytes) &gdt,                                        /* 移动到新的GDT */
+            *((u16_t *)(&gdt_ptr[0])) + 1);                    /* 移动字节量：GDT界限 + 1 */
 
-    // gdt_ptr[6] 共 6 个字节: 0~15:Limit  16~47:Base。用作 sgdt 以及 lgdt 的参数。
+    /* gdt_ptr[6] 共 6 个字节: 0~15:Limit  16~47:Base。用作 sgdt 以及 lgdt 的参数。 */
     u16_t *p_gdtLimit	= (u16_t *)(&gdt_ptr[0]);
     u32_t *p_gdtBase 	= (u32_t *)(&gdt_ptr[2]);
     *p_gdtLimit = GDT_SIZE * DESCRIPTOR_SIZE - 1;
     *p_gdtBase	= (u32_t)&gdt;
 
-    // idt_ptr[6] 共 6 个字节：0~15:Limit  16~47:Base。用作 sidt 以及 lidt 的参数。
+    /* idt_ptr[6] 共 6 个字节：0~15:Limit  16~47:Base。用作 sidt 以及 lidt 的参数。 */
     u16_t *p_idtLimit = (u16_t*)(&idt_ptr[0]);
     u32_t *p_idtBase  = (u32_t*)(&idt_ptr[2]);
     *p_idtLimit = IDT_SIZE * sizeof(Gate) - 1;
     *p_idtBase  = (u32_t)&idt;
 
-    // 全部初始化成中断门(没有陷阱门)
+    /* =================  全部初始化成中断门(没有陷阱门) =================  */
+    /* 异常 */
     init_gate(INT_VECTOR_DIVIDE,	DA_386IGate, divide_error,		KERNEL_PRIVILEGE);
     init_gate(INT_VECTOR_DEBUG,		DA_386IGate, single_step_exception,	KERNEL_PRIVILEGE);
     init_gate(INT_VECTOR_NMI,		DA_386IGate, nmi,			KERNEL_PRIVILEGE);
@@ -75,6 +73,7 @@ PUBLIC void protect_init(void)
     init_gate(INT_VECTOR_PROTECTION,	DA_386IGate, general_protection,	KERNEL_PRIVILEGE);
     init_gate(INT_VECTOR_PAGE_FAULT,	DA_386IGate, page_fault,		KERNEL_PRIVILEGE);
     init_gate(INT_VECTOR_COPROC_ERR,	DA_386IGate, copr_error,		KERNEL_PRIVILEGE);
+    /* 硬件中断 */
     init_gate(INT_VECTOR_IRQ0 + 0,	DA_386IGate, hwint00,			KERNEL_PRIVILEGE);
     init_gate(INT_VECTOR_IRQ0 + 1,	DA_386IGate, hwint01,			KERNEL_PRIVILEGE);
     init_gate(INT_VECTOR_IRQ0 + 2,	DA_386IGate, hwint02,			KERNEL_PRIVILEGE);
@@ -91,41 +90,41 @@ PUBLIC void protect_init(void)
     init_gate(INT_VECTOR_IRQ8 + 5,	DA_386IGate, hwint13,			KERNEL_PRIVILEGE);
     init_gate(INT_VECTOR_IRQ8 + 6,	DA_386IGate, hwint14,			KERNEL_PRIVILEGE);
     init_gate(INT_VECTOR_IRQ8 + 7,	DA_386IGate, hwint15,			KERNEL_PRIVILEGE);
-#if _WORD_SIZE == 2     /* 初始化286系统调用中断门 */
+    /* 软件中断 */
+#if _WORD_SIZE == 2     /* 286系统调用中断门 */
     init_gate(INT_VECTOR_SYS_CALL, 	DA_386IGate, flyanx_286_syscall, 	USER_PRIVILEGE);
-#else                   /* 初始化386系统调用中断门 */
+#else                   /* 386系统调用中断门 */
     init_gate(INT_VECTOR_SYS_CALL, 	DA_386IGate, flyanx_386_syscall, 	USER_PRIVILEGE);
 #endif
-    // 初始化系统任务提权调用中断门
-    init_gate(INT_VECTOR_LEVEL0, 	DA_386IGate, level0_call, 	TASK_PRIVILEGE);
+    init_gate(INT_VECTOR_LEVEL0, 	DA_386IGate, level0_call, 	TASK_PRIVILEGE);    /* 系统任务提权调用 */
 
     /* 初始化任务状态段TSS，并为处理器寄存器和其他任务切换时应保存的信息提供空间。
      * 我们只使用了某些域的信息，这些域定义了当发生中断时在何处建立新堆栈。
-     * 下面init_dataseg的调用保证它可以用GDT进行定位。
+     * 下面init_seg_desc的调用保证它可以用GDT进行定位。
      */
+    memset(&tss, 0, sizeof(tss));
     tss.ss0 = SELECTOR_KERNEL_DS;
     init_seg_desc(&gdt[TSS_INDEX],
                 vir2phys(&tss),
                 sizeof(tss) - 1,
                 DA_386TSS);
-#if _WORD_SIZE == 4
     /* 完成主要的TSS的构建。 */
     tss.iobase = sizeof(tss);	/* 空的I/O权限图 */
-#endif
 
     /* 在GDT中为进程表中的LDT构建本地描述符。
-     * LDT在编译时分配给进程表，并在初始化或更改进程映射时初始化。
+     * LDT在编译时将分配给进程，并在初始化或更改进程映射时再次初始化。
      */
-    Process *proc;
-    unsigned ldt_index;
-    for(proc = BEG_PROC_ADDR, ldt_index = LDT_FIRST_INDEX;
-        proc < END_PROC_ADDR; proc++, ldt_index++){
-        init_seg_desc(&gdt[ldt_index],
-                      vir2phys(proc->ldt),
-                      LDT_SIZE * DESCRIPTOR_SIZE - 1,
-                      DA_LDT);
-        proc->ldt_selector = ldt_index * DESCRIPTOR_SIZE;
+    int i;
+    for(i = 0; i < NR_TASKS + NR_PROCS; i++){
+        memset(&process[i], 0, sizeof(Process));
+        process[i].ldt_sel = SELECTOR_LDT_FIRST + (i * DESCRIPTOR_SIZE);
+        init_seg_desc(&gdt[LDT_FIRST_INDEX + i],
+                vir2phys(process[i].ldt),
+                LDT_SIZE * DESCRIPTOR_SIZE - 1,
+                DA_LDT);
     }
+
+    /* ================= 至此，保护模式所需的基本信息已经构建完成 ================= */
 }
 
 /*=========================================================================*
@@ -133,7 +132,7 @@ PUBLIC void protect_init(void)
  *				初始化段描述符
  *=========================================================================*/
 PUBLIC void init_seg_desc(p_desc, base, limit, attribute)
-register SegDescriptor *p_desc;
+SegDescriptor *p_desc;
 phys_bytes base;
 phys_bytes limit;
 u16_t attribute;
@@ -144,7 +143,7 @@ u16_t attribute;
     p_desc->base_middle	= (base >> 16) & 0x0FF;     /* 段基址 2		(1 字节) */
     p_desc->access		= attribute & 0xFF;         /* 属性 1 */
     p_desc->granularity = ((limit >> 16) & 0x0F) |  /* 段界限 2 + 属性 2 */
-                        ((attribute >> 8) & 0xF0);
+                            ((attribute >> 8) & 0xF0);
     p_desc->base_high	= (base >> 24) & 0x0FF;     /* 段基址 3		(1 字节) */
 }
 

@@ -13,11 +13,10 @@
  */
 
 #include "kernel.h"
-#include <stdlib.h>
 #include "protect.h"
 
 /* 加载器（LOADER）传递的启动参数 */
-PUBLIC BootParams bootParams;
+PUBLIC BootParams boot_params;
 
 /*==========================================================================*
  *				cstart					                                    *
@@ -33,7 +32,7 @@ PUBLIC void cstart(void)
     protect_init();
 
     /* 得到引导（启动）参数 */
-    get_boot_params(&bootParams);
+    get_boot_params(&boot_params);
 
     /* 根据引导参数确定机器的各种信息：显示器的型号、内存大小、机器类型、处理器操作模式
      * (实模式还是保护模式)，以及是否可能返回到引导监控程序等。这些所有的信息都保存在适

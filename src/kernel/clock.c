@@ -36,7 +36,7 @@
 
 /* 常量定义 */
 #define ONE_TICK_MILLISECOND    10          /* 一个滴答有多少毫秒，这个初始化时就决定了 */
-#define SCHEDULE_MILLISECOND    100         /* 用户进程调度的频率（毫秒） */
+#define SCHEDULE_MILLISECOND    130         /* 用户进程调度的频率（毫秒） */
 #define SCHEDULE_TICKS          (SCHEDULE_MILLISECOND / ONE_TICK_MILLISECOND)  /* 用户进程调度的频率（滴答） */
 
 /* 时钟, 8253 / 8254 PIT (可编程间隔定时器)参数 */
@@ -307,7 +307,6 @@ time_t millisec;
 
     /* 得出退出循环的闹钟时间 */
     milli_delay_alarm = ticks + millisec / ONE_TICK_MILLISECOND;
-    clock_t enter_millis = 0;           /* 进入延迟函数的总时间 */
     while (milli_delay_alarm != FALSE) {};  /* 只要检测到闹钟还未被关闭，说明时间没到，继续循环 */
 }
 
@@ -356,7 +355,6 @@ int irq;
      if(proc != bill_proc && proc != proc_addr(IDLE_TASK)) bill_proc->sys_time += ticks;
      pending_ticks += one_ticks;        /* 对中断挂起滴答时间充电 */
      now = ticks + pending_ticks;   /* 当前实际时间 = 开机运行时间 + 中断挂起滴答时间 */
-
      /* 好了，如果终端任务的触发时间到了，唤醒其 */
      if(tty_wake_time <= now){
          tty_wakeup(now);
@@ -374,8 +372,8 @@ int irq;
          milli_delay_alarm = FALSE;
      }
 
-     /* 调度时间到了？ */
-     if(--schedule_ticks == 0 && bill_proc == prev_proc && ready_head[USER_QUEUE] != NIL_PROC) {
+     /* 用户进程调度时间到了？ */
+     if(--schedule_ticks == 0 && ready_head[USER_QUEUE] != NIL_PROC) {
          /* 如果消费进程等于最后使用时钟任务的进程，重新调度 */
          if(bill_proc == prev_proc) lock_schedule();
          schedule_ticks = SCHEDULE_TICKS;   /* 调度时间计数重置 */

@@ -57,7 +57,7 @@ extern int errno;		  /* 错误编号所在的位置 */
 #define EBADF         (_SIGN  9)  /* 坏的文件描述符 */
 #define ECHILD        (_SIGN 10)  /* no child process */
 #define EAGAIN        (_SIGN 11)  /* 资源暂时不可用，例如进程表满了 */
-#define ENOMEM        (_SIGN 12)  /* not enough space */
+#define ENOMEM        (_SIGN 12)  /* 没有足够的内存空间 */
 #define EACCES        (_SIGN 13)  /* 没有权限 */
 #define EFAULT        (_SIGN 14)  /* 错误的地址 */
 #define ENOTBLK       (_SIGN 15)  /* Extension: not a block special file */

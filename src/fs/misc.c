@@ -35,7 +35,7 @@ PUBLIC int do_fs_fork(void){
     int i;
 
     /* 只有MM才能使用此调用。 */
-    if(who != MM_PROC_NR) return EGENERIC;
+    if(fs_who != MM_PROC_NR) return EGENERIC;
 
     /* 子进程继承父进程的结构 */
     fsproc[in_child] = fsproc[in_parent];
@@ -69,7 +69,7 @@ PUBLIC int do_fs_exit(void){
     register FSProcess *exit;
 
     /* 只有MM才能使用此调用。 */
-    if(who != MM_PROC_NR) return EGENERIC;
+    if(fs_who != MM_PROC_NR) return EGENERIC;
 
     exit = &fsproc[in_pid];
     for(i = 0; i < OPEN_MAX; i++){
@@ -97,7 +97,7 @@ PUBLIC int do_revive(void){
      */
 
     /* 用户进程不能做这件事！ */
-    if(who >= LOW_USER && call_fp->pid != PID_SERVER) return EPERM;
+    if(fs_who >= LOW_USER && call_fp->pid != PID_SERVER) return EPERM;
 
     revive(fs_inbox.REPLY_PROC_NR, fs_inbox.REPLY_STATUS);
     need_reply = FALSE;     /* 不需要回复终端 */

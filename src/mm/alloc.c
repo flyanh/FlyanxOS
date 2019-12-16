@@ -77,7 +77,7 @@ PUBLIC void mem_init(phys_clicks total, phys_clicks free){
      * 长度 = 现在可用的空闲空间大小
      * 调用free_mem释放这一个空闲块
      */
-    free_mem((PROCS_BASE >> CLICK_SHIFT), free);
+    free_mem(PROCS_BASE_CLICK, free);
     /* 完成了，简单吧？ */
 }
 

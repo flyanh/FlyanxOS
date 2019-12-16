@@ -51,15 +51,16 @@ FloppyMountPoint= /media/floppyDisk
 
 # 所使用的编译程序，参数
 ASM 			= nasm
-DASM 			= ndisasm
+DASM 			= objdump
 CC 				= gcc
 LD				= ld
 ASMFlagsOfBoot	= -I src/boot/include/
 ASMFlagsOfKernel= -f elf -I $(sk)/
 ASMFlagsOfSysCall = -f elf
-CFlags			= -I$i -c -fno-builtin
-LDFlags			= -s -Ttext $(ENTRYPOINT)
-DASMFlags		= -u -o $(ENTRYPOINT) -e $(ENTRYOFFSET)
+CFlags			= -I$i -c -fno-builtin -Wall
+LDFlags			= -Ttext $(ENTRYPOINT) -Map kernel.map
+DASMFlags		= -D
+ARFLAGS		    = rcs
 
 # 依赖关系
 ka = $(sk)/kernel.h $h/config.h $h/const.h $h/type.h $h/syslib.h \
@@ -86,19 +87,18 @@ lib = $i/lib.h $h/common.h $h/syslib.h
 
 FlyanxBoot		= $(tb)/boot.bin $(tb)/loader.bin $(tb)/hd_boot.bin $(tb)/hd_loader.bin
 FlyanxKernel	= $(tk)/kernel.bin
-FlyanxKernelHead = $(tk)/kernel.o
+LIB             = $(tl)/flyanxlib.a
 
 # 内核本体，微内核只实现基本功能
-KernelObjs      = $(tk)/start.o $(tk)/protect.o $(tk)/kernel_386_lib.o \
-                  $(tk)/table.o $(tk)/main.o $(tk)/process.o \
+KernelObjs      = $(tk)/kernel.o $(tk)/start.o $(tk)/main.o $(tk)/protect.o \
+                  $(tk)/kernel_386_lib.o $(tk)/table.o  $(tk)/process.o \
                   $(tk)/message.o $(tk)/exception.o $(tk)/system.o \
                   $(tk)/clock.o $(tk)/tty.o $(tk)/keyboard.o \
                   $(tk)/console.o $(tk)/i8259.o  $(tk)/dmp.o \
                   $(tk)/misc.o $(tk)/driver.o $(tk)/at_wind.o
 
 # 运行在系统上的服务进程和起源进程，现在有：MM、FS、FLY、ORIGIN
-ProcObjs        = $(tog)/origin.o \
-                  $(tmm)/main.o \
+ProcObjs        = $(tmm)/main.o \
                   $(tmm)/table.o $(tmm)/utils.o $(tmm)/alloc.o $(tmm)/forkexit.o \
                   $(tmm)/misc.o \
                   $(tmm)/exec.o \
@@ -106,23 +106,28 @@ ProcObjs        = $(tog)/origin.o \
                   $(tfs)/super.o $(tfs)/inode.o $(tfs)/open.o $(tfs)/file.o \
                   $(tfs)/path.o $(tfs)/read_write.o $(tfs)/link.o $(tfs)/statdir.o \
                   $(tfs)/pipe.o $(tfs)/misc.o \
-                  $(tfly)/main.o $(tfly)/table.o $(tfly)/utils.o $(tfly)/misc.o
+                  $(tfly)/main.o $(tfly)/table.o $(tfly)/utils.o $(tfly)/misc.o \
+                  $(tog)/origin.o
 
+# 内核之外所需要的库，有系统库，也有提供给用户使用的库，我按这样的顺序排下来：系统库->用户库->系统调用库
 LibObjs         = $(tl)/i386/message.o \
                   $(tl)/ansi/string.o $(tl)/ansi/memcmp.o $(tl)/syslib/kernel_debug.o $(tl)/syslib/kprintf.o \
                   $(tl)/syslib/putk.o $(tl)/ansi/stringc.o $(tl)/syslib/task_call.o \
                   $(tl)/syslib/sys_sudden.o $(tl)/syslib/sys_blues.o $(tl)/syslib/sys_copy.o \
+                  $(tl)/syslib/sys_get_map.o $(tl)/syslib/sys_new_map.o $(tl)/syslib/sys_fork.o  \
                   $(tl)/other/loadname.o $(tl)/other/syscall.o $(tl)/other/errno.o $(tl)/other/_sleep.o \
                   $(tl)/stdio/vsprintf.o $(tl)/stdio/printf.o $(tl)/stdio/sprintf.o \
                   $(tl)/posix/_open.o $(tl)/posix/_creat.o $(tl)/posix/_close.o $(tl)/posix/_mkdir.o \
                   $(tl)/posix/_read.o $(tl)/posix/_write.o $(tl)/posix/_link.o $(tl)/posix/_unlink.o \
-                  $(tl)/posix/_lseek.o $(tl)/posix/_stat.o $(tl)/posix/_fstat.o \
+                  $(tl)/posix/_lseek.o $(tl)/posix/_stat.o $(tl)/posix/_fstat.o $(tl)/posix/_fork.o \
                   $(tl)/syscall/open.o $(tl)/syscall/creat.o $(tl)/syscall/close.o \
                   $(tl)/syscall/mkdir.o $(tl)/syscall/read.o $(tl)/syscall/write.o \
                   $(tl)/syscall/link.o $(tl)/syscall/unlink.o $(tl)/syscall/lseek.o \
-                  $(tl)/syscall/stat.o $(tl)/syscall/fstat.o $(tl)/syscall/sleep.o
+                  $(tl)/syscall/stat.o $(tl)/syscall/fstat.o $(tl)/syscall/sleep.o \
+                  $(tl)/syscall/fork.o
 
-Objs			= $(FlyanxKernelHead) $(KernelObjs) $(LibObjs) $(ProcObjs)
+# 所有需要编译的对象，内核 + 服务器进程 + 起源进程
+Objs            = $(KernelObjs) $(ProcObjs)
 
 DASMOutPut		= kernel.bin.asm
 
@@ -159,11 +164,11 @@ run: $(FD) harddisk.tar.gz
 
 # 完全清理，包括生成的boot和内核文件（二进制文件）
 realclean:
-	-rm -f $(FlyanxBoot) $(FlyanxKernel) $(Objs)
+	-rm -f $(FlyanxBoot) $(FlyanxKernel) $(LIB) $(Objs) $(LibObjs)
 
 # 清理所有中间编译文件
 clean:
-	-rm -f $(Objs)
+	-rm -f $(Objs) $(LibObjs)
 
 # 制作系统镜像
 buildimg: $(FD $(HD) $(FlyanxBoot)
@@ -201,8 +206,12 @@ $(tb)/hd_loader.bin: src/boot/hd_loader.asm
 	$(ASM) $(ASMFlagsOfBoot) -o $@ $<
 
 # ============ 内核 ============
-$(FlyanxKernel): $(Objs)
-	$(LD) $(LDFlags) -o $(FlyanxKernel) $(Objs)
+$(FlyanxKernel): $(Objs) $(LIB)
+	$(LD) $(LDFlags) -o $(FlyanxKernel) $^
+
+# 库，它最终将会和内核链接在一起
+$(LIB): $(LibObjs)
+	$(AR) $(ARFLAGS) $@ $^
 
 $(tk)/kernel.o: $(sk)/kernel.asm
 	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
@@ -218,6 +227,7 @@ $(tk)/i8259.o: $(sk)/i8259.c
 
 $(tk)/main.o: $(ka)
 $(tk)/main.o: $i/unistd.h
+$(tk)/main.o: $i/fcntl.h
 $(tk)/main.o: $i/signal.h
 $(tk)/main.o: $h/common.h
 $(tk)/main.o: $(sk)/protect.h
@@ -410,6 +420,18 @@ $(tl)/syslib/sys_copy.o: $h/syslib.h
 $(tl)/syslib/sys_copy.o: src/lib/syslib/sys_copy.c
 	$(CC) $(CFlags) -o $@ $<
 
+$(tl)/syslib/sys_get_map.o: $h/syslib.h
+$(tl)/syslib/sys_get_map.o: src/lib/syslib/sys_get_map.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/syslib/sys_new_map.o: $h/syslib.h
+$(tl)/syslib/sys_new_map.o: src/lib/syslib/sys_new_map.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/syslib/sys_fork.o: $h/syslib.h
+$(tl)/syslib/sys_fork.o: src/lib/syslib/sys_fork.c
+	$(CC) $(CFlags) -o $@ $<
+
 $(tl)/other/loadname.o: $i/lib.h
 $(tl)/other/loadname.o: $i/string.h
 $(tl)/other/loadname.o: src/lib/other/loadname.c
@@ -505,6 +527,11 @@ $(tl)/posix/_fstat.o: $s/stat.h
 $(tl)/posix/_fstat.o: src/lib/posix/_fstat.c
 	$(CC) $(CFlags) -o $@ $<
 
+$(tl)/posix/_fork.o: $i/lib.h
+$(tl)/posix/_fork.o: $i/unistd.h
+$(tl)/posix/_fork.o: src/lib/posix/_fork.c
+	$(CC) $(CFlags) -o $@ $<
+
 # 用户系统调用
 $(tl)/syscall/open.o: src/lib/syscall/open.asm
 	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
@@ -540,6 +567,9 @@ $(tl)/syscall/fstat.o: src/lib/syscall/fstat.asm
 	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
 
 $(tl)/syscall/sleep.o: src/lib/syscall/sleep.asm
+	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
+
+$(tl)/syscall/fork.o: src/lib/syscall/fork.asm
 	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
 
 # ============ 服务器和起源进程 ============
@@ -601,7 +631,7 @@ $(tmm)/exec.o: $(smm)/exec.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tmm)/utils.o: $(mma)
-$(tmm)/utils.o: $i/signal.h
+$(tmm)/utils.o: $h/callnr.h
 $(tmm)/utils.o: $(smm)/mmproc.h
 $(tmm)/utils.o: $(smm)/param.h
 $(tmm)/utils.o: $(smm)/utils.c

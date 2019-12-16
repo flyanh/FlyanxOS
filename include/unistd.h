@@ -91,10 +91,11 @@ _PROTOTYPE( ssize_t write, (int _fd, const void *_buffer, size_t _bytes) );
 _PROTOTYPE( int link, (const char *_name, const char *_name2) );
 _PROTOTYPE( int unlink, (const char *_name) );
 _PROTOTYPE( off_t lseek, (int _fd, off_t _offset, int _whence) );
+_PROTOTYPE( pid_t fork, (void) );
 
-#ifdef _FLYANX
+
 _PROTOTYPE( int sleep, (time_t _mills) );
-#endif
+
 
 
 

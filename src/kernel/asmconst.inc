@@ -25,10 +25,10 @@ EDXREG          equ EBXREG + 4
 ECXREG          equ EDXREG + 4
 EAXREG          equ ECXREG + 4
 RETADR          equ EAXREG + 4
-EIPREG          equ RETADR + 4
-CSREG           equ EIPREG + 4
-EFLAGSREG       equ CSREG + 4
-ESPREG          equ EFLAGSREG + 4
+PCREG           equ RETADR + 4
+CSREG           equ PCREG + 4
+PWSREG          equ CSREG + 4
+ESPREG          equ PWSREG + 4
 SSREG           equ ESPREG + 4
 P_STACKTOP      equ SSREG + 4       ; 栈顶
 P_LDT_SEL       equ P_STACKTOP      ; LDT选择子
@@ -51,9 +51,4 @@ SELECTOR_TSS        equ 20h                ; TSS. 从外层调到内存时 SS �
 SELECTOR_KERNEL_CS  equ SELECTOR_FLAT_C     ; 内核代码段
 SELECTOR_KERNEL_DS  equ SELECTOR_FLAT_RW    ; 内核数据段
 ;================================================================================================
-; 关于消息通信的一些参数
-CLICK_SHIFT     equ     10
-
-
-MSG_SIZE		equ	    9		; 消息的大小（32位机器中）
 ;================================================================================================

@@ -35,8 +35,8 @@
 #define FLY                 2       /* 飞彦拓展器，其他调用都在这处理 */
 
 _PROTOTYPE( void panic, (const char *_message, int _errnum) );
-_PROTOTYPE( int send_receive, (int src_dest, Message *message_ptr) );
-_PROTOTYPE( int _syscall, (int who, int syscallnr, struct message_s *msg_ptr) );
-_PROTOTYPE( void load_name, (const char *name, Message *msg_ptr) );
+_PROTOTYPE( int send_receive, (int _src_dest, Message *_message_ptr) );
+_PROTOTYPE( int _syscall, (int _who, int _syscallnr, struct message_s *_msg_ptr) );
+_PROTOTYPE( void load_name, (const char *_name, Message *_msg_ptr) );
 
 #endif //_LIB_H

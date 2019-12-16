@@ -38,7 +38,7 @@ _PROTOTYPE( void get_boot_params, (BootParams *bp) );
 /*================================================================================================*/
 /* main.c */
 /*================================================================================================*/
-_PROTOTYPE(int main, (void)						);
+_PROTOTYPE(void flyanx_main, (void)						);
 _PROTOTYPE( void panic, (const char *msg, int errno)				);
 _PROTOTYPE(void raw_clear_screen, (void) );
 _PROTOTYPE( void idle_test_task, (void) );
@@ -57,8 +57,7 @@ _PROTOTYPE( void phys2seg, (vir_bytes *seg, vir_bytes *off, phys_bytes phys) );
 /* message.c */
 /*================================================================================================*/
 _PROTOTYPE( int sys_call, (int function, int src_dest, struct message_s *message_ptr) );
-_PROTOTYPE( phys_bytes proc_vir2phys, (struct process_s *proc, vir_bytes vir) );
-_PROTOTYPE( phys_bytes ldt_seg_phys, (struct process_s *proc, int seg_index) );
+_PROTOTYPE( void msg_reset, (Message *msg) );
 
 /*================================================================================================*/
 /* clock.c */
@@ -91,6 +90,7 @@ _PROTOTYPE( void switch_to, (int line) );
 _PROTOTYPE( void clear_screen, (struct tty_s *tty) );
 _PROTOTYPE( void screen_init, (void) );
 _PROTOTYPE( void blue_screen, (void) );
+_PROTOTYPE( void scroll_screen, (unsigned direction) );
 
 /*================================================================================================*/
 /* keyboard.c */
@@ -179,7 +179,7 @@ _PROTOTYPE( void map_dmp, (void) );
 /*================================================================================================*/
 /* misc.c */
 /*================================================================================================*/
-_PROTOTYPE( int get_kernel_map, (phys_clicks *base, phys_clicks *limit) );
+_PROTOTYPE( int get_kernel_map, (phys_bytes *base, phys_bytes *limit) );
 
 /*================================================================================================*/
 /*  硬件中断处理程序。 */

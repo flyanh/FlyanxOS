@@ -115,7 +115,6 @@ typedef struct message_s{
  */
 typedef struct memory_map{
     phys_bytes base;    /* 这块内存的基地址 */
-    phys_bytes limit;   /* 这块内存的界限在哪 */
     phys_bytes size;    /* 这块内存有多大？ */
 } MemoryMap;
 

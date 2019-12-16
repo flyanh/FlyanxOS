@@ -147,7 +147,7 @@ PRIVATE int common_open(register int oflag, mode_t omode){
         if(imode == I_CHAR_SPECIAL){    /* 字符设备？ */
             int dev = inp->start_sect;
 //            printf("dev: %d\n", MAJOR(inp->device));
-            dev_open(dev, who, oflag);    /* 打开这个字符设备 */
+            dev_open(dev, fs_who, oflag);    /* 打开这个字符设备 */
         } else if(imode == I_DIRECTORY){
             /* 目录？现在只能是"/" */
             if(inp->num != ROOT_INODE){

@@ -83,7 +83,7 @@ PUBLIC int read_write(
         }
         /* 执行设备io */
         dev_io(rw_flag == READING ? DEVICE_READ : DEVICE_WRITE,
-               dev, who, in_buffer, pos, in_bytes, oflags);
+               dev, fs_who, in_buffer, pos, in_bytes, oflags);
         return fs_outbox.REPLY_STATUS;  /* 返回io结果，如果成功则是传输的字节数，失败则是错误代码。 */
     } else {                            /* 普通文件/目录 ... */
         /* 计算读写文件位置的最大值 */
@@ -113,10 +113,10 @@ PUBLIC int read_write(
                         i * SECTOR_SIZE, chunk * SECTOR_SIZE, oflags);
                 /* 再将读取的数据复制给用户 */
                 sys_copy(FS_PROC_NR, DATA, (phys_bytes) fs_buffer + off,
-                         who, DATA, (phys_bytes) in_buffer + bytes_rw, bytes);
+                         fs_who, DATA, (phys_bytes) in_buffer + bytes_rw, bytes);
             } else {                    /* 写 */
                 /* 先将用户要写入的数据拷贝到文件系统缓冲区中 */
-                sys_copy(who, DATA, (phys_bytes) in_buffer + bytes_rw,
+                sys_copy(fs_who, DATA, (phys_bytes) in_buffer + bytes_rw,
                         FS_PROC_NR, DATA, (phys_bytes) fs_buffer + off, bytes);
                 /* 再将数据写入磁盘中 */
                 dev_io(WRITING, inp->device, FS_PROC_NR, fs_buffer,

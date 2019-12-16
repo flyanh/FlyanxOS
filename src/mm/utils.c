@@ -8,14 +8,13 @@
  * 本文件包含了内存管理器的管理例程。
  *
  * 该文件的入口点是：
- *  - allowed:	    查看是否允许访问
- *  - no_sys:	    为无效的系统调用号调用此例程
- *  - panic:	    MM发生致命错误，无法继续
- *  - tell_fs:	    文件系统接口
+ *  - allowed:	        查看是否允许访问
+ *  - mm_no_sys:	    为无效的系统调用号调用此例程
+ *  - mm_panic:	        MM发生致命错误，无法继续
+ *  - mm_tell_fs:	    文件系统接口
  */
 
 #include "mm.h"
-#include <sys/signal.h>
 #include <flyanx/callnr.h>
 #include "mmproc.h"
 #include "param.h"
@@ -46,11 +45,37 @@ PUBLIC void mm_panic(msg, err_no)
      * ，会引起恐慌然后宕机。
      */
 
+    /* OK，蓝屏吧（致敬XP）*/
+    sys_blues();
+
     if(msg != NULL){
         printf("Memory manager panic: %s", msg);
         if(err_no != NO_NUM) printf(" %d", err_no);
         printf("\n");
     }
+    sys_sudden(RBT_PANIC);  /* 死机 */
+}
+
+/*===========================================================================*
+ *				mm_tell_fs					     *
+ *			MM现在有些事要告诉FS
+ *===========================================================================*/
+PUBLIC void mm_tell_fs(int what, int p1, int p2, int p3){
+    /**
+     * 当内存管理器处理的事件需要通知文件系统时，它构造一条消息并发给文件系统。
+     *
+     * MM仅将此例程用于通知FS以下事件：
+     *      tell_fs(EXEC, proc, 0, 0)
+     *      tell_fs(EXIT, proc, 0, 0)
+     *      tell_fs(FORK, child. parent, pid)
+     */
+
+    Message out;
+
+    out.m1_i1 = p1;
+    out.m1_i2 = p2;
+    out.m1_i3 = p3;
+    (void) task_call(FS_PROC_NR, what, &out);
 }
 
 

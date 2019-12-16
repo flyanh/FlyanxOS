@@ -44,15 +44,13 @@ typedef struct gate_s
 typedef struct tss_s
 {
     reg_t   backlink;
-    reg_t	esp0;	    /* stack pointer to use during interrupt */
+    reg_t	esp0;	    /* 中断期间要使用的堆栈指针 */
     reg_t	ss0;	    /*   "   segment  "  "    "        "     */
     reg_t	esp1;
     reg_t	ss1;
     reg_t	esp2;
     reg_t	ss2;
-#if _WORD_SIZE == 4
     reg_t   cr3;
-#endif
     reg_t	eip;
     reg_t	flags;
     reg_t	eax;
@@ -67,16 +65,12 @@ typedef struct tss_s
     reg_t	cs;
     reg_t	ss;
     reg_t	ds;
-#if _WORD_SIZE == 4
     reg_t   fs;
     reg_t   gs;
-#endif
     reg_t	ldt;
-#if _WORD_SIZE == 4
     u16_t trap;
     u16_t iobase;     /* I/O位图基址大于或等于TSS段界限，就表示没有I/O许可位图 */
-/* u8_t iomap[0]; */
-#endif
+    /* u8_t iomap[2]; */
 } Tss;
 
 /*================================================================================================*/
@@ -119,7 +113,7 @@ typedef struct tss_s
 /* 固定的局部描述符 */
 /*data_base*/
 #define CS_LDT_INDEX     0	/* 进程的代码段 */
-#define DS_LDT_INDEX     1	/* 进程数据段=ES=FS=GS=SS */
+#define DS_LDT_INDEX     1	/* 进程数据段=ES=FS=SS */
 #define EXTRA_LDT_INDEX  2	/* 首先是额外的LDT条目 */
 
 /*================================================================================================*/
@@ -143,12 +137,6 @@ typedef struct tss_s
 #define TASK_PRIVILEGE      1
 #define SERVER_PRIVILEGE    2
 #define USER_PRIVILEGE      3
-
-/*================================================================================================*/
-/* 选择子位 */
-/*================================================================================================*/
-#define TI            0x04	/* 表指示器 */
-#define RPL           0x03	/* 请求者的特权级别 */
 
 /*================================================================================================*/
 /* 选择子类型值说明，其中　SA_ : Selector Attribute 选择子属性 */
@@ -213,8 +201,8 @@ typedef struct tss_s
 
 /* 反推：通过一个段描述符，反向得到对应的物理地址，例如正文段的基地址。 */
 #define	reassembly(high, high_shift, mid, mid_shift, low)	\
-	(((high) << (high_shift)) +				\
-	 ((mid)  << (mid_shift)) +				\
+	(((high) << (high_shift)) |				\
+	 ((mid)  << (mid_shift)) |				\
 	 (low))
 
 #endif //FLYANX_PROTECT_H
