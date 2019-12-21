@@ -37,7 +37,10 @@ _PROTOTYPE( int sys_copy, (int src_proc, int src_seg, phys_bytes src_vir, int de
 _PROTOTYPE( int sys_get_map, (int _proc_nr, struct memory_map *_mptr) );
 _PROTOTYPE( int sys_fork, (int child, int parent, int child_pid) );
 _PROTOTYPE( int sys_new_map, (int _proc_nr, struct memory_map *_mptr) );
-
+_PROTOTYPE( int sys_get_sp, (int _proc_nr, vir_bytes *_sp) );
+_PROTOTYPE( int sys_exit, (int _proc_nr, int _parent) );
+_PROTOTYPE( int sys_exec, (int _proc_nr, char *_sp, char *_prog_name, vir_bytes _init_pc) );
+_PROTOTYPE( int sys_set_prog_frame, (int _proc_nr, int _argc, u32_t _argv, u32_t _envp) );
 
 
 

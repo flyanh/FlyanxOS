@@ -35,8 +35,7 @@
 #include "process.h"
 
 /* 常量定义 */
-#define ONE_TICK_MILLISECOND    10          /* 一个滴答有多少毫秒，这个初始化时就决定了 */
-#define SCHEDULE_MILLISECOND    130         /* 用户进程调度的频率（毫秒） */
+#define SCHEDULE_MILLISECOND    130         /* 用户进程调度的频率（毫秒），根据喜好设置就行 */
 #define SCHEDULE_TICKS          (SCHEDULE_MILLISECOND / ONE_TICK_MILLISECOND)  /* 用户进程调度的频率（滴答） */
 
 /* 时钟, 8253 / 8254 PIT (可编程间隔定时器)参数 */

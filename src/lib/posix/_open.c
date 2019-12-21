@@ -30,7 +30,7 @@ PUBLIC int open(
 
     va_start(argp, flags);
     if(flags & O_CREAT) {
-        /* 不存在需要创建，那么我们使用M1消息类型，过户的路径字符串始终放在了用户空间。 */
+        /* 不存在需要创建，那么我们使用M1消息类型，用户的路径字符串始终放在了用户空间。 */
         out.m1_i1 = strlen(name) + 1;
         out.m1_i2 = flags;
         out.m1_i3 = va_arg(argp, Mode_t);

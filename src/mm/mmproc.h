@@ -18,8 +18,8 @@ typedef struct mm_process_s {
     char exit_status;       /* 退出状态：在进程已经结束而父进程还没有执行对它的WAIT时的终止状态。 */
     pid_t pid;           /* 进程号 */
     pid_t proc_group;       /* 进程组长的pid（用于信号） */
-    pid_t wiat_pid;         /* 正在等待的进程的进程号 */
-    pid_t parent;           /* 父进程的进程号 */
+    pid_t wait_pid;         /* 正在等待的进程的进程号 */
+    pid_t parent;           /* 父进程的进程索引号 */
 
     /* 真实/有效的用户号和组号 */
     uid_t real_uid;		        /* 真实用户号 */
@@ -43,12 +43,12 @@ EXTERN MMProcess mmproc[NR_PROCS];      /* 进程表 */
 #define PAUSED              0x008	/* set by PAUSE system call */
 #define ALARM_ON            0x010	/* set when SIGALRM timer started */
 #define	TRACED		        0x040	/* set if process is to be traced */
-#define STOPPED		        0x080	/* set if process stopped for tracing */
+#define STOPPED		        0x080	/* 设置当进程停止跟踪调试 */
 #define SIG_SUSPENDED 	    0x100	/* 系统调用SIGSUSPEND */
 #define REPLY	 	        0x200	/* set if a reply message is pending */
 #define ON_SWAP	 	        0x400	/* 数据段被换出 */
 #define SWAP_IN	 	        0x800	/* set if on the "swap this in" queue */
 
-#define NIL_MPROC ((struct mproc *) 0)
+#define NIL_MPROC ((struct mm_process_s *) 0)
 
 #endif//_MM_MMPROC_H

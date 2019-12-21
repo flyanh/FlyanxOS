@@ -3,7 +3,7 @@
 #define _PARTITION_H
 
 /* 定义了IBM兼容机上使用的硬盘分区表和相关的常量。
- * 该文件有助于将MINIX移植到其他硬件平台上。
+ * 该文件有助于将Flyanx移植到其他硬件平台上。
  * 
  * 对于不同的硬件，include/ibm/partition.h必须可被替换为通常位于另一个相应目录
  * 下的partition.h文件。但在include/flyanx/partition.h中定义的结构是flyanx

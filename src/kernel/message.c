@@ -100,6 +100,13 @@ Message *message_ptr;                   /* 消息 */
         && (dest_proc->get_form == ANY || dest_proc->get_form == caller_ptr->nr)){
         /* 调用CopyMsg复制消息给对方 */
         CopyMsg(caller_ptr, message_ptr, dest_proc, dest_proc->message);
+//        if(caller_ptr->nr == SYS_TASK){
+//            printf("====================================================\n");
+//            printf("s-%s want to send message to %s\n", caller_ptr->name, dest_proc->name);
+//            printf("send messsage{source: %d, type: %d}\n", message_ptr->source, message_ptr->type);
+//            printf("%p --> %p\n", message_ptr, dest_proc->message);
+////            printf("rece messsage{source: %d, type: %d}\n", dest_proc->message->source, dest_proc->message->type);
+//        }
         /* 好了，拿到了消息，解除对方接收消息堵塞的状态并清空消息指针 */
         dest_proc->message = NIL_MESSAGE;
         dest_proc->flags &= ~RECEIVING;
@@ -167,6 +174,11 @@ PUBLIC int flyanx_receive(
             /* 我如果接收任何人的消息 或者 找到了我期望发送消息给我的对方，那么可以拿到对方的消息了 */
             if(src == ANY || src == sender_proc->nr){
                 CopyMsg(sender_proc, sender_proc->message, caller_ptr, message_ptr);
+//                if(sender_proc->nr == SYS_TASK){
+//                    printf("====================================================\n");
+//                    printf("r-%s want to send message to %s\n", sender_proc->name, caller_ptr->name);
+//                    printf("messsage{source: %d, type: %d}\n", sender_proc->message->source, sender_proc->message->type);
+//                }
                 if(sender_proc == caller_ptr->caller_head){
                     /* 如果对方是排队队列的第一个（头），那么排队队列的头更改为下一个 */
                     caller_ptr->caller_head = sender_proc->caller_link;
@@ -174,7 +186,6 @@ PUBLIC int flyanx_receive(
                     /* 如果对方不是队头，那么对方出队，然后下一个排队的人顶替在对方原来的位置 */
                     previous_proc->caller_link = sender_proc->caller_link;
                 }
-                sender_proc->message = NIL_MESSAGE;
                 sender_proc->flags &= ~SENDING;
                 if(sender_proc->flags == 0){
                     /* 取消对方的发送状态，如果对方不再堵塞，那么就绪他 */
@@ -212,6 +223,14 @@ PUBLIC int flyanx_receive(
     caller_ptr->message = message_ptr;
     if(caller_ptr->flags == 0) unready(caller_ptr);
     caller_ptr->flags |= RECEIVING;
+//    if(caller_ptr->nr == MM_PROC_NR){
+//        if(src == ANY){
+//            printf("r-%s want to receive message from %s, now blocked, mp: %p\n", caller_ptr->name, "ANY ONE", message_ptr);
+//        } else {
+//            printf("r-%s want to receive message from %d, now blocked, mp: %p\n", caller_ptr->name, src, message_ptr
+//            );
+//        }
+//    }
 
     /* 处理信号 @TODO */
 
@@ -244,7 +263,9 @@ Message *message_ptr;   /* 消息地址 */
 
     register Process *caller;
     Message *phys_msg;        /* 消息的物理地址 */
-    int n;
+    int rs;
+
+    assert(kernel_reenter == 0);    /* 确保我们不在（ring0）内核堆栈下 */
 
     /* 检查并保证该消息指定的源进程目标地址合法，不合法直接返回错误代码E_BAD_SRC，即错误的源地址 */
     if(!is_ok_src_dest(src_dest)) return ERROR_NO_PERM;
@@ -273,20 +294,22 @@ Message *message_ptr;   /* 消息地址 */
 
     /* 处理发送消息（包括SEND_REC里的SEND操作）操作 */
     if(function & SEND){
-        /* 发送前，设置消息中的消息源 */
+        /* 发送前，设置消息中的消息源（谁想发送或接收？） */
         phys_msg->source = caller->nr;
+        /* 自己给自己发送消息，会产生死锁！ */
+        assert(phys_msg->source != src_dest);
 
         /* 发送消息 */
-        n = flyanx_send(caller, src_dest, message_ptr);
+        rs = flyanx_send(caller, src_dest, message_ptr);
 
         /* 如果是发送操作，不管成功与否，返回代码 */
         if(function == SEND){
-            return n;       /* 发送操作完成， */
+            return rs;       /* 发送操作完成， */
         }
 
         /* 如果是发送并接收操作，发送失败，返回错误代码，不再有下文 */
-        if(n != OK){
-            return n;       /* 发送失败 */
+        if(rs != OK){
+            return rs;       /* 发送失败 */
         }
 
         /* flyan的话：

@@ -1,12 +1,36 @@
-# BIOS image file and VGA BIOS image file
-romimage:file=/usr/local/share/bochs/BIOS-bochs-latest
-vgaromimage:file=/usr/local/share/bochs/VGABIOS-lgpl-latest
+########################################################################
+#                       配置Bochs启动文件，用于调试                       #
+# 如果是为了看运行效果，建议使用VBox等运行，因为Bochs有点卡，毕竟是专门做调试的  #
+########################################################################
 
-# select your boot started floppy disk
+# 给bochs虚拟机分配多少内存(MB)？
+megs: 256
+
+# BIOS image file and VGA BIOS image file
+# romimage:file=/usr/local/share/bochs/BIOS-bochs-latest
+# vgaromimage:file=/usr/local/share/bochs/VGABIOS-lgpl-latest
+romimage:file=/usr/share/bochs/BIOS-bochs-latest
+vgaromimage:file=/usr/share/bochs/VGABIOS-lgpl-latest
+
+# select your boot started floppy disk（软盘）
 floppya:1_44=Flyanx.img,status=inserted
 
-# sure your boot type
-boot:floppy
+# 硬盘-现在的flyanx需要一个硬盘
+ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+#
+ata0-master: type=disk, path="500MHD.img", mode=flat, cylinders=203, heads=16, spt=63
+
+# 选择第一启动项，a、b、c分别代表A、B、C盘，AB是软盘，C是硬盘
+boot: a
+
+# 选择日志输出文件到哪？
+# log: bochs_log
+
+# 是否启用鼠标？
+mouse: enabled=0
+
+# 键盘映射，我们选用美式键盘为默认
+keyboard: keymap=/usr/share/bochs/keymaps/x11-pc-us.map
 
 # enable GUI debugger
 display_library: x, options=gui_debug

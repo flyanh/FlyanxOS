@@ -108,14 +108,14 @@ PRIVATE int common_open(register int oflag, mode_t omode){
     } else {
         /* 文件存在 */
         if(oflag & O_RDWR) {    /* 用户想以读写的方式打开 */
-
-            if((oflag & O_CREAT) && (!(oflag & O_TRUNC))){
-                if(oflag != (O_RDWR | O_CREAT)) fs_panic("FS flags Internal inconsistency", NO_NUM);
-                printf("{FS}-> file exists: %s\n", user_path);
+            /* 在这判断一下用户是否给了正确的打开参数，要么以读写打开，要么就读写打开并截断文件，
+             * 又或者是读写打开且不存在并创建并截断，如果不是这些参数，关闭打开的文件，打印错误
+             * 信息并返回错误。
+             */
+            if(!((oflag == O_RDWR) || (oflag == (O_RDWR | O_TRUNC)) || (oflag == (O_RDWR | O_CREAT | O_TRUNC)))){
+                printf("FS flags Internal inconsistency, you should eg. {'O_RDWR', 'O_RDWR | O_TRUNC', 'O_RDWR | O_CREAT | O_TRUNC'}\n");
+                put_inode(inp);
                 return -1;
-            }
-            if(!((oflag == O_RDWR) || (oflag == (O_RDWR | O_TRUNC)) || (oflag == (O_RDWR | O_TRUNC | O_CREAT)))){
-                fs_panic("FS flags Internal inconsistency", NO_NUM);
             }
             /* 好了，文件已经被打开了，后面没事了。 */
         } else {                /* 并不想读写 */
@@ -131,6 +131,7 @@ PRIVATE int common_open(register int oflag, mode_t omode){
         sync_inode(inp);
     }
 
+    /* 文件存在 */
     if(inp != NIL_INODE){
         /* 将进程与文件描述符连接 */
         call_fp->open_file[fd] = free_slot;
@@ -185,6 +186,7 @@ PRIVATE Inode *create_file(char *path, mode_t bits){
     /* 建立目录项 */
     new_dir_entry(dir_inode, new_ind->num, filename);
     printf("creat a file '%s'\n", filename);
+    printf("inode:{num: %d, start_sect: %d, nr_sects: %d}\n", new_ind->num, new_ind->start_sect, new_ind->nr_sects);
     return new_ind;
 }
 
@@ -225,7 +227,7 @@ PUBLIC int do_close(void){
         call_fp->open_file[fd]->inode = NIL_INODE;
     }
     call_fp->open_file[fd] = NIL_FILE;
-    printf("close file(%d) success!\n", fd);
+//    printf("close file(%d) success!\n", fd);
 
     return OK;
 }

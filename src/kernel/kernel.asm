@@ -404,23 +404,22 @@ halt:                   ; 暂停处理器使处理器处于待机状态
 ; flyanx_386_syscall : 系统调用
 flyanx_386_syscall:
 	call save
-	push dword [curr_proc]
 
     ;* 重新开启中断,注：软件中断与硬件中断的相似之处还包括它们都关中断 *
     sti
+    ;* 系统调用函数必须保留 esi *
+    push    esi
     ;* 这里是重点，将所需参数压入栈中（现在处于核心栈），然后调用sys_call去真正调用实际的系统调用例程 *
-    mov     ebp, esp        ; 保存内核堆栈指针
-    add     ebp, 4          ; 执行完调用后，指针数值 + 4，我们预先求出这个值
-
 	push 	ebx     ; 用户消息缓冲区
     push 	eax     ; 源/目标
     push    ecx     ; 发送消息还是接收？或者两者都做，参数：SEND/RECEIVE/SEND_REC
     call	sys_call
-    mov     esp, ebp            ; 执行完系统调用后，栈指针恢复
+    add esp, 3 * 4  ; 压入了3个字，恢复
 
     ;* 在执行restart之前，关闭中断以保护即将被再次启动的进程的栈帧结构 *
     ;* 系统调用流程：进程A进行系统调用（发送或接收一条消息），系统调用完成后，CPU控制权还是回到进程A手中，除非被调度程序调度。 *
-	mov		[esi + EAXREG - P_STACKBASE], eax   ; 系统调用函数必须保留 esi
+    pop     esi     ; 我们恢复esi
+	mov		[esi + EAXREG - P_STACKBASE], eax
 	cli			; 关闭中断
 ; 在这里，直接陷入restart的代码以重新启动进程/任务运行。
 ;================================================================================================

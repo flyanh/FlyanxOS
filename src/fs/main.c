@@ -40,6 +40,7 @@ PUBLIC void fs_main(void){
     fs_init();
 
     fs_print_info("Working...");
+
     /* 文件系统开始工作了 */
     while (TRUE){
         view_inbox();   /* 查看收件箱，等待来信 */
@@ -119,6 +120,7 @@ PRIVATE void fs_init(void){
         /* 先尝试读取根设备超级块 */
         if(READ_SECT(ROOT_DEV, 1)){
             sb = (SuperBlock *) fs_buffer;
+//            printf("{FS}-> Super block magic: 0x%x\n", sb->magic);
             if(sb->magic != SUPER_MAGIC) {
                 /* 如果文件系统不是我们flyanx v1.0的，那么我们创建一个新的文件系统 */
                 mkfs_flyanx();
@@ -152,7 +154,7 @@ PRIVATE void fs_init(void){
 PRIVATE void mkfs_flyanx(void){
     /* 在磁盘中创建flyanx 0.1文件系统，主要完成工作如下：
      *  - 将超级块写入第一个扇区。
-     *  - 创建三个特效文件：dev_tty0, dev_tty1. dev_tty2，它们用于终端。
+     *  - 创建三个特殊文件：dev_tty0, dev_tty1. dev_tty2，它们用于终端。
      *  - 创建文件cmd.tar。
      *  - 创建索引节点映射。
      *  - 创建扇区映射。
@@ -195,7 +197,7 @@ PRIVATE void mkfs_flyanx(void){
     /* 将超级块写入到磁盘第一个扇区中 */
     memset(fs_buffer, 0x90, SECTOR_SIZE);
     memcpy(fs_buffer, &sb, SUPER_BLOCK_SIZE);   /* 将超级块的内容放入高速缓冲区 */
-    WRITE_SECT(ROOT_DEV, 1);               /* 写到第一个扇区中 */
+    WRITE_SECT(ROOT_DEV, 1);               /* 写到第一个扇区中，这个扇区存放超级块 */
 
     printf("{FS}-> devbase:0x%x00, sb:0x%x00, imap:0x%x00, smap:0x%x00\n"
            "        inodes:0x%x00, 1st_sector:0x%x00\n",
@@ -216,7 +218,7 @@ PRIVATE void mkfs_flyanx(void){
     }
     if(fs_buffer[0] != 0x3F){
         fs_panic("set inode map failed.", NO_NUM);
-        /* 这里必须为0x3F，他们各位使用如下。
+        /* 文件系统刚创建时这里必须为0x3F，他们各位使用如下。
          * 0011 1111 :
          *   || ||||
          *   || |||`--- bit 0 : 保留待用
@@ -228,23 +230,24 @@ PRIVATE void mkfs_flyanx(void){
          *   `--------- bit 5 : /cmd.tar    系统初始自带的命令程序，是一个压缩包
          */
     }
-    WRITE_SECT(ROOT_DEV, 2);        /* 第二个扇区 */
+    WRITE_SECT(ROOT_DEV, 2);        /* 写到第二个扇区，这个扇区存放索引节点映射 */
 
     /* ================================== */
     /* ========== 设置扇区映射 ============ */
     /* ================================== */
     memset(fs_buffer, 0, SECTOR_SIZE);
-    int nr_sects = NR_DEFAULT_FILE_SECTS + 1;   /* 给根目录使用，+1是保留待用1个扇区。 */
+    int nr_sects = NR_DEFAULT_FILE_SECTS + 1;   /* 给根目录使用一个扇区，保留待用1个扇区。 */
     for(i = 0; i < nr_sects / 8; i++){
-        fs_buffer[i] = 0xFF;                    /* 每个扇区都置位全1 */
+        fs_buffer[i] = 0xFF;                    /* 每个扇区都置位全1，表示它们都被使用了 */
     }
     for(j = 0; j < nr_sects % 8; j++){
         fs_buffer[i] |= (1 << j);
     }
-    WRITE_SECT(ROOT_DEV, 2 + sb.nr_imap_sects);
+    WRITE_SECT(ROOT_DEV, 2 + sb.nr_imap_sects); /* 写到磁盘中，扇区映射紧跟在索引节点映射扇区后面 */
 
     /* 用零填充剩余的扇区映射 */
     memset(fs_buffer, 0, SECTOR_SIZE);
+//    printf("1 to %d is can use sect...\n", sb.nr_smap_sects);
     for(i = 1; i < sb.nr_smap_sects; i++){
         WRITE_SECT(ROOT_DEV, 2 + sb.nr_imap_sects + i);
     }
@@ -252,23 +255,26 @@ PRIVATE void mkfs_flyanx(void){
     /* ================================== */
     /* ======== 创建文件cmd.tar ========== */
     /* ================================== */
-    /* 要确保这个文件不会被磁盘日志给覆盖 */
+    /* 要确保这个文件不会被磁盘日志给覆盖
+     * cmd.tar这个文件保留用于存放系统第一次安装时，一些命令行实用程序和硬盘loader和
+     * 内核文件，它们将会被提取到文件系统中。
+     */
     if(INSTALL_START_SECT + INSTALL_NR_SECTS >= sb.nr_sects - NR_SECTS_LOG){
         fs_panic("cmd.tar too little space available.", NO_NUM);
     }
-    int bit_offset = INSTALL_START_SECT - sb.first_sect_nr; /* 扇区M偏移 = (M - sb.first_sect_nr + 1)  */
+    int bit_offset = INSTALL_START_SECT - sb.first_sect_nr + 1; /* 扇区M偏移 = (M - sb.first_sect_nr + 1)  */
     int bit_off_in_sect = bit_offset % (SECTOR_SIZE << 3 /* == *8 */);
     int bit_left = INSTALL_NR_SECTS;
     int curr_sect = bit_offset / (SECTOR_SIZE << 3);
-    READ_SECT(ROOT_DEV, 2 + sb.nr_imap_sects + curr_sect);
+    READ_SECT(ROOT_DEV, 2 + sb.nr_imap_sects + curr_sect);  /* 读取该扇区内容 */
     while (bit_left) {
         int byte_off = bit_off_in_sect >> 3;    /* == /8 */
-        /* 这行在循环中效率低下，但无所谓，系统还没真正启动起来 */
+        /* 这行在循环中效率低下，但无所谓，系统还没真正启动起来，没人会特别在意系统第一次安装并启动的速度 */
         fs_buffer[byte_off] |= 1 << (bit_off_in_sect % 8);
         bit_left--;
         bit_off_in_sect++;
         if(bit_off_in_sect == (SECTOR_SIZE << 3)){
-            WRITE_SECT(ROOT_DEV, 2 + sb.nr_imap_sects + curr_sect);
+            WRITE_SECT(ROOT_DEV, 2 + sb.nr_imap_sects + curr_sect); /* 写进磁盘 */
             curr_sect++;
             READ_SECT(ROOT_DEV, 2 + sb.nr_imap_sects + curr_sect);
             bit_off_in_sect = 0;

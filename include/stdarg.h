@@ -122,7 +122,6 @@ typedef char *va_list;
 						    - __vasz(type))))
 #define va_end(ap)
 
-
 #endif /* __GNUC__ */
 
 #endif /* _STDARG_H */

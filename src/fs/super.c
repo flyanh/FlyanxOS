@@ -69,7 +69,7 @@ PUBLIC ino_t alloc_imap_bit(dev_t dev){
 
         for(j = 0; j < SECTOR_SIZE; j++){
             /* 跳过'11111111'这样的字节，即跳过已经被分配字节  */
-            if(fs_buffer[j] & 0xFF) {
+            if(fs_buffer[j] == 0xFF) {
                 continue;
             }
             /* 跳过所有已经分配的位 */
@@ -80,15 +80,17 @@ PUBLIC ino_t alloc_imap_bit(dev_t dev){
             fs_buffer[j] |= (1 << k);
             /* 将分配好的位写入到超级块中 */
             WRITE_SECT(dev, imap_blk0_nr + i);
-            return inode_nr;
+            break;
         }
+        return inode_nr;
     }
     /* 位图已经满了，不能分配 */
+    fs_panic("**********alloc_imap_bit failed**********", NO_NUM);
     return NO_BIT;
 }
 
 /*===========================================================================*
- *                  alloc_imap_bit
+ *                  alloc_smap_bit
  *				为一段已经使用的扇区分配位图			     *
  *===========================================================================*/
 PUBLIC int alloc_smap_bit(
@@ -107,31 +109,31 @@ PUBLIC int alloc_smap_bit(
                      * k：位索引
                      */
     if(nr_sects <= 0) return NO_BIT;        /* 没打算分配？ */
-    nr_sects = NR_DEFAULT_FILE_SECTS;       /* 管它呢，就这么大！ */
 
     SuperBlock *sb = get_super_block(dev);
     int smap_blk0_nr = 1 + 1 + sb->nr_imap_sects;   /* 1个引导扇区和1个超级块以及索引节点位图 */
     int free_sect_nr = 0;
 
     /* 开始在超级块中查找可用的位 */
-    for(i = 0; i < sb->nr_imap_sects; i++){
+    for(i = 0; i < sb->nr_smap_sects; i++){
         READ_SECT(dev, smap_blk0_nr + i);
-
-        for(j = 0; j < SECTOR_SIZE; j++){
-            /* 跳过'11111111'这样的字节，即跳过已经被分配字节  */
-            if(fs_buffer[j] & 0xFF) {
-                continue;
+        for(j = 0; j < SECTOR_SIZE && nr_sects > 0; j++){
+            k = 0;
+            if(!free_sect_nr){
+                /* 跳过'11111111'这样的字节，即跳过已经被分配字节  */
+                if(fs_buffer[j] == 0xFF) {
+                    continue;
+                }
+                /* 跳过所有已经分配的位 */
+                for(; ((fs_buffer[j] >> k) & 1) != 0; k++) {}
+                free_sect_nr = (i * SECTOR_SIZE + j) * 8 +
+                               k - 1 + sb->first_sect_nr;
             }
-            /* 跳过所有已经分配的位 */
-            for(k = 0; ((fs_buffer[j] >> k) & 1) != 0; k++) {}
-            free_sect_nr = (i * SECTOR_SIZE + j) * 8 +
-                    k - 1 + sb->first_sect_nr;
 
             /* 重复置位，一直到分配的扇区数量为0 */
             for(; k < 8; k++){
                 fs_buffer[j] |= (1 << k);
-                nr_sects--;
-                if(nr_sects == 0) break;
+                if(--nr_sects == 0) break;
             }
         }
         /* 将分配好的位写入到超级块中 */
@@ -141,11 +143,11 @@ PUBLIC int alloc_smap_bit(
         if(nr_sects == 0) break;
     }
 
-    /* 分配失败，空间可能已经满了 */
-    if(nr_sects >= 0){
+    /* 分配失败（例如需要分配5个扇区，经过上面的分配，这个值应该变为0表示全分配了），有可能是空间不足了 */
+    if(nr_sects != 0){
+        fs_panic("alloc_smap_bit failed, the cause may be insufficient storage space", nr_sects);
         return NO_BIT;
     }
-
     /* 返回分配的第一个扇区号 */
     return free_sect_nr;
 }

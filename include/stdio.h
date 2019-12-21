@@ -30,7 +30,7 @@
 
 #define STR_DEFAULT_LEN 512
 
-_PROTOTYPE( int vsprintf, (char *_buf, const char *_fmt, char *_args) );
+_PROTOTYPE( int vsprintf, (char *_buf, const char *_fmt, char *argp) );
 _PROTOTYPE( int printf, (const char *_fmt, ...) );
 _PROTOTYPE( int sprintf, (char *_buf, const char *_fmt, ...) );
 

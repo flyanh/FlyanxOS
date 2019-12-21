@@ -53,7 +53,7 @@ PRIVATE Exception ex_data[] = {
  * int cs;                cs，同上
  * int eflags;             eflags，同上
  *==========================================================================*/
-PUBLIC void exception_handler(int vec_nr, int errno)
+PUBLIC void exception_handler(int vec_nr, int err_no)
 {
     /* 处理所有的异常
     *
@@ -86,6 +86,7 @@ PUBLIC void exception_handler(int vec_nr, int errno)
     /* 如果上面两个条件都没有满足，说明这是内核代码的的异常，它不应该发生的...
      * 但没办法，我们打印这些异常信息，最后使用panic结束内核的运行。
      */
+    blue_screen();
     if(ep->msg == NIL_PTR){
         printf("\nException %d no exist...\n", vec_nr);
     } else {
@@ -95,10 +96,10 @@ PUBLIC void exception_handler(int vec_nr, int errno)
            saved_proc->nr,
            (unsigned) saved_proc->regs.cs,
            (unsigned) saved_proc->regs.pc);
-    if(errno != 0xFFFFFFFF){
-        printf("ERROR CODE: %d\n", errno);
+    if(err_no != 0xFFFFFFFF){
+        printf("ERROR CODE: %d\n", err_no);
     }
-    panic("Exception in system code...", NO_NUM);
-
+    wreboot(2);
+//    panic("Exception in system code...", NO_NUM);
 }
 

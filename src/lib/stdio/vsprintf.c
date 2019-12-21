@@ -11,159 +11,191 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <limits.h>
 
-/* 整数转字符串,可以转不同进制 */
-static char* itoa(
-        char *str,  /* 转换完放在这 */
-        int num,    /* 整型数 */
-        int radix   /* 转换进制 */
-){
-    /* 索引表 */
-    char index[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    unsigned unum;  /* 中间变量 */
-    int i = 0, j, k;
+#define isdigit(c)    ((unsigned) ((c) - '0') <  (unsigned) 10)
 
-    /* 确定unum的值 */
-    if(radix == 10 && num < 0){/* 十进制负数 */
-        unum = (unsigned) - num;
-        str[i++] = '-';
-    } else
-        unum = (unsigned)num;/* 其他情况 */
-    /* 逆序 */
-    do{
-        str[i++] = index[unum % (unsigned)radix];
-        unum /= radix;
-    } while(unum);
+int vsprintf(char *buf, const char *fmt, va_list argp){
+    int c;
+    enum { LEFT, RIGHT } adjust;
+    enum { LONG, INT } intsize;
+    int fill;
+    int width, max, len, base;
+    static char X2C_tab[]= "0123456789ABCDEF";
+    static char x2c_tab[]= "0123456789abcdef";
+    char *x2c;
+    char *p;
+    long i;
+    unsigned long u;
+    char temp[8 * sizeof(long) / 3 + 2];
+    int buf_len = 0;
 
-    /* 如果不是十进制,加前缀 */
-    if(radix == 2){
-        str[i++] = 'b';
-        str[i++] = '0';
-    } else if (radix == 8)
-    {
-        str[i++] = 'o';
-        str[i++] = '0';
-    } else if (radix == 16)
-    {
-        str[i++] = 'x';
-        str[i++] = '0';
-    }
-
-
-    str[i] = '\0';
-    /* 转换 */
-    if(str[0] == '-')
-        k = 1;/* 十进制负数 */
-    else
-        k = 0;
-    /* 将原来的“/2”改为“/2.0”，保证当num在16~255之间，radix等于16时，也能得到正确结果 */
-    for(j = k;j < (i-1) / 2.0 + k; j++){
-        num = str[j];
-        str[j] = str[i - j - 1 + k];
-        str[i - j - 1 + k] = num;
-    }
-    return str;
-}
-
-int vsprintf(char *buffer, const char *format, va_list args){
-    char 	*p;
-    char 	tmp[STR_DEFAULT_LEN];
-    int 	len;
-
-    // 对格式化字符串format进行遍历,碰到'%'停止,并判断后边的符号,进行字符串格式化
-    for(p = buffer; *format; format++){
-        if(*format != '%' ){
-            *p++ = *format;
+    while ((c = *fmt++) != 0) {
+        if (c != '%') {
+            /* 普通字符 */
+            *buf = c;
+            buf++;
+            buf_len++;
             continue;
         }
 
-        format++;
+        /* 格式说明符，格式为：
+         * ％[adjust] [fill] [width] [.max]keys
+         */
+        c = *fmt++;
 
-        // 判断需要进行怎样的转化
-        switch(*format){
-
-            case 'a': case 'A':		/* 浮点数,十六进制数字和p-记数法(C99) */
-                break;
-
-            case 'c':				/* 一个标准字符 */
-                tmp[0] = *((char*)args);
-                tmp[1] = '\0';
-                strcpy(p, tmp);
-                args += sizeof(int);
-                p += strlen(tmp);
-                break;
-
-            case 'C':				/* ISO标准宽字符 */
-                break;
-
-            case 'd': case 'i':		/* 有符号十进制整数(int) */
-                itoa(tmp, *((int*)args), 10);
-                strcpy(p, tmp);
-                args += sizeof(int);
-                p += strlen(tmp);
-                break;
-
-            case 'e': 				/* 浮点数、e-记数法 */
-                break;
-
-            case 'E':				/* 浮点数、Ｅ-记数法 */
-                break;
-
-            case 'f':				/* 单精度浮点数(默认float)、十进制记数法（%.nf  这里n表示精确到小数位后n位.十进制计数） */
-                break;
-
-            case 'g': case 'G':		/* 根据数值不同自动选择％f或％e． */
-                break;
-
-            case 'o':				/* 无符号八进制整数 */
-                break;
-
-            case 'p':				/* 指针 */
-                // 我们打印指针的地址
-                itoa(tmp, (int)&args, 16);
-                strcpy(p, tmp);
-
-                args += sizeof(int);
-                p += strlen(tmp);
-                break;
-
-            case 's':				/* 显示字符串 */
-                len = strlen(*((char**)args));
-                memcpy(tmp, *((char**)args), len );
-                tmp[len] = '\0';
-                strcpy(p, tmp);
-
-                args += sizeof(int);
-                p += strlen(tmp);
-                break;
-
-            case 'x': case 'X':		/* 使用十六进制数字0f的无符号十六进制整数　 */
-                // 首先,先将得到的int参数转化为16进制字符串
-                itoa(tmp, *((int*)args), 16);
-                // 将转化的字符串放入buffer中
-                strcpy(p, tmp);
-                // 参数列表指向下一个
-                args += sizeof(int);
-                // buffer长度增长
-                p += strlen(tmp);
-                break;
-
-            case '%':				/* 打印一个百分号 */
-                // % 放入
-                strcpy(p, "%");
-
-                args += sizeof(int);
-                p++;
-                break;
-
-            default:
-                break;
+        adjust = RIGHT;
+        if (c == '-') {
+            adjust= LEFT;
+            c= *fmt++;
         }
 
+        fill = ' ';
+        if (c == '0') {
+            fill= '0';
+            c= *fmt++;
+        }
+
+        width = 0;
+        if (c == '*') {
+            /* 宽度被指定为参数，例如 %*d。 */
+            width = (int) va_arg(argp, int);
+            c= *fmt++;
+        } else
+        if (isdigit(c)) {
+            /* 数字表示宽度，例如 %10d。 */
+            do {
+                width= width * 10 + (c - '0');
+            } while (isdigit(c= *fmt++));
+        }
+
+        max = INT_MAX;
+        if (c == '.') {
+            /* 就要到最大字段长度了 */
+            if ((c = *fmt++) == '*') {
+                max = (int) va_arg(argp, int);
+                c = *fmt++;
+            } else
+            if (isdigit(c)) {
+                max = 0;
+                do {
+                    max = max * 10 + (c - '0');
+                } while (isdigit(c = *fmt++));
+            }
+        }
+
+        /* 将一些标志设置为默认值 */
+        x2c = x2c_tab;
+        i = 0;
+        base = 10;
+        intsize = INT;
+        if (c == 'l' || c == 'L') {
+            /* “Long”键，例如 %ld。 */
+            intsize = LONG;
+            c = *fmt++;
+        }
+        if (c == 0) break;
+
+        switch (c) {
+            /* 十进制 */
+            case 'd':
+                i = intsize == LONG ? (long)va_arg(argp, long)
+                                    : (long) va_arg(argp, int);
+                u = i < 0 ? -i : i;
+                goto int2ascii;
+
+                /* 八进制 */
+            case 'o':
+                base= 010;
+                goto getint;
+
+                /* 指针，解释为%X 或 %lX。 */
+            case 'p':
+                if (sizeof(char *) > sizeof(int)) intsize= LONG;
+
+                /* 十六进制。 %X打印大写字母A-F，而不打印%lx。 */
+            case 'X':
+                x2c = X2C_tab;
+            case 'x':
+                base = 0x10;
+                goto getint;
+
+                /* 无符号十进制 */
+            case 'u':
+            getint:
+                u = intsize == LONG ? (unsigned long)va_arg(argp, unsigned long)
+                                    : (unsigned long)va_arg(argp, unsigned int);
+            int2ascii:
+                p = temp + sizeof(temp) - 1;
+                *p = 0;
+                do {
+                    *--p= x2c[(int) (u % base)];
+                } while ((u /= base) > 0);
+                goto string_length;
+
+                /* 一个字符 */
+            case 'c':
+                p = temp;
+                *p = (int)va_arg(argp, int);
+                len = 1;
+                goto string_print;
+
+                /* 只是一个百分号 */
+            case '%':
+                p = temp;
+                *p = '%';
+                len = 1;
+                goto string_print;
+
+                /* 一个字符串，其他情况将加入这里。 */
+            case 's':
+                p = va_arg(argp, char *);
+
+            string_length:
+                for (len= 0; p[len] != 0 && len < max; len++) {}
+
+            string_print:
+                width -= len;
+                if (i < 0) width--;
+                if (fill == '0' && i < 0) {
+                    *buf++ = '-';
+                    buf_len++;
+                }
+                if (adjust == RIGHT) {
+                    while (width > 0) {
+                        *buf = fill;
+                        buf++;
+                        buf_len++;
+                        width--;
+                    }
+                }
+                if (fill == ' ' && i < 0) *buf++ = '-';
+                while (len > 0) {
+                    *buf = (unsigned char) *p++;
+                    buf++;
+                    buf_len++;
+                    len--;
+                }
+                while (width > 0) {
+                    *buf = fill;
+                    buf++;
+                    buf_len++;
+                    width--;
+                }
+                break;
+
+                /* 无法识别的格式键，将其回显。 */
+            default:
+                *buf = '%';
+                *buf = c;
+                buf += 2;
+                buf_len += 2;
+        }
     }
 
-    *p = 0;             /* 最后在转换好的字符串结尾处添上null。 */
-    return (p - buffer);	/* 终址 - 起址 --> 字符串长度 */
+    /* 将结尾标记为空 */
+    *buf++ = 0;
+    return buf_len;
 }
 
 

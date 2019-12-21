@@ -31,7 +31,7 @@ smm = src/mm
 sfs = src/fs
 sfly = src/fly
 
-# 编辑链接中间目录
+# 编译链接中间目录
 t = target
 tb = $t/boot
 tk = $t/kernel
@@ -44,7 +44,7 @@ tfly = $t/fly
 # 所需要的软盘镜像，可以自指定已存在的软盘镜像，系统内核将被写入这里面
 FD			= Flyanx.img
 # 硬盘镜像
-HD          = 500M_HD.img
+HD          = 500MHD.img
 
 # 镜像挂载点，自指定，必须存在于自己的计算机上，如果没有请自行创建一下
 FloppyMountPoint= /media/floppyDisk
@@ -99,15 +99,14 @@ KernelObjs      = $(tk)/kernel.o $(tk)/start.o $(tk)/main.o $(tk)/protect.o \
 
 # 运行在系统上的服务进程和起源进程，现在有：MM、FS、FLY、ORIGIN
 ProcObjs        = $(tmm)/main.o \
-                  $(tmm)/table.o $(tmm)/utils.o $(tmm)/alloc.o $(tmm)/forkexit.o \
-                  $(tmm)/misc.o \
-                  $(tmm)/exec.o \
+                  $(tmm)/table.o $(tmm)/utils.o $(tmm)/alloc.o $(tmm)/fork_exit.o \
+                  $(tmm)/misc.o $(tmm)/exec.o $(tmm)/get_set.o \
                   $(tfs)/main.o $(tfs)/table.o $(tfs)/device.o $(tfs)/utils.o \
                   $(tfs)/super.o $(tfs)/inode.o $(tfs)/open.o $(tfs)/file.o \
                   $(tfs)/path.o $(tfs)/read_write.o $(tfs)/link.o $(tfs)/statdir.o \
                   $(tfs)/pipe.o $(tfs)/misc.o \
                   $(tfly)/main.o $(tfly)/table.o $(tfly)/utils.o $(tfly)/misc.o \
-                  $(tog)/origin.o
+                  $(tog)/origin.o $(tog)/tar.o
 
 # 内核之外所需要的库，有系统库，也有提供给用户使用的库，我按这样的顺序排下来：系统库->用户库->系统调用库
 LibObjs         = $(tl)/i386/message.o \
@@ -115,16 +114,24 @@ LibObjs         = $(tl)/i386/message.o \
                   $(tl)/syslib/putk.o $(tl)/ansi/stringc.o $(tl)/syslib/task_call.o \
                   $(tl)/syslib/sys_sudden.o $(tl)/syslib/sys_blues.o $(tl)/syslib/sys_copy.o \
                   $(tl)/syslib/sys_get_map.o $(tl)/syslib/sys_new_map.o $(tl)/syslib/sys_fork.o  \
+                  $(tl)/syslib/sys_exit.o $(tl)/syslib/sys_get_sp.o $(tl)/syslib/sys_exec.o \
+                  $(tl)/syslib/sys_set_prog_frame.o \
                   $(tl)/other/loadname.o $(tl)/other/syscall.o $(tl)/other/errno.o $(tl)/other/_sleep.o \
+                  $(tl)/other/itoa.o \
                   $(tl)/stdio/vsprintf.o $(tl)/stdio/printf.o $(tl)/stdio/sprintf.o \
                   $(tl)/posix/_open.o $(tl)/posix/_creat.o $(tl)/posix/_close.o $(tl)/posix/_mkdir.o \
                   $(tl)/posix/_read.o $(tl)/posix/_write.o $(tl)/posix/_link.o $(tl)/posix/_unlink.o \
                   $(tl)/posix/_lseek.o $(tl)/posix/_stat.o $(tl)/posix/_fstat.o $(tl)/posix/_fork.o \
+                  $(tl)/posix/_getpid.o $(tl)/posix/_getppid.o $(tl)/posix/_exit.o $(tl)/posix/_wait.o \
+                  $(tl)/posix/_waitpid.o $(tl)/posix/_execve.o $(tl)/posix/_execv.o $(tl)/posix/_execl.o \
+                  $(tl)/posix/_exec.o \
                   $(tl)/syscall/open.o $(tl)/syscall/creat.o $(tl)/syscall/close.o \
                   $(tl)/syscall/mkdir.o $(tl)/syscall/read.o $(tl)/syscall/write.o \
                   $(tl)/syscall/link.o $(tl)/syscall/unlink.o $(tl)/syscall/lseek.o \
                   $(tl)/syscall/stat.o $(tl)/syscall/fstat.o $(tl)/syscall/sleep.o \
-                  $(tl)/syscall/fork.o
+                  $(tl)/syscall/fork.o $(tl)/syscall/getpid.o $(tl)/syscall/getppid.o \
+                  $(tl)/syscall/exit.o $(tl)/syscall/waitpid.o $(tl)/syscall/execve.o \
+                  $(tl)/syscall/execv.o $(tl)/syscall/execl.o $(tl)/syscall/exec.o
 
 # 所有需要编译的对象，内核 + 服务器进程 + 起源进程
 Objs            = $(KernelObjs) $(ProcObjs)
@@ -141,7 +148,7 @@ all: everything
 # 只编译链接内核（不包括boot）
 kernel: $(FlyanxKernel)
 # 所有的伪命令，将不会被识别为文件
-.PHONY : all everything image debug run realclean clean buildimg
+.PHONY : all everything image debug run realclean clean buildfimg buildhimg
 
 # ===============================================
 # 所有的伪命令
@@ -150,17 +157,18 @@ everything: $(FlyanxBoot) $(FlyanxKernel)
 
 only_kernel: $(FlyanxKernel)
 
-image: buildimg
+image: buildfimg
 
 #　使用 bochs 来进行 debug
-debug: $(FD)
+debug: $(FD) $(HD)
 	bochs -q
 
 # flyanx现在使用软盘+硬盘启动
-run: $(FD) harddisk.tar.gz
+run: $(FD)
 	@echo "请使用VBox虚拟机先挂载挂生成的Flyanx.img镜像到软盘上，然后解压harddisk.tar.gz下的\
 	硬盘镜像，然后挂载500M_HD.vdi到VBox的硬盘上，Flyanx就可以启动了 :)"
-
+	@echo
+	@echo "当然你还可以输入'make debug'使用Bochs进行运行调试，前期也是要先将harddisk.tar.gz下的硬盘镜像解压出来 :>"
 
 # 完全清理，包括生成的boot和内核文件（二进制文件）
 realclean:
@@ -170,15 +178,19 @@ realclean:
 clean:
 	-rm -f $(Objs) $(LibObjs)
 
-# 制作系统镜像
-buildimg: $(FD $(HD) $(FlyanxBoot)
+# 制作软盘系统镜像
+buildfimg: $(FD) $(FlyanxBoot)
 	dd if=$(tb)/boot.bin of=$(FD) bs=512 count=1 conv=notrunc
-# 	dd if=$(tb)/hd_boot.bin of=$(HD) bs=1 count=446 conv=notrunc
-# 	dd if=$(tb)/hd_boot.bin of=$(HD) seek=510 skip=510 bs=1 count=2 conv=notrunc
 	sudo mount -o loop $(FD) $(FloppyMountPoint)
 	sudo cp -fv $(tb)/loader.bin $(FloppyMountPoint)
 	sudo cp -fv $(FlyanxKernel) $(FloppyMountPoint)
 	sudo umount $(FloppyMountPoint)
+
+# 制作硬盘系统镜像
+buildhimg: $(HD) $(FlyanxBoot)
+	dd if=$(tb)/hd_boot.bin of=$(HD) bs=1 count=446 conv=notrunc
+	dd if=$(tb)/hd_boot.bin of=$(HD) seek=510 skip=510 bs=1 count=2 conv=notrunc
+# 	dd if=
 
 # ===============================================
 # 所有的文件生成规则
@@ -211,7 +223,7 @@ $(FlyanxKernel): $(Objs) $(LIB)
 
 # 库，它最终将会和内核链接在一起
 $(LIB): $(LibObjs)
-	$(AR) $(ARFLAGS) $@ $^
+	@$(AR) $(ARFLAGS) $@ $^
 
 $(tk)/kernel.o: $(sk)/kernel.asm
 	$(ASM) $(ASMFlagsOfKernel) -o $@ $<
@@ -432,6 +444,22 @@ $(tl)/syslib/sys_fork.o: $h/syslib.h
 $(tl)/syslib/sys_fork.o: src/lib/syslib/sys_fork.c
 	$(CC) $(CFlags) -o $@ $<
 
+$(tl)/syslib/sys_exit.o: $h/syslib.h
+$(tl)/syslib/sys_exit.o: src/lib/syslib/sys_exit.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/syslib/sys_get_sp.o: $h/syslib.h
+$(tl)/syslib/sys_get_sp.o: src/lib/syslib/sys_get_sp.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/syslib/sys_set_prog_frame.o: $h/syslib.h
+$(tl)/syslib/sys_set_prog_frame.o: src/lib/syslib/sys_set_prog_frame.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/syslib/sys_exec.o: $h/syslib.h
+$(tl)/syslib/sys_exec.o: src/lib/syslib/sys_exec.c
+	$(CC) $(CFlags) -o $@ $<
+
 $(tl)/other/loadname.o: $i/lib.h
 $(tl)/other/loadname.o: $i/string.h
 $(tl)/other/loadname.o: src/lib/other/loadname.c
@@ -449,10 +477,15 @@ $(tl)/other/_sleep.o: $i/unistd.h
 $(tl)/other/_sleep.o: src/lib/other/_sleep.c
 	$(CC) $(CFlags) -o $@ $<
 
+$(tl)/other/itoa.o: $i/lib.h
+$(tl)/other/itoa.o: src/lib/other/itoa.c
+	$(CC) $(CFlags) -o $@ $<
+
 # 标准输入输出
 $(tl)/stdio/vsprintf.o: $i/stdio.h
 $(tl)/stdio/vsprintf.o: $i/stdarg.h
 $(tl)/stdio/vsprintf.o: $i/unistd.h
+$(tl)/stdio/vsprintf.o: $i/limits.h
 $(tl)/stdio/vsprintf.o: src/lib/stdio/vsprintf.c
 	$(CC) $(CFlags) -o $@ $<
 
@@ -532,6 +565,52 @@ $(tl)/posix/_fork.o: $i/unistd.h
 $(tl)/posix/_fork.o: src/lib/posix/_fork.c
 	$(CC) $(CFlags) -o $@ $<
 
+$(tl)/posix/_getpid.o: $i/lib.h
+$(tl)/posix/_getpid.o: $i/unistd.h
+$(tl)/posix/_getpid.o: src/lib/posix/_getpid.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/posix/_getppid.o: $i/lib.h
+$(tl)/posix/_getppid.o: $i/unistd.h
+$(tl)/posix/_getppid.o: src/lib/posix/_getppid.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/posix/_exit.o: $i/lib.h
+$(tl)/posix/_exit.o: $i/unistd.h
+$(tl)/posix/_exit.o: src/lib/posix/_exit.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/posix/_wait.o: $i/lib.h
+$(tl)/posix/_wait.o: src/lib/posix/_wait.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/posix/_waitpid.o: $i/lib.h
+$(tl)/posix/_waitpid.o: $s/wait.h
+$(tl)/posix/_waitpid.o: src/lib/posix/_waitpid.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/posix/_execve.o: $i/lib.h
+$(tl)/posix/_execve.o: $i/unistd.h
+$(tl)/posix/_execve.o: $i/string.h
+$(tl)/posix/_execve.o: src/lib/posix/_execve.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/posix/_execv.o: $i/lib.h
+$(tl)/posix/_execv.o: $i/unistd.h
+$(tl)/posix/_execv.o: $i/string.h
+$(tl)/posix/_execv.o: src/lib/posix/_execv.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/posix/_execl.o: $i/lib.h
+$(tl)/posix/_execl.o: $i/unistd.h
+$(tl)/posix/_execl.o: src/lib/posix/_execl.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tl)/posix/_exec.o: $i/lib.h
+$(tl)/posix/_exec.o: $i/unistd.h
+$(tl)/posix/_exec.o: src/lib/posix/_exec.c
+	$(CC) $(CFlags) -o $@ $<
+
 # 用户系统调用
 $(tl)/syscall/open.o: src/lib/syscall/open.asm
 	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
@@ -572,6 +651,30 @@ $(tl)/syscall/sleep.o: src/lib/syscall/sleep.asm
 $(tl)/syscall/fork.o: src/lib/syscall/fork.asm
 	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
 
+$(tl)/syscall/getpid.o: src/lib/syscall/getpid.asm
+	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
+
+$(tl)/syscall/getppid.o: src/lib/syscall/getppid.asm
+	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
+
+$(tl)/syscall/exit.o: src/lib/syscall/exit.asm
+	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
+
+$(tl)/syscall/waitpid.o: src/lib/syscall/waitpid.asm
+	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
+
+$(tl)/syscall/execve.o: src/lib/syscall/execve.asm
+	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
+
+$(tl)/syscall/execv.o: src/lib/syscall/execv.asm
+	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
+
+$(tl)/syscall/execl.o: src/lib/syscall/execl.asm
+	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
+
+$(tl)/syscall/exec.o: src/lib/syscall/exec.asm
+	$(ASM) $(ASMFlagsOfSysCall) -o $@ $<
+
 # ============ 服务器和起源进程 ============
 # ============ MM内存管理器服务器 ============
 $(tmm)/main.o: $(mma)
@@ -601,13 +704,13 @@ $(tmm)/alloc.o: $(smm)/mmproc.h
 $(tmm)/alloc.o: $(smm)/alloc.c
 	$(CC) $(CFlags) -o $@ $<
 
-$(tmm)/forkexit.o: $(mma)
-$(tmm)/forkexit.o: $s/wait.h
-$(tmm)/forkexit.o: $h/callnr.h
-$(tmm)/forkexit.o: $i/signal.h
-$(tmm)/forkexit.o: $(smm)/mmproc.h
-$(tmm)/forkexit.o: $(smm)/param.h
-$(tmm)/forkexit.o: $(smm)/forkexit.c
+$(tmm)/fork_exit.o: $(mma)
+$(tmm)/fork_exit.o: $s/wait.h
+$(tmm)/fork_exit.o: $h/callnr.h
+$(tmm)/fork_exit.o: $i/signal.h
+$(tmm)/fork_exit.o: $(smm)/mmproc.h
+$(tmm)/fork_exit.o: $(smm)/param.h
+$(tmm)/fork_exit.o: $(smm)/fork_exit.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tmm)/misc.o: $(mma)
@@ -628,6 +731,14 @@ $(tmm)/exec.o: $i/string.h
 $(tmm)/exec.o: $(smm)/mmproc.h
 $(tmm)/exec.o: $(smm)/param.h
 $(tmm)/exec.o: $(smm)/exec.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tmm)/utils.o: $(mma)
+$(tmm)/utils.o: $h/callnr.h
+$(tmm)/utils.o: $i/signal.h
+$(tmm)/utils.o: $(smm)/mmproc.h
+$(tmm)/utils.o: $(smm)/param.h
+$(tmm)/get_set.o: $(smm)/get_set.c
 	$(CC) $(CFlags) -o $@ $<
 
 $(tmm)/utils.o: $(mma)
@@ -806,11 +917,21 @@ $(tfly)/misc.o: $(sfly)/misc.c
 	$(CC) $(CFlags) -o $@ $<
 
 # ============ ORIGIN起源进程 ============
-$(tog)/origin.o: $i/lib.h
 $(tog)/origin.o: $i/fcntl.h
 $(tog)/origin.o: $i/unistd.h
+$(tog)/origin.o: $i/stdio.h
+$(tog)/origin.o: $s/wait.h
 $(tog)/origin.o: $i/string.h
+$(tog)/origin.o: $s/stat.h
 $(tog)/origin.o: $(sog)/origin.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tog)/tar.o: $i/stdio.h
+$(tog)/tar.o: $i/fcntl.h
+$(tog)/tar.o: $i/unistd.h
+$(tog)/tar.o: $i/string.h
+$(tog)/tar.o: $s/dev.h
+$(tog)/tar.o: $(sog)/tar.c
 	$(CC) $(CFlags) -o $@ $<
 
 # ===============================================

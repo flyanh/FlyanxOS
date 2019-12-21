@@ -254,9 +254,9 @@ register Process *proc;     /* 未就绪的进程 */
 //    printf("%s unready\n", proc->name);
     if(is_task_proc(proc)){        /* 系统任务？ */
          /* 如果系统任务的堆栈已经不完整，内核出错。 */
-//         if(*proc->stack_guard_word != SYS_TASK_STACK_GUARD){
-//             panic("stack over run by task", proc->nr);
-//         }
+         if(*proc->stack_guard_word != SYS_TASK_STACK_GUARD){
+             panic("stack over run by task", proc->nr);
+         }
 
          xp = ready_head[TASK_QUEUE];   /* 得到就绪队列头的进程 */
          if(xp == NIL_PROC) return;     /* 并无就绪的系统任务 */

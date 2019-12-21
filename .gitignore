@@ -61,10 +61,7 @@ bx_enh_dbg.ini
 /cmake-build-debug
 
 # 测试硬盘镜像更不可能提交的！
-/100M_HD.img
-/100M_HD.vdi
-/100M_HDN.vdi
-/500M_HD.img
-/500M_HD.vdi
+*.img
+*.vdi
 
 

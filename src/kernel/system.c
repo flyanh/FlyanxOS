@@ -44,6 +44,8 @@ FORWARD _PROTOTYPE( int do_blue_screen, (void) );
 FORWARD _PROTOTYPE( int do_copy, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_get_map, (Message *msg_ptr) );
 FORWARD _PROTOTYPE( int do_new_map, (Message *msg_ptr) );
+FORWARD _PROTOTYPE( int do_exec, (Message *msg_ptr) );
+FORWARD _PROTOTYPE( int do_set_prog_frame, (Message *msg_ptr) );
 
 
 /*===========================================================================*
@@ -69,11 +71,14 @@ PUBLIC void system_task(void){
             case SYS_COPY:      rs = do_copy(&msg_in);      break;
             case SYS_GET_MAP:   rs = do_get_map(&msg_in);   break;
             case SYS_NEW_MAP:   rs = do_new_map(&msg_in);   break;
+            case SYS_EXEC:      rs = do_exec(&msg_in);      break;
+            case SYS_SET_PROG_FRAME:
+                rs = do_set_prog_frame(&msg_in);            break;
             default:            rs = ERROR_BAD_FCN;         break;
         }
 
-        msg_in.type = rs;          /* 报告调用结果 */
-        send(msg_in.source, &msg_in); /* 发送回复给调用者 */
+        msg_in.type = rs;               /* 报告调用结果 */
+        send(msg_in.source, &msg_in);   /* 发送回复给调用者 */
     }
 }
 
@@ -116,17 +121,158 @@ PRIVATE int do_fork(Message *msg_ptr){
 }
 
 /*===========================================================================*
+ *				do_exec					     *
+ *          处理系统级调用sys_exec()
+ *===========================================================================*/
+PRIVATE int do_exec(Message *msg_ptr){
+    /* 一个进程已经完成了EXEC调用，需要接着完成后续工作。
+     * 当一个进程执行EXEC系统调用时，MM为它建立一个新的包含参数和环境的堆栈。
+     * 它使用SYS_EXEC把堆栈指针传给内核，该消息由本例程处理。
+     */
+#define NMLEN   (sizeof(proc->name) - 1)    /* 局部宏，得到进程名长度 */
+
+    register Process *proc;
+    reg_t sp;       /* 新的栈指针 */
+    phys_bytes name_phys;
+
+    /* 得到调用EXEC的进程实例 */
+    proc = proc_addr(msg_ptr->PROC_NR1);
+    assert(is_user_proc(proc));     /* 只能是用户进程 */
+
+    /* 设置栈指针和程序计数器 */
+    sp = (reg_t)msg_ptr->STACK_PTR;
+    proc->regs.esp = sp;
+    proc->regs.pc = (reg_t)msg_ptr->PC_PTR;
+
+    /* EXEC调用会导致一些轻微的异常，调用者会向MM发送一条消息请求EXEC
+     * 调用并堵塞自己。在其他的系统调用中，MM回答一条消息将会释放进程，
+     * 但EXEC调用POSIX指出它如果成功，是不会有任何返回值的，因为新装
+     * 入的核心映像不需要回答消息，因此，我们接下来在这里释放该进程。
+     */
+    proc->flags &= ~RECEIVING;
+    if(proc->flags == 0) lock_ready(proc);
+
+    /* 最后，保存程序的名称，用于调试、ps等... */
+    name_phys = numap(msg_ptr->source, (vir_bytes)msg_ptr->NAME_PTR, NMLEN);
+    if(name_phys){
+        phys_copy(name_phys, vir2phys(proc->name), (phys_bytes)NMLEN);
+        *((char*)(name_phys + NMLEN + 1)) = 0;  /* 字符串以0结尾！ ^ V ^  */
+    }
+    return OK;
+}
+
+/*===========================================================================*
+ *				do_set_prog_frame					     *
+ *          为一个新程序设置运行框架
+ *===========================================================================*/
+PRIVATE int do_set_prog_frame(Message *msg_ptr){
+    /* 运行框架包括：argc、argv、envp
+     * 它们的含义如下：
+     *  - argc      程序的命令行参数计数
+     *  - argv      程序的命令行参数数组地址
+     *  - envp      程序的环境变量数组地址
+     *  用户编写的程序可以在开始时获取到它们，只要在运行前输入参数，用户程序
+     *  的主函数运行前，这些参数会自动的压入程序的栈中，用户只需要像这样声明：
+     *      main(int argc, char *argv[], char *envp[])
+     * 就能拿到它们，当然了，能受用户控制的只有前两项，环境变量不能显示的调用
+     * 函数设置，只能通过更改系统的环境变量去改变它们。
+     */
+
+    register Process *proc;
+
+    /* 获取要设置框架的进程 */
+    proc = proc_addr(msg_ptr->PROC_NR3);
+    assert(is_user_proc(proc));     /* 只能是用户进程 */
+
+    /* 将运行框架设置到进程的栈帧结构中 */
+    proc->regs.ecx = msg_ptr->ARGC;         /* argc */
+    proc->regs.eax = (reg_t)msg_ptr->ARGV;  /* argv */
+    proc->regs.ebx = (reg_t)msg_ptr->ENVP;  /* envp */
+}
+
+/*===========================================================================*
  *				do_get_sp					     *
+ *			服务器想知道进程的栈指针
  *===========================================================================*/
 PRIVATE int do_get_sp(Message *msg_ptr){
+    /* BREAK系统调用需要程序栈指针的值来判断数据段和堆栈段是否发生冲突。
+     */
 
+    register Process *proc;
+
+    proc = proc_addr(msg_ptr->PROC_NR1);
+    assert(is_user_proc(proc));
+    msg_ptr->STACK_PTR = (char*)proc->regs.esp; /* 存放栈指针 */
+    return OK;
 }
 
 /*===========================================================================*
  *				do_exit					     *
+ *			一个进程已经退出
  *===========================================================================*/
 PRIVATE int do_exit(Message *msg_ptr){
+    /* 处理系统调用sys_exit()。
+     * 在Flyanx中，一个进程可以使用一个EXIT调用向内存管理器发送一条
+     * 消息来退出一个进程（自己）。内存管理器通过SYS_EXIT通知内核，
+     * 最后这项工作由本例程处理。
+     * 有一点我需要提前说明：别看平时自己编写的程序退出那么简单，但其
+     * 实这个函数可比你想象的要复杂的多。
+     */
 
+    register Process *parent, *child;   /* 父子，子进程是要退出的 */
+    Process *np, *xp, *search;           /* 用于一会进程队列的遍历 */
+
+    /* 得到子进程（退出）的实例 */
+    child = proc_addr(msg_ptr->PROC_NR1);
+    assert(is_user_proc(child));    /* 退出进程必须是用户进程 */
+    parent = proc_addr(msg_ptr->PROC_NR2);
+    assert(is_user_proc(parent));   /* 父进程也必须是 */
+
+    /* 将退出进的时间记账信息算在父亲头上 */
+    interrupt_lock();
+    parent->user_time = child->user_time + child->child_user_time;
+    parent->sys_time = child->sys_time + child->child_sys_time;
+    interrupt_unlock();
+
+    /* 关闭退出进程的闹钟 */
+    child->alarm = 0;
+    /* 如果退出进程处于运行态，堵塞它 */
+    if(child->flags == 0) lock_unready(child);
+
+    /* 挂掉的进程将不再有名称 */
+    strcpy(child->name, "{none}");
+
+    /* 如果被终止的进程恰巧在队列中试图发送一条消息（即，它可能不是正常手段
+     * 退出的，例如被一个信号终止，虽然信号我们还没实现，但这是肯定可能发送
+     * 的；又或者内部出了一些奇怪的问题），那么我们必须很小心的从消息队列中
+     * 删除它，不能影响整个系统的运行。
+     */
+    if(child->flags & SENDING){
+        /* 检查所有进程，看下退出进程是否有在某个消息发送链上 */
+        for(search = BEG_PROC_ADDR; search < END_PROC_ADDR; search++){
+            if(search->caller_head == NIL_PROC) continue;   /* 这个发送队列是空的，跳过 */
+            if(search->caller_head == child){   /* 在发送队列头，处理 */
+                search->caller_head = child->caller_link;   /* 删除即可 */
+                break;
+            } else {                            /* 在发送队列中间，处理 */
+                np = search->caller_head;       /* np = 队列头 */
+                while ((xp = np->caller_link) != NIL_PROC){         /* 没到队列尾部就继续 */
+                    /* 如果寻找到了，那么我们删除 */
+                    if(xp == child){
+                        np->caller_link = xp->caller_link;
+                        break;
+                    }
+                    np = xp;                    /* np = 下一个 */
+                }
+            }
+        }
+    }
+
+    /* 重置进程的标志和权限 */
+    child->flags = 0;
+    child->priority = PROC_PRI_NONE;
+
+    return OK;
 }
 
 /*===========================================================================*
@@ -174,7 +320,7 @@ PRIVATE int do_find_proc(Message *msg_ptr){
             return OK;
         }
     }
-    return (ERROR_SEARCH);
+    return ERROR_SEARCH;
 }
 
 /*==========================================================================*
@@ -334,8 +480,8 @@ PUBLIC int do_copy(Message *msg_ptr){
 
     /* 如果目的地的地址有效，执行拷贝；否则错误返回。 */
     if( src_phys == 0 || dest_phys == 0 ) return EFAULT;
-    phys_copy(src_phys, dest_phys, bytes);
 //    printf("%ld ---%d---> %ld\n", src_phys, bytes, dest_phys);
+    phys_copy(src_phys, dest_phys, bytes);
     return OK;
 }
 

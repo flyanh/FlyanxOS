@@ -48,11 +48,12 @@ PUBLIC int dev_ioctl(int device, int proc_nr, void *buf){
     if(task_nr == NO_EXIST_TASK){
         fs_panic("ioctl: driver no exist", NO_NUM);
     }
-    if( (status = task_call(task_nr, DEVICE_CLOSE, &fs_outbox)) == TASK_REPLY){
+    if( (status = task_call(task_nr, DEVICE_IOCTL, &fs_outbox)) == TASK_REPLY){
         return fs_outbox.REPLY_STATUS;
     } else {
         /* 竟然调用（发送并接收消息除了问题）失败了？ */
         fs_panic("ioctl: task call failed.", status);
+        return -1;  /* 让编译器安静 */
     }
 }
 
@@ -78,6 +79,7 @@ PUBLIC int dev_open(
     } else {
         /* 竟然调用（发送并接收消息除了问题）失败了？ */
         fs_panic("open: task call failed.", status);
+        return -1;  /* 让编译器安静 */
     }
 }
 
@@ -99,6 +101,7 @@ PUBLIC int dev_close(dev_t device, int proc){
     } else {
         /* 竟然调用（发送并接收消息除了问题）失败了？ */
         fs_panic("close: task call failed.", status);
+        return -1;  /* 让编译器安静 */
     }
 }
 

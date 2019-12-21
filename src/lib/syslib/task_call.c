@@ -18,5 +18,5 @@ PUBLIC int task_call(int who, int sys_callnr, Message *out){
     out->type = sys_callnr;
     status = send_receive(who, out);
     if(status != 0) return status;
-    else return out->type;
+    return out->type;
 }

@@ -40,13 +40,13 @@ extern struct tss_s tss;                            /* 任务状态段 */
 EXTERN struct process_s *curr_proc;	                /* 当前运行进程的指针 */
 
 /* 其他 */
-extern BootParams boot_params;           /* 加载器（LOADER）传递的启动参数 */
+extern BootParams boot_params;          /* 加载器（LOADER）传递的启动参数 */
 extern TaskTab tasktab[];               /* 系统任务表 */
 extern char *task_stack[];		        /* 系统任务栈task_stack，每个任务在task_stack中都有其自己的堆栈 */
 EXTERN unsigned int lost_ticks;	        /* 时钟滴答在时钟任务之外的计数 */
 EXTERN clock_t tty_wake_time;           /* 终端任务下一次被唤醒的时刻，如果到了，将是时候唤醒终端任务了 */
 EXTERN unsigned int current_console_nr; /* 当前控制台号 */
-EXTERN bool break_point;            /* 一个简单调试断点，如果为TRUR，则断点被打开，程序将停止在断点处，直到点击任意键。 */
+EXTERN bool break_point;                /* 一个简单调试断点，如果为TRUR，则断点被打开，程序将停止在断点处，直到点击任意键。 */
 
 /* 机器状态 */
 EXTERN int pc_at;		/* PC-AT兼容硬件接口 */

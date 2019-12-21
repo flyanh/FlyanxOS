@@ -75,7 +75,7 @@ PUBLIC void set_reply(
      * 回值以及用于设置“必须发送回复”标志。
      */
     register MMProcess *rmp = &mmproc[proc_nr];
-    rmp->reply_type = rs;
+    rmp->reply_rs1 = rs;
     rmp->flags |= REPLY;    /* 挂起了一个回复，等待处理 */
 }
 
@@ -94,6 +94,7 @@ PRIVATE void get_work(void){
     mm_call = mmsg_in.type;
     /* 得到调用的进程实例，如果调用者插槽号<0，则可能是系统任务在调用，设置为MM的插槽号 */
     curr_mp = &mmproc[mm_who < 0 ? MM_PROC_NR : mm_who];
+//    printf("who: %d | mm_call: %d\n", mm_who, mm_call);
 }
 
 /*===========================================================================*

@@ -18,6 +18,8 @@
 /* 全局变量 */
 EXTERN int procs_in_use;                /* 有多少进程被标记为正在使用 */
 EXTERN struct mm_process_s *curr_mp;    /* 指向一个当前正在处理的进程 */
+extern u8_t *mm_buffer;                 /* 内存管理器使用的高速缓冲区首地址 */
+extern const int MM_BUFFER_SIZE;        /* 高速缓冲区长度 */
 
 /* 外界的调用参数在这 */
 EXTERN Message mmsg_in;     /* 传入的消息保存在这 */

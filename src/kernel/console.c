@@ -221,11 +221,11 @@ PRIVATE void write(TTY *tty){
         /* 如果用户要向控制台写入的数据过多，降低count到和控制台缓冲区一致，分多次传送 */
         if(count > sizeof(buffer)) count = CONSOLE_IN_BYTES;
         /* 得到用户的输出缓冲区，即用户准备写入控制台的数据 */
-        user_phys = proc_vir2phys(proc_addr(tty->out_proc), tty->out_vir_addr);
+        user_phys = proc_vir2phys(proc_addr(tty->out_proc), tty->out_vir);
         phys_copy(user_phys, vir2phys(buffer), (phys_bytes)count);
         temp_buffer = buffer;
         /* 更新终端数据结构 */
-        tty->out_vir_addr += count;
+        tty->out_vir += count;
         tty->out_cum += count;
         tty->out_left -= count;
 

@@ -31,7 +31,7 @@ INIT_ASSERT     /* 初始化assert断言支持 */
 PRIVATE int wini_task_nr;   /* 硬盘驱动任务号 */
 PRIVATE int nr_drives;      /* 磁盘驱动器的数量 */
 PRIVATE bool intr_open;     /* 中断打开状态，1开0关 */
-PRIVATE Message msg;        /* 通信消息 */
+PRIVATE Message msg_in;        /* 通信消息 */
 
 PRIVATE u8_t wini_status;   /* 中断完成后的状态 */
 PRIVATE	u8_t hdbuf[SECTOR_SIZE * 2];    /* 硬盘缓冲区，DMA也用它 */
@@ -79,11 +79,11 @@ PUBLIC void at_winchester_task(void) {
     /* 驱动程序开始工作了 */
     while (TRUE){
         /* 等待外界的消息 */
-        receive(ANY, &msg);
+        receive(ANY, &msg_in);
 //        printf("at_winchester_task got msg\n");
         /* 得到请求者以及需要服务的进程编号 */
-        caller = msg.source;
-        proc_nr = msg.PROC_NR;
+        caller = msg_in.source;
+        proc_nr = msg_in.PROC_NR;
 
         /* 检查请求者是否合法：只能是文件系统或者其他的系统任务 */
         if(caller != FS_PROC_NR && caller >= 0){
@@ -92,19 +92,19 @@ PUBLIC void at_winchester_task(void) {
         }
 
         /* 现在根据请求做事情 */
-        switch(msg.type){
+        switch(msg_in.type){
             /* DEVICE_OPEN(打开)、DEVICE_CLOSE(关闭)、DEVICE_IOCTL（设备io控制） */
-            case DEVICE_OPEN:   rs = wini_do_open(msg.DEVICE);    break;
-            case DEVICE_CLOSE:  rs = wini_do_close(msg.DEVICE);   break;
-            case DEVICE_IOCTL:  rs = wini_do_ioctl(&msg);   break;
+            case DEVICE_OPEN:   rs = wini_do_open(msg_in.DEVICE);    break;
+            case DEVICE_CLOSE:  rs = wini_do_close(msg_in.DEVICE);   break;
+            case DEVICE_IOCTL:  rs = wini_do_ioctl(&msg_in);   break;
 
             /* 而DEVICE_READ（读数据）、 DEV_WRITE（写数据）和剩下的两个操作
              */
             case DEVICE_READ:
-            case DEVICE_WRITE:  rs = wini_do_readwrite(&msg);    break;
+            case DEVICE_WRITE:  rs = wini_do_readwrite(&msg_in);    break;
 
             case DEVICE_GATHER:
-            case DEVICE_SCATTER:rs = wini_do_vreadwrite(&msg);   break;
+            case DEVICE_SCATTER:rs = wini_do_vreadwrite(&msg_in);   break;
 
             /* 被中断唤醒或闹钟唤醒 */
             case HARD_INT:      continue;
@@ -114,10 +114,10 @@ PUBLIC void at_winchester_task(void) {
         }
 
         /*  最后，给请求者一个答复 */
-        msg.type = TASK_REPLY;
-        msg.REPLY_PROC_NR = proc_nr;
-        msg.REPLY_STATUS = rs;          /* 传输的字节数或错误代码 */
-        send(caller, &msg);             /* 走你 */
+        msg_in.type = TASK_REPLY;
+        msg_in.REPLY_PROC_NR = proc_nr;
+        msg_in.REPLY_STATUS = rs;          /* 传输的字节数或错误代码 */
+        send(caller, &msg_in);             /* 走你 */
     }
 }
 
@@ -173,7 +173,7 @@ PRIVATE int wini_do_readwrite(Message *msg){
                     panic("HD Controller is already dumb.", NO_NUM);
                 }
                 /* 将用户数据写到磁盘中 */
-                port_write(REG_DATA, (void *) phys_addr, (phys_bytes)bytes);
+                port_write(REG_DATA, (void *) phys_addr, bytes);
                 wini_interrupt_wait();
             }
             /* 一轮完成了 */
@@ -549,12 +549,13 @@ PRIVATE void partition(
 
             nr_prim_parts++;
             int dev_nr = i + 1;		  /* 1~4 */
-            hdi->primary[dev_nr].base = part_tab[i].start_sec;
+            hdi->primary[dev_nr].base = part_tab[i].lowsec;
             hdi->primary[dev_nr].size = part_tab[i].size;
-//            printf("%d | %d\n", part_tab[i].start_sec, part_tab[i].size);
+//            printf("%d-{%d | %d}\n", dev_nr, hdi->primary[dev_nr].base, hdi->primary[dev_nr].size);
 
-            if (part_tab[i].sysind == EXT_PART) /* extended */
+            if (part_tab[i].sysind == EXT_PART){    /* 扩展分区？继续获取分区 */
                 partition(device + dev_nr, P_EXTENDED);
+            }
         }
         assert(nr_prim_parts != 0);
     } else if(style == P_EXTENDED){
@@ -569,14 +570,14 @@ PRIVATE void partition(
 
             get_part_table(drive, s, part_tab);
 
-            hdi->logical[dev_nr].base = s + part_tab[0].start_sec;
+            hdi->logical[dev_nr].base = s + part_tab[0].lowsec;
             hdi->logical[dev_nr].size = part_tab[0].size;
 
-            s = ext_start_sect + part_tab[1].start_sec;
+            s = ext_start_sect + part_tab[1].lowsec;
+//            printf("%d-{%d | %d}\n", dev_nr, hdi->logical[dev_nr].base, hdi->logical[dev_nr].size);
 
-            /* 此扩展分区中不再有逻辑分区 */
-            if (part_tab[1].sysind == NO_PART)
-                break;
+            /* 此扩展分区中不再有更多逻辑分区 */
+            if (part_tab[1].sysind == NO_PART) break;
         }
     } else {
         assert(0);
@@ -591,16 +592,16 @@ PRIVATE void partition(
 PRIVATE void get_part_table(
         int drive,          /* 驱动器号（第一个磁盘为0，第二个磁盘为1，...） */
         int sect_nr,        /* 分区表所在的扇区。 */
-        PartEntry * entry   /* 指向一个分区 */
+        PartEntry *entry    /* 指向一个分区 */
 )
 {
     Command cmd;
-    cmd.features = 0;
-    cmd.count	= 1;
-    cmd.lba_low	= sect_nr & 0xFF;
-    cmd.lba_mid	= (sect_nr >>  8) & 0xFF;
+    cmd.features    = 0;
+    cmd.count	    = 1;
+    cmd.lba_low	    = sect_nr & 0xFF;
+    cmd.lba_mid	    = (sect_nr >>  8) & 0xFF;
     cmd.lba_high	= (sect_nr >> 16) & 0xFF;
-    cmd.device	= MAKE_DEVICE_REG(1, /* LBA模式 */
+    cmd.device	    = MAKE_DEVICE_REG(1, /* LBA模式 */
                                     drive,
                                     (sect_nr >> 24) & 0xF);
     cmd.command	= ATA_READ;

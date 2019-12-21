@@ -79,6 +79,7 @@ phys_copy_end:
     ret
 ;================================================================================================
 ;                  void disp_str(char * info);	显示一个黑底白字的字符串
+align 16
 disp_str:
     push ebp
     mov ebp, esp

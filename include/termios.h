@@ -185,8 +185,7 @@ _PROTOTYPE( int tcsetattr,
 #define B57600		0x0100	/* 57600 baud */
 #define B115200		0x0200	/* 115200 baud */
 
-/* These are the default settings used by the kernel and by 'stty sane' */
-
+/* 这些是内核和一些终端设备使用的默认设置。 */
 #define TCTRL_DEF	(CREAD | CS8 | HUPCL)
 #define TINPUT_DEF	(BRKINT | ICRNL | IXON | IXANY)
 #define TOUTPUT_DEF	(OPOST | ONLCR)

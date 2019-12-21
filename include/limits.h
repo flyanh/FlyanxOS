@@ -79,9 +79,9 @@
 
 #define NGROUPS_MAX        0	/* supplemental group IDs not available */
 #if _WORD_SIZE > 2
-#define ARG_MAX        16384	/* # bytes of args + environ for exec() */
+#define ARG_MAX        16384	/* exec()的命令行参数 + 环境变量最大字节数，16KB */
 #else
-#define ARG_MAX         4096	/* args + environ on small machines ：参数 + 小型计算机上的环境 */
+#define ARG_MAX         4096	/* 参数 + 小型计算机上的环境 */
 #endif
 #define CHILD_MAX  _NO_LIMIT    /* Flyanx不限制子进程数量*/
 #define OPEN_MAX          21	/* 进程能打开的文件最大数量 */
