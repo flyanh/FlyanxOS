@@ -34,6 +34,7 @@ PUBLIC void mm_main(void){
     mm_init();
 
     mm_print_info("Working...");
+
     /* 内存管理器开始工作了 */
     while (TRUE){
         /* 等待消息，获得工作 */

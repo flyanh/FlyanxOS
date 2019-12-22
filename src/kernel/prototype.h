@@ -90,7 +90,6 @@ _PROTOTYPE( void switch_to, (int line) );
 _PROTOTYPE( void clear_screen, (struct tty_s *tty) );
 _PROTOTYPE( void screen_init, (void) );
 _PROTOTYPE( void blue_screen, (void) );
-_PROTOTYPE( void scroll_screen, (unsigned direction) );
 
 /*================================================================================================*/
 /* keyboard.c */

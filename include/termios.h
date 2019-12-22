@@ -31,7 +31,7 @@ typedef unsigned int    speed_t;
 				 	* for extensions. */
 
 /* 终端控制结构 */
-typedef struct termios_s {
+typedef struct termios {
     tcflag_t iflag;			/* 输入模式 */
     tcflag_t oflag;			/* 输出模式 */
     tcflag_t cflag;			/* 控制模式 */

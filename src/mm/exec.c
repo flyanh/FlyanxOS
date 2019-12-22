@@ -151,7 +151,7 @@ PUBLIC int do_exec(void){
      */
     sys_exec(mm_who, new_stack, name_buf, ehdr->e_entry);
 
-    return ERROR_NO_MESSAGE;        /* 不需要回复，新程序已经覆盖旧程序的内存，默默运行就号了。 */
+    return ERROR_NO_MESSAGE;        /* 不需要回复，新程序已经覆盖旧程序的内存，默默运行就好了。 */
 }
 
 /*===========================================================================*
