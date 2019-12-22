@@ -17,10 +17,10 @@ PUBLIC ssize_t write(
         _CONST void *buffer,   /* 写入的数据在哪？ */
         size_t bytes    /* 要写多少字节？ */
 ){
-    Message msg;
+    Message out;
 
-    msg.m1_i1 = fd;
-    msg.m1_i2 = bytes;
-    msg.m1_p1 = (char*)buffer;
-    return _syscall(FS, WRITE, &msg);
+    out.m1_i1 = fd;
+    out.m1_i2 = bytes;
+    out.m1_p1 = (char*)buffer;
+    return _syscall(FS, WRITE, &out);
 }

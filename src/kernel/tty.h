@@ -70,17 +70,17 @@ typedef struct tty_s {
     char in_reply_code;         /* 回复代码，TASK_REPLY(任务回复)或者REVIVE(恢复) */
     char in_caller;             /* 管理系统调用的系统服务进程（通常是文件系统） */
     char in_proc;               /* 想要从终端读取数据的进程 */
-    vir_bytes in_vir;      /* 数据要到达的地方（虚拟地址） */
-    int in_left;       /* 还需要读取多少字符 */
-    int in_cum;        /* 已经读取了多少字符 */
+    vir_bytes in_vir;           /* 数据要到达的地方（虚拟地址） */
+    int in_left;                /* 还需要读取多少字符 */
+    int in_cum;                 /* 已经读取了多少字符 */
 
     /* 输出(write)系统调用也需要以上类似的变量集 */
     char out_reply_code;        /* 回复代码，TASK_REPLY(任务回复)或者REVIVE(恢复) */
     char out_caller;            /* 管理系统调用的系统服务进程（通常是文件系统） */
     char out_proc;              /* 想要写入数据到终端的进程 */
-    vir_bytes out_vir_addr;     /* 数据要到达的地方（虚拟地址） */
-    int out_left;      /* 还需要写入多少字符 */
-    int out_cum;       /* 已经写入了多少字符 */
+    vir_bytes out_vir;          /* 数据要到达的地方（虚拟地址） */
+    int out_left;               /* 还需要写入多少字符 */
+    int out_cum;                /* 已经写入了多少字符 */
 
     /* IOCTL（输入输出控制）操作相关 */
     char ioc_caller;            /* 管理终端io控制系统调用的系统服务进程（通常是文件系统） */

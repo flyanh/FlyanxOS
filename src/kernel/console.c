@@ -197,8 +197,8 @@ PUBLIC void blue_screen(void){
  *===========================================================================*/
 PRIVATE void write(TTY *tty){
     /* 控制台写入
-     * 这个函数的地址存放在每个控制台的device_write入口处。它只从一个地方被调用，即tty.c的handle_events
-     * 中。priv.c中的其他大部分函数的存在都是为了支持这个函数。当它在一个客户进程进行了一个WRITE调用后
+     * 这个函数的地址存放在每个控制台的device_write入口处。它只从一个地方被调用，即tty.c的handle_write
+     * 中。本文件中的其他大部分函数的存在都是为了支持这个函数。当它在一个客户进程进行了一个WRITE调用后
      * 被第一次调用时，待输出的数据位于客户进程的缓冲区中，可以用tty结构中的out_proc和out_vir_addr找到。
      * out_left域记录了还有多少字符需要传送，out_cum被初始化为0，表示什么还没有传送。这是在进入console_write
      * 时的一般情况，因为在正常情况下，一旦该函数被调用，它就传送原始调用请求的所有数据。不过，如果用户希望进
@@ -221,11 +221,11 @@ PRIVATE void write(TTY *tty){
         /* 如果用户要向控制台写入的数据过多，降低count到和控制台缓冲区一致，分多次传送 */
         if(count > sizeof(buffer)) count = CONSOLE_IN_BYTES;
         /* 得到用户的输出缓冲区，即用户准备写入控制台的数据 */
-        user_phys = proc_vir2phys(proc_addr(tty->out_proc), tty->out_vir_addr);
+        user_phys = proc_vir2phys(proc_addr(tty->out_proc), tty->out_vir);
         phys_copy(user_phys, vir2phys(buffer), (phys_bytes)count);
         temp_buffer = buffer;
         /* 更新终端数据结构 */
-        tty->out_vir_addr += count;
+        tty->out_vir += count;
         tty->out_cum += count;
         tty->out_left -= count;
 

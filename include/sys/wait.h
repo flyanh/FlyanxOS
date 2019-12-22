@@ -15,5 +15,11 @@
 #include <sys/types.h>
 #endif
 
+#define WNOHANG         1   /* 不需要等待子进程退出 */
+#define WUNTRACED       2   /* 为了任务控制；但我还未实现 */
+
+/* 函数原型 */
+_PROTOTYPE( pid_t wait, (int *_status) );
+_PROTOTYPE( pid_t waitpid, (pid_t _pid, int *_status, int _options) );
 
 #endif //_WAIT_H

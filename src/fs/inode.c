@@ -122,9 +122,11 @@ PUBLIC Inode *new_inode(
         ino_t inode_nr,     /* 索引节点号 */
         int start_sect      /* 写到哪个扇区(第一个)? */
 ){
+    /* 读入一个新的索引节点 */
     Inode *new_inode = get_inode(dev, inode_nr);
 
-    new_inode->mode = I_REGULAR;
+    /* 设置它们的信息 */
+    new_inode->mode = I_REGULAR;    /* 现在它只能是普通文件... */
     new_inode->size = 0;
     new_inode->start_sect = start_sect;
     new_inode->nr_sects = NR_DEFAULT_FILE_SECTS;
@@ -141,7 +143,7 @@ PUBLIC Inode *new_inode(
 
 /*===========================================================================*
  *				sync_inode				     *
- *				更新目录索引节点
+ *			更新目录索引节点到磁盘上
  *===========================================================================*/
 PUBLIC void sync_inode(Inode *ip){
     Inode * ind;

@@ -92,10 +92,19 @@ _PROTOTYPE( int link, (const char *_name, const char *_name2) );
 _PROTOTYPE( int unlink, (const char *_name) );
 _PROTOTYPE( off_t lseek, (int _fd, off_t _offset, int _whence) );
 _PROTOTYPE( pid_t fork, (void) );
+_PROTOTYPE( pid_t getpid, (void) );
+_PROTOTYPE( pid_t getppid, (void) );
+_PROTOTYPE( void exit, (int _status) );
+_PROTOTYPE( int execve, (const char *_path, char * _argv[], char * _envp[]) );
+_PROTOTYPE( int execv, (const char *_path, char * _argv[]) );
+_PROTOTYPE( int execl, (const char *_path, const char *_arg1, ...) );
+_PROTOTYPE( int exec, (const char *_path) );
 
 
+/* 这些是flyanx独有的 */
+#ifdef _FLYANX
 _PROTOTYPE( int sleep, (time_t _mills) );
-
+#endif
 
 
 

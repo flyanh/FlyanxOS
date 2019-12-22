@@ -27,7 +27,7 @@ int ch;      /* 字符，因为包含字符属性，所以不能为char */
 
     static size_t buffer_count;         /* 输出缓冲区字符数量 */
     static char print_buffer[80];       /* 输出缓冲区 */
-    Message msg;
+    static Message msg;
 
     if((ch == 0 && buffer_count > 0) || buffer_count == sizeof(print_buffer)){
         /* 已经达到字符串结尾或输出缓冲区已满，可以输出了。

@@ -575,7 +575,7 @@ PRIVATE int keyboard_handler(int irq){
         /* 键盘触发的字符读入，控制台的events标志的READ就应该被置位，
          * 以便中断及时处理缓冲区的字符。
          */
-        tty_table[current_console_nr].events |= (EVENTS_READ);
+        tty_table[current_console_nr].events |= EVENTS_READ;
         /* 现在，该唤醒终端任务做事情了！ */
         tty_wake();
     }

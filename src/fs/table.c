@@ -21,7 +21,7 @@
 #include "inode.h"
 #include "super.h"
 
-/* 当一个请求到达时，其中的系统调用号将被取出作为call_vec数组的索引，以找到
+/* 当一个请求到达时，其中的系统调用号将被取出作为fs_call_handlers数组的索引，以找到
  * 处理这个系统调用的过程。不是合法调用的系统调用号都会引起执行fs_no_sys，它只
  * 是返回一个错误代码。
  * 在这里值得注意的是输入_PROTOTYPE宏用在了call_handlers的定义中，这个定义

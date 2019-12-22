@@ -86,6 +86,7 @@ FORWARD _PROTOTYPE( void reprint, (TTY *tty) );
 FORWARD _PROTOTYPE( void tty_input_cancel, (TTY *tty) );
 FORWARD _PROTOTYPE( void set_attr, (TTY *tty) );
 FORWARD _PROTOTYPE( void in_transfer, (TTY *tty) );
+FORWARD _PROTOTYPE( void set_alarm, (TTY *tty, int on) );
 
 /*===========================================================================*
  *				tty_task				     *
@@ -194,9 +195,100 @@ PUBLIC void tty_task(void){
  *				读终端
  *===========================================================================*/
 PRIVATE void do_read(TTY *tty, Message *msg){
-    printf("tty read\n");
+    /* 一个程序想从终端设备中读取数据 */
 
-    tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, OK);
+    int rs;
+
+    /* 检查当前设备情况，如果设备仍然在等待一个输入以应付上一次的读取请求时，或者
+     * 请求参数无效时，返回一个错误。
+     */
+    if(tty->in_left > 0){           /*仍然在等待一个输入  */
+        rs = EIO;
+    } else if(msg->COUNT <= 0){     /* 不读？ */
+        rs = EINVAL;
+    } else if(numap(msg->PROC_NR, (vir_bytes)msg->ADDRESS, msg->COUNT) == 0) {
+        /* 读取的缓冲区地址有问题 */
+        rs = EFAULT;
+    } else {                        /* 没问题 */
+        /* 将请求的信息放入到设备的中 */
+        tty->in_reply_code = TASK_REPLY;
+        tty->in_caller = msg->source;
+        tty->in_proc = msg->PROC_NR;
+        tty->in_vir = (vir_bytes) msg->ADDRESS;
+        /* 至关重要，这个变量决定读请求何时得到满足。
+         * 在规范模式中，in_left随着每个返回的字符逐渐减少，直到接收到一行的结束时，
+         * 这个值突然减少为0。在非规范模式中，处理有所不同，但在任何情况下，只要调用
+         * 被满足in_left就被置为0，不论是由于超时还是接收到了要求的最小字符数。
+         * in_left达到0时，一条回答消息被送出。如同我们将要看到的那样，回答消息可以
+         * 在好几个地方产生。有时还需要检查一个读进程是否仍在等待一个回答，非0时的in_left
+         * 可以用作这个目的。
+         */
+        tty->in_left = msg->COUNT;
+
+        /* 通过tty::termios.lflag标志判断当前终端的运行模式，ICANON置位则处于规范模式，
+         * 如果这一位没有置位，处于非规范模式，也称为原始模式，则需要检查termios.VMIN和
+         * termios.VTIME以决定需要采取什么动作。
+         */
+        if(!(tty->termios.lflag & ICANON)){     /* 原始模式 */
+            if(tty->termios.c_cc[VTIME] > 0){   /* VTIME > 0，没有else，VTIME == 0将在默认在下面和规范模式一起处理 */
+                if(tty->termios.c_cc[VMIN] == 0){
+                    /* VMIN == 0，设置一个闹钟，即使没有收到一个字节，在闹钟响起后
+                     * 也结束这次的读取请求。这里min被置为1，保证超时前收到字节就立
+                     * 即终止这次读取请求，因为原始模式是一个一个传输的。
+                     */
+                    tty->min = 1;
+                    set_alarm(tty, TRUE);
+                } else {
+                    /* VTIME和VMIN都不为0，那么闹钟将赋予不同的含义，在这种情况下，
+                     * 闹钟用来作为字符间的计时器，它只有在收到第一个字符后启动，并在
+                     * 接收到每一个后继字符之后再次重新启动。
+                     * tty::eot_count字符行数计算在原始模式下含义也不相同，它对字符
+                     * 计数，如果为0的话，那么就还没有接收到字符，那么闹钟将被关闭。
+                     */
+                    if(tty->eot_count == 0){
+                        set_alarm(tty, FALSE);
+                        tty->min = tty->termios.c_cc[VMIN];
+                    }
+                }
+            }
+        }
+
+        /* 现在将现在输入队列中的字节传输到读取进程中 */
+        in_transfer(tty);
+
+        /* 完成一次传输后，我们再次调用handle_read。
+         * 这里需要解释一下这个显得重复的调用。虽然到目前为止所有的讨论都从键盘输入的角度来考虑，
+         * 但do_read是在代码的设备无关部分，也要为通过串行线连接的远程终端的输入服务。上一次的输
+         * 入可能已经填满了设备的输入缓冲区从而导致输入被禁止，例如RS-232设备。对in_transfer的
+         * 第一次调用不能重新启动输入流，但对handle_read的调用可以起到这个作用。由此引起的对
+         * in_transfer的第二次调用并没有实质性的作用，主要是为了确保远程终端再次被允许发送。
+         */
+        handle_read(tty);
+
+        /* tty::in_left是一个标志，它可以判断完成传输后回答是否已发送，如果这里它为0，说明已经
+         * 在上面的处理中完成了消息的回复，这里就没必要了。
+         */
+        if(tty->in_left == 0) return;
+
+        /* 不能指望每次处理都能完美的完成并回复，所以如果到还没有完成，我们也需要回复调用者。 */
+        if(msg->TTY_FLAGS & O_NONBLOCK){
+            /* 如果调用进程指定了这次读取请求不能堵塞自己，那么我们通知FS回复给调用者一个错误
+             * 代码，保证它能被及时唤醒。
+             */
+            rs = EAGAIN;
+            /* 这次请求已经完成（虽然不完美），重置读取参数。 */
+            tty->in_left = tty->in_cum = 0;
+        } else {
+            /* 如果此次请求是普通的可堵塞读取请求，那么我们返回一个SUSPEND代码，告诉FS不要解除
+             * 调用者的堵塞状态，在这种情况下，终端的下次读取请求回复代码in_reply_code将被设置
+             * 为REVIVE。如果READ请求在之后被可以完成，那么这个值将被回复给FS，告诉它调用者现在
+             * 可以被恢复唤醒了。
+             */
+            rs = SUSPEND;
+            tty->in_reply_code = REVIVE;
+        }
+    }
+    tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, rs);
 }
 
 /*===========================================================================*
@@ -204,8 +296,8 @@ PRIVATE void do_read(TTY *tty, Message *msg){
  *				写终端
  *===========================================================================*/
 PRIVATE void do_write(TTY *tty, Message *msg){
-    /* 一个程序想要写入数据到终端设备中，这个例程和do_read 100%的想死，但是更简单，
-     * 考虑的更少。
+    /* 一个程序想要写入数据到终端设备中，这个例程和do_read一毛一样，但是更简单，
+     * 考虑的事情更少，这里的注释如果不够细致，请移步do_read。
      */
 
     int rs;
@@ -225,7 +317,7 @@ PRIVATE void do_write(TTY *tty, Message *msg){
         tty->out_reply_code = TASK_REPLY;
         tty->out_caller = msg->source;
         tty->out_proc = msg->PROC_NR;
-        tty->out_vir_addr = (vir_bytes) msg->ADDRESS;
+        tty->out_vir = (vir_bytes) msg->ADDRESS;
         tty->out_left = msg->COUNT;
 
         /* 现在可以去写了 */
@@ -242,7 +334,7 @@ PRIVATE void do_write(TTY *tty, Message *msg){
         }
     }
     /* 答复 */
-    tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, OK);
+    tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, rs);
 }
 
 /*===========================================================================*
@@ -577,7 +669,7 @@ PRIVATE void in_transfer(TTY *tty){
         tty->input_count--;
 
         /* 检测到换行符 */
-        if(ch & IN_EOF){
+        if(ch & IN_EOT){
             tty->eot_count--;       /* 字符行数 - 1 */
             /* 判断当前是否是否是规范模式，是的话，inleft直接归零，退出循环，一次传输结束。 */
             if(tty->termios.lflag & ICANON) tty->in_left = 0;
@@ -610,7 +702,7 @@ PRIVATE void dev_ioctl(TTY *tty){
     /* 可以对终端设备进行io控制（设置设备的io速率等等）
      * 当用TCSADRAIN或TCSAFLUSH选项调用dev_ioctl时，它都支持执行tcdrain函数和tcsetattr函数。
      */
-    raw_echo(tty, 'c');
+    printf("tty device ioctl...\n");
 //    phys_bytes user_phys;
 //
 //    /* 输出处理未完成，不能对设备的io进行控制 */
@@ -698,11 +790,11 @@ PUBLIC void handle_write(TTY *tty){
  *			 处理挂起的终端设备io控制操作
  *===========================================================================*/
 PUBLIC void handle_ioctl(TTY *tty){
-//    do{
-//        tty->events &= ~EVENTS_IOCTL;
-//        /* 如果有一个等待的终端io控制请求，调用dev_ioctl函数处理它 */
-//        if(tty->ioc_request != FALSE) dev_ioctl(tty);
-//    } while (tty->events & EVENTS_IOCTL);   /* 如果处理中间标志又被用户的操作置位，那么，接着处理。 */
+    do{
+        tty->events &= ~EVENTS_IOCTL;
+        /* 如果有一个等待的终端io控制请求，调用dev_ioctl函数处理它 */
+        if(tty->ioc_request != FALSE) dev_ioctl(tty);
+    } while (tty->events & EVENTS_IOCTL);   /* 如果处理中间标志又被用户的操作置位，那么，接着处理。 */
 }
 
 /*===========================================================================*
@@ -897,7 +989,6 @@ PUBLIC void tty_reply(
     if(status != OK){
         panic("tty_reply failed, status\n", status);
     }
-
 }
 
 /*===========================================================================*
@@ -991,10 +1082,58 @@ PRIVATE void set_attr(TTY *tty){
 }
 
 /*==========================================================================*
- *				tty_devnop				    *
+ *				set_alarm				    *
+ *		    为终端设备设置一个闹钟
  *==========================================================================*/
-PUBLIC void tty_dev_nop(TTY *tty) {
-    /* 有些设备不需要服务，同时，这个函数也被用在初始化例程中。 */
+PRIVATE void set_alarm(
+        TTY *tty,       /* 谁要设置闹钟？ */
+        int on          /* 打开还是关闭？TRUE打开，FALSE关闭。 */
+){
+    /* 设置一个闹钟以便设备知道在原始模式中何时从一个READ读取调用
+     * 中返回并结束。这里有一点需要注意，由于唤醒终端任务对硬件中
+     * 断十分敏感，所以我们在操作时需要先关闭中断，操作完毕再打开
+     * 中断。
+     */
+
+    TTY **tdp;
+
+    /* 关中断 */
+    interrupt_lock();
+    /* 在唤醒列表中寻找要设置的设备是否已经存在 */
+    for(tdp = &tty_wake_list; *tdp != NULL; tdp = &(*tdp)->next_wake){
+        if(tty == *tdp){
+            /* 找到了，删除，因为要重新设置了 */
+            *tdp = tty->next_wake;
+            break;
+        }
+    }
+
+    /* 关闭闹钟？那么好了，没事情了。 */
+    if(!on) return;
+
+    /* 计算闹钟时：当前时间加上在设备的TIME（在termios结构中）值，
+     * TIME需要换算成时钟滴答值，别忘了这点。
+     */
+    tty->wake_time = get_uptime() + tty->termios.c_cc[VTIME] * ONE_TICK_MILLISECOND;
+
+    /* 在唤醒列表中找到一个合适的位置加入进去 */
+    for(tdp = &tty_wake_list; *tdp != NULL; tdp = &(*tdp)->next_wake){
+        /* 唤醒时间前面的，都跳过 */
+        if(tty->wake_time <= (*tdp)->wake_time) break;
+    }
+    /* 找到了，放到这 */
+    tty->next_wake = *tdp;
+    *tdp = tty;
+    /* 如果新设置的闹钟时间比下一次要响起的更早，那么下一次响起就是它了 */
+    if(tty->wake_time < tty_wake_time) tty_wake_time = tty->wake_time;
+    /* 开中断 */
+    interrupt_unlock();
 }
+
+/*==========================================================================*
+ *				tty_devnop				    *
+ *		有些设备不需要服务，同时，这个函数也被用在初始化例程中。
+ *==========================================================================*/
+PUBLIC void tty_dev_nop(TTY *tty) {}
 
 

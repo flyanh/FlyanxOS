@@ -29,6 +29,10 @@
 #define CREAT           14
 #define MKDIR           15
 #define STAT            16
+#define GETPID          17
+#define GETPPID         18
+#define WAITPID         19
+#define BREAK           20
 
 /* 以下不是系统调用，但像它们一样进行处理。 */
 #define KERNEL_SIG	    57	/* 内核检测到信号 */

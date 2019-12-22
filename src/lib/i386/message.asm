@@ -19,8 +19,8 @@ RECEIVE     equ     2
 SEND_REC    equ     3
 SYS_VEC     equ     47         ; 系统调用向量
 
-SRC_DEST    equ     4
-MESSAGE     equ     8
+SRC_DEST    equ     8 + 4      ; 8是开头压入ecx、ebx的大小
+MESSAGE     equ     8 + 8
 ;*========================================================================*
 ;                           send                            *
 ;                       执行系统调用SEND
@@ -29,6 +29,9 @@ MESSAGE     equ     8
 ;   int sys_call(function, src_dest, message_ptr)
 ; 本例程只是对function = SEND的封装。
 send:
+    push ecx        ; ecx和ebx会被用到，所以我们将其保存一下
+    push ebx
+
     mov ecx, SEND               ; ecx = 调用操作是发送消息，function = SEND
     jmp com
 ;*========================================================================*
@@ -37,6 +40,9 @@ send:
 ;*========================================================================*
 ; 本例程执行系统调用函数，function为RECIIVE
 receive:
+    push ecx
+    push ebx
+
     mov ecx, RECEIVE                ; ecx = 调用操作是发送消息，function = RECEIVE
     jmp com                      ; 公共的处理
 
@@ -46,11 +52,17 @@ receive:
 ;*========================================================================*
 ; 本例程执行系统调用函数，function为RECIIVE
 send_receive:
+    push ecx
+    push ebx
+
     mov ecx, SEND_REC               ; ecx = 调用操作是发送消息，function = RECEIVE
-    jmp com                      ; 公共的处理
+    jmp com                         ; 公共的处理
 ; 公共处理
 com:
-    mov eax, [esp + SRC_DEST]          ; eax = 目标地址
-    mov ebx, [esp + MESSAGE]          ; ebx = 消息缓冲首址
-    int SYS_VEC                 ; 执行系统调用
+    mov eax, [esp + SRC_DEST]           ; eax = 目标地址（发送给谁？又或是想接收谁？）
+    mov ebx, [esp + MESSAGE]            ; ebx = 消息缓冲首址
+    int SYS_VEC                         ; 执行系统调用
+
+    pop ebx
+    pop ecx
     ret

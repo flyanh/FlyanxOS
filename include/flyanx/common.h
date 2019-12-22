@@ -38,8 +38,8 @@
 #	define DEVICE_SCATTER       8	/* fcn code for writing from a vector */
 #	define DEVICE_GATHER        9	/* fcn code for reading into a vector */
 #	define TTY_SET_PROC_GROUP   10	/* 终端功能索引代码，设置终端的进程组 */
-#	define TTY_EXIT	        11	/* a process group leader has exited */
-#	define SUSPEND	        -998/* used in interrupts when tty has no data */
+#	define TTY_EXIT	            11	/* 一个进程组长已经退出 */
+#	define SUSPEND	        -998    /* 当终端设备没有数据可被读取时，用于挂起请求者 */
 
 #define CLOCK_TASK          (CONTROLLER(NR_CONTROLLERS) - 1)  /* 时钟任务 */
 #	define SET_ALARM        1	/* 时钟功能索引代码，设置闹钟 */
@@ -62,9 +62,11 @@
 #   define SYS_FIND_PROC    5   /* 系统功能索引代码，sys_find_proc(name, &task_nr, flags) */
 #   define SYS_SUDDEN       6   /* 系统功能索引代码，sys_sudden() */
 #   define SYS_BLUES        7   /* 系统功能索引代码，sys_bules() */
-#   define SYS_COPY         8   /* sys_copy(ptr) */
+#   define SYS_COPY         8   /* sys_copy(...) */
 #   define SYS_GET_MAP      9   /* sys_get_map(proc_nr, mm_ptr) */
 #   define SYS_NEW_MAP      10  /* sys_new_map(proc_nr, mm_ptr)  */
+#   define SYS_EXEC         11  /* sys_exec(procno, new_sp) */
+#   define SYS_SET_PROG_FRAME 12    /* sys_set_prog_frame(int argc, u32_t argv, u32_t envp) */
 
 #define HARDWARE            -1	    /* 用作中断生成消息的源 */
 
@@ -109,5 +111,12 @@
 #define PROC_NR1        m1_i1	/* 一个进程号 */
 #define PROC_NR2        m1_i2	/* 同上 */
 #define PID             m1_i3   /* 进程号 */
+#define STACK_PTR       m1_p1	/* sys_exec()、sys_get_sp()需要传递栈指针。 */
+#define NAME_PTR        m1_p2   /* 程序名称字符串地址 */
+#define PC_PTR          m1_p3   /* 初始程序计数器，指向程序的开始地址 */
+#define PROC_NR3        m2_i1   /* 一个进程号，设置它是因为sys_set_prog_frame()需要，但消息类型1满足不了。 */
+#define ARGC            m2_i2   /* 程序的命令行参数计数 */
+#define ARGV            m2_l1   /* 程序的命令行参数数组地址 */
+#define ENVP            m2_l2   /* 程序的环境变量数组地址 */
 
 #endif //_FLYANX_COMMON_H

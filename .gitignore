@@ -60,11 +60,11 @@ bx_enh_dbg.ini
 # cmake debug文件也不需要
 /cmake-build-debug
 
+# 用于安装实用程序的tar归档包不需要提交
+*.tar
+
 # 测试硬盘镜像更不可能提交的！
-/100M_HD.img
-/100M_HD.vdi
-/100M_HDN.vdi
-/500M_HD.img
-/500M_HD.vdi
+*.img
+*.vdi
 
 

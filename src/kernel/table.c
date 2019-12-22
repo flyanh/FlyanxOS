@@ -31,8 +31,8 @@
 /* 进程堆栈相关 */
 /* 一个128字节的小栈 */
 #define SMALL_STACK (128 * sizeof(char*))
-/* 这是一个普通进程堆栈大小，16KB */
-#define NORMAL_STACK (0x4000 * sizeof(char*))
+/* 这是一个普通进程堆栈大小，1KB */
+#define NORMAL_STACK (0x400 * sizeof(char*))
 
 /* 终端任务栈大小  -17 */
 #define TTY_TASK_STASK      (3 * SMALL_STACK)
@@ -167,7 +167,7 @@ PUBLIC u8_t *fs_buffer  = (u8_t*)0x600000;
 PUBLIC const int FS_BUFFER_SIZE = 0x100000;
 
 /* 7MB~8MB: 内存管理器使用 */
-PUBLIC u8_t *mm_buffer  = (u8_t*)0x700000;
+PUBLIC u8_t *mm_buffer = (u8_t*)0x700000;
 PUBLIC const int MM_BUFFER_SIZE = 0x100000;
 
 /* 8MB~9MB: 飞彦拓展管理器使用 */

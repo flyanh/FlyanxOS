@@ -94,7 +94,7 @@ PUBLIC void flyanx_main(void){
         } else {    /* 服务或用户进程 */
             /* 设置权限，只是为了不混乱，但其实这两句很啰嗦，可以合并。 */
             proc->priority = t < LOW_USER ? PROC_PRI_SERVER : PROC_PRI_USER;
-            privilege = rpl = t < LOW_USER ? PROC_PRI_SERVER : USER_PRIVILEGE;
+            privilege = rpl = t < LOW_USER ? SERVER_PRIVILEGE : USER_PRIVILEGE;
             /* 设置系统服务器的pid。 */
             proc->pid = SERVER_PID;
         }
@@ -206,9 +206,9 @@ PUBLIC void flyanx_main(void){
  *                              系统无法继续运行                               *
  *===========================================================================*/
 extern bool assert_panic;
-PUBLIC void panic(msg, errno)
+PUBLIC void panic(msg, err_no)
 _CONST char *msg;
-int errno;
+int err_no;
 {
     /* 当系统发现无法继续运行下去的故障时将调用它。典型的如无法读取一个很关键的数据块、
      * 检测到内部状态不一致、或系统的一部分使用非法参数调用系统的另一部分等。
@@ -225,7 +225,7 @@ int errno;
 
     if(msg != NULL){
         printf("\nFlyanx Kernel panic: %s", msg);
-        if(errno != NO_NUM) printf(" %d", errno);
+        if(err_no != NO_NUM) printf(" %d", err_no);
         printf("\n");
     }
     wreboot(RBT_PANIC);

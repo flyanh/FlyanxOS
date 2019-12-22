@@ -64,8 +64,8 @@ PUBLIC int read_write(
         return EACCES;
     }
 
-    off_t pos = call_fp->open_file[in_fd]->pos;       /* 文件位置 */
-    Inode *inp = call_fp->open_file[in_fd]->inode;  /* 文件的索引节点 */
+    off_t pos = call_fp->open_file[in_fd]->pos;         /* 文件位置 */
+    Inode *inp = call_fp->open_file[in_fd]->inode;      /* 文件的索引节点 */
 
     /* 这个文件描述符的索引节点有问题？ */
     if(inp < &inode[0] || inp >= &inode[NR_INODES] ){
@@ -73,6 +73,10 @@ PUBLIC int read_write(
     }
 
     int oflags = call_fp->open_file[in_fd]->flags;
+    if(fs_who < ORIGIN_PROC_NR){    /* 我们在这定死了规则，这不应该，但很有效，以后改进为应该根据用户的选择来 */
+        oflags |= O_NONBLOCK;       /* 如果操作进程是服务器，那么它们不应该被堵塞。 */
+    }
+
     int imode = inp->mode & I_TYPE;     /* 文件索引节点的存取模式 */
 
     if(imode == I_CHAR_SPECIAL){        /* 文件是一个特殊字符设备 */
@@ -110,16 +114,16 @@ PUBLIC int read_write(
             if(rw_flag == READING){      /* 读 */
                 /* 先从磁盘中读取 */
                 dev_io(DEVICE_READ, inp->device, FS_PROC_NR, fs_buffer,
-                        i * SECTOR_SIZE, chunk * SECTOR_SIZE, oflags);
-                /* 再将读取的数据复制给用户 */
-                sys_copy(FS_PROC_NR, DATA, (phys_bytes) fs_buffer + off,
-                         fs_who, DATA, (phys_bytes) in_buffer + bytes_rw, bytes);
+                       i * SECTOR_SIZE, chunk * SECTOR_SIZE, oflags);
+                /* 将读取的数据复制给用户 */
+                sys_copy(FS_PROC_NR, DATA, (phys_bytes) (fs_buffer + off),
+                         fs_who, DATA, (phys_bytes) (in_buffer + bytes_rw), bytes);
             } else {                    /* 写 */
                 /* 先将用户要写入的数据拷贝到文件系统缓冲区中 */
-                sys_copy(fs_who, DATA, (phys_bytes) in_buffer + bytes_rw,
-                        FS_PROC_NR, DATA, (phys_bytes) fs_buffer + off, bytes);
+                sys_copy(fs_who, DATA, (phys_bytes) (in_buffer + bytes_rw),
+                        FS_PROC_NR, DATA, (phys_bytes) (fs_buffer + off), bytes);
                 /* 再将数据写入磁盘中 */
-                dev_io(WRITING, inp->device, FS_PROC_NR, fs_buffer,
+                dev_io(DEVICE_WRITE, inp->device, FS_PROC_NR, fs_buffer,
                         i * SECTOR_SIZE, chunk * SECTOR_SIZE, oflags);
             }
             off = 0;            /* 偏移归零 */
@@ -129,11 +133,13 @@ PUBLIC int read_write(
         }
 
         if(call_fp->open_file[in_fd]->pos > inp->size){
+//            printf("sync_inode\n");
             /* 更新文件大小 */
             inp->size = call_fp->open_file[in_fd]->pos;
             /* 将更新的索引节点写回到磁盘 */
             sync_inode(inp);
         }
+
         /* 返回读写字节量 */
         return bytes_rw;
     }

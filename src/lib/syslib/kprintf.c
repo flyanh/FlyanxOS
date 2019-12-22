@@ -35,15 +35,16 @@ int redirect_printf(const char *fmt, va_list argp, putk_func_t rp_putk);
 int printl(const char *fmt, ...)
 #endif
 {
+    int rs = -1;
     va_list argp;
 
     va_start(argp, fmt);
 
     /* redirect_printf去做真正的事情 */
-    redirect_printf(fmt, argp, &putk);
+    rs = redirect_printf(fmt, argp, &putk);
 
     va_end(argp);
-    return 0;
+    return rs;
 }
 
 /*=========================================================================*
@@ -207,7 +208,6 @@ int redirect_printf(const char *fmt, va_list argp, putk_func_t rp_putk){
 
     /* 将结尾标记为空（可以是其他值，例如-1）。 */
     rp_putk(0);
-    va_end(argp);
     return 0;
 }
 

@@ -1,0 +1,4 @@
+
+这个目录下全部都是flyanx提供给用户的系统调用，它们都由很汇编文件编写，它们只是简单的跳转到调用的处理函数，而不做任何事情。
+In this directory are all system calls provided by flyanx to the user. They are all written in assembly
+files. They simply jump to the calling processing function without doing anything.

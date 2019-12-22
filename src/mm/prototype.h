@@ -31,6 +31,14 @@ _PROTOTYPE( int do_fork, (void) );
 _PROTOTYPE( int do_exit, (void) );
 _PROTOTYPE( void mm_exit, (struct mm_process_s *rmp, int exit_status) );
 _PROTOTYPE( int do_wait, (void) );
+_PROTOTYPE( int do_waitpid, (void) );
+
+/*================================================================================================*/
+/* get_set.c */
+/*================================================================================================*/
+_PROTOTYPE( int do_get, (void) );
+_PROTOTYPE( int do_set, (void) );
+
 
 /*================================================================================================*/
 /* exec.c */

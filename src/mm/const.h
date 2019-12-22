@@ -20,7 +20,6 @@
  */
 #define FREE_BASE                   0xB00000            /* 可以安全使用的内存空间物理地址：11M */
 #define PROCS_BASE_CLICK            (FREE_BASE >> CLICK_SHIFT)
-#define PROC_DEFAULT_STACK           0x400              /* 用户进程默认使用堆栈大小 */
 #define KERNEL_BASE                 0x1000              /* 内核挂载点（基址） */
 
 /* 由alloc_mem()函数返回，用于告诉调用者，内存不足，无法完成分配。 */
