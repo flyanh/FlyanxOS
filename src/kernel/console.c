@@ -115,7 +115,7 @@ typedef struct sequence_s {
 
 
 FORWARD _PROTOTYPE( void out_char, (Console *console_data, int ch) );
-//FORWARD _PROTOTYPE( void scroll_screen, (unsigned direction) );
+FORWARD _PROTOTYPE( void scroll_screen, (Console *console, unsigned direction) );
 FORWARD _PROTOTYPE( void flush, (Console *console_data) );
 FORWARD _PROTOTYPE( void parse_escape, (Console *console_data, char ch) );
 FORWARD _PROTOTYPE( void beep, (void) );
@@ -183,9 +183,9 @@ PUBLIC void blue_screen(void){
     switch_to(0);
     /* 设置蓝屏属性 */
     console->attr = MAKE_COLOR(BLUE, WHITE) | BRIGHT;
-    /* 清屏（改变属性） */
+    /* 清空整个控制台的内存（改变属性） */
     blank_color = console->attr;
-    memory2video_copy(BLANK_MEM, curr_console->origin, screen_size);
+    memory2video_copy(BLANK_MEM, curr_console->origin, curr_console->limit);
     blank_color = BLANK_COLOR;
     console->row = console->column = 0;
     flush(curr_console);
@@ -349,7 +349,7 @@ PRIVATE void out_char(
         case 014:               /* CTRL-L : 效果等同CTRL-K */
             if(console->row == screen_lines - 1){
                 /* 如果光标行在屏幕最底部最后一行，那么，进行向上滚屏 */
-                scroll_screen(SCROLL_UP);
+                scroll_screen(console, SCROLL_UP);
             } else{
                 /* 如果光标在屏幕中间，那么行数+1即可 */
                 console->row++;
@@ -372,7 +372,7 @@ PRIVATE void out_char(
                 console->column -= screen_width;
                 if(console->row == screen_lines - 1){
                     /* 如果行数处于最底下最后一行，向上滚屏 */
-                    scroll_screen(SCROLL_UP);
+                    scroll_screen(console, SCROLL_UP);
                 } else{
                     /* 还在屏幕的中间，行数+1即可 */
                     console->row++;
@@ -393,7 +393,7 @@ PRIVATE void out_char(
                 if(!LINE_WARP) return;
                 if(console->row == screen_lines - 1){
                     /* 如果行数已经到底，向上滚屏 */
-                    scroll_screen(SCROLL_UP);
+                    scroll_screen(console, SCROLL_UP);
                 } else {
                     /* 还在屏幕中间，正常情况，行数 + 1 */
                     console->row++;
@@ -417,7 +417,7 @@ PRIVATE void out_char(
  *			        滚屏
  * direction: 上滚（SCROLL_UP）或下滚（SCROLL_DOWN）
  *===========================================================================*/
-PUBLIC void scroll_screen(unsigned direction){
+PUBLIC void scroll_screen(register Console *console, unsigned direction){
     /* 滚屏（只能对当前正在使用的控制台生效）
      * 处理在屏幕最后一行已满时的向上滚屏，以及向下滚屏，主要导致原因是其在光标定位命令试图
      * 把光标移到屏幕之外。对每个方向的滚动，有三种可能的处理方法。它们要用来支持不同类型的
@@ -425,7 +425,7 @@ PUBLIC void scroll_screen(unsigned direction){
      */
     unsigned int new_line, new_origin , chars;
 
-    flush(curr_console);    /* 滚屏前可能有字符正在排队，先保证它们更新到当前控制台 */
+    flush(console);    /* 滚屏前可能有字符正在排队，先保证它们更新到当前控制台 */
     chars = screen_size - screen_width;
 
     /* 滚动屏幕是一个真正的麻烦，因为各种不兼容的视频卡。这个驱动程序支持软件滚动，
@@ -447,48 +447,48 @@ PUBLIC void scroll_screen(unsigned direction){
              * 件。当使用硬件卷屏时，screendump可能会产生不可预知的结果，因为屏幕内存的起始
              * 地址和显示器可见部分的开始位置可能不一致。
              */
-            video2video_copy(curr_console->start + screen_width, curr_console->start, chars);
+            video2video_copy(console->start + screen_width, console->start, chars);
 
-        } else if(!wrap && curr_console->origin + screen_size + screen_width >= curr_console->limit){
+        } else if(!wrap && console->origin + screen_size + screen_width >= console->limit){
             /* wrap变量被检测，它是一系列复合检测的第一部分，如果为FLASE，说明存在多各控制台
              * 不允许视频内存重叠，复合检测将继续测试滚屏操作将要移动的内存块是否溢出了分配给
              * 该控制台的内存界线，如果是，就再次调用video2video_copy执行一个回滚移动把内存块移动
              * 到控制台分配内存的起始处，并且原始指针被修改，通过软件辅助完成滚屏。如果没有重叠
              * ，控制就被传递给旧的视频控制器一直使用的简单硬件滚屏方法（在下面）。
              */
-            video2video_copy(curr_console->origin + screen_width, curr_console->start, chars);
-            curr_console->origin = curr_console->start;
+            video2video_copy(console->origin + screen_width, console->start, chars);
+            console->origin = console->start;
 
         } else {                            /* 硬件滚屏 */
             /* 对于支持硬件滚屏的显示器wrap为真，那么这里进行简单的硬件滚屏，
              * 视频控制芯片使用的原始指针被更新为显示器左上角显示的第一个字符。
              */
-            curr_console->origin = (curr_console->origin + screen_width) & video_mask;
+            console->origin = (console->origin + screen_width) & video_mask;
         }
         /* 得到出现的新行，它从屏幕底部出现。 */
-        new_line = (curr_console->origin + chars) & video_mask;
+        new_line = (console->origin + chars) & video_mask;
     } else {                                /* 向下滚屏 */
         /* 和上滚屏完全一样，没什么不同和可注意的。 */
         if(software_scroll) {               /* 软件滚屏 */
-            video2video_copy(curr_console->start, curr_console->start + screen_width , chars);
+            video2video_copy(console->start, console->start + screen_width , chars);
 
-        } else if(!wrap && curr_console->origin < curr_console->start + screen_width){
-            new_origin = curr_console->limit - screen_size;
-            video2video_copy(curr_console->origin, new_origin + screen_width , chars);
-            curr_console->origin = new_origin;
+        } else if(!wrap && console->origin < console->start + screen_width){
+            new_origin = console->limit - screen_size;
+            video2video_copy(console->origin, new_origin + screen_width , chars);
+            console->origin = new_origin;
         } else {                            /* 硬件滚屏 */
-            curr_console->origin = (curr_console->origin - screen_width) & video_mask;
+            console->origin = (console->origin - screen_width) & video_mask;
         }
         /* 得到出现的新行，它从屏幕顶部出现。 */
-        new_line = curr_console->origin;
+        new_line = console->origin;
     }
     /* 清空新出现的行（最后或顶部） */
-    blank_color = curr_console->blank;
+    blank_color = console->blank;
     memory2video_copy(BLANK_MEM, new_line, screen_width);
 
-    /* 设置新的原点位置 */
-    set_6845_video_start(curr_console->origin);
-    flush(curr_console);
+    /* 是当前正在使用的控制台，才设置新的原点位置 */
+    if(curr_console == console) set_6845_video_start(console->origin);
+    flush(console); /* 冲刷内存 */
 }
 
 /*===========================================================================*
@@ -659,7 +659,7 @@ PRIVATE void do_escape(Console *console, char ch){
             case 'M':                   /* ESC M : 向后滚动屏幕 */
                 if(console->row == 0){
                     /* 如果行数是第一列，向后滚屏 */
-                    scroll_screen(SCROLL_DOWN);
+                    scroll_screen(console, SCROLL_DOWN);
                 } else {
                     /* 在屏幕中间，直接减少行数即可 */
                     console->row--;
@@ -741,7 +741,6 @@ PRIVATE void do_escape(Console *console, char ch){
 PRIVATE void console_origin0(void){
     /* 滚动视频内存，使其原点为0
      * 本例程只有在F3键强制切换卷屏模式或准备关机时使用。
-     * @TODO 有bug
      */
 
     int line;
@@ -774,21 +773,20 @@ PUBLIC void toggle_scroll(void){
     /* 切换滚屏方式，硬件或者是软件。 */
 
     /* 重置控制台的基地址指针 */
-//    console_origin0();
+    console_origin0();
     software_scroll = !software_scroll;
     /* 打印一条提示信息 */
     printf("%sware scrolling enabled.\n", software_scroll ? "Soft" : "Hard");
 }
 
 /*===========================================================================*
- *				cons_stop				     *
+ *				console_stop				     *
  *	重新初始化控制台为重启监控程序指定的状态，优先于关机或重启
  *===========================================================================*/
 PUBLIC void console_stop(void){
     console_origin0();
     software_scroll = TRUE;
     switch_to(0);
-//    console_table[0].attr = console_table[0].blank = BLANK_COLOR;
 }
 
 /*===========================================================================*
@@ -882,7 +880,7 @@ PUBLIC void switch_to(int line){
     /* 设置控制台的光标 */
     set_6845_cursor(curr_console->cursor);
     /* 设置控制台基地址，即控制台视频显存开始地址 */
-    set_6845_video_start(curr_console->start);
+    set_6845_video_start(curr_console->origin);
 }
 
 /*===========================================================================*

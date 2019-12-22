@@ -454,10 +454,10 @@ PRIVATE int function_key(int scan_code){
             printf("*********** Welcome to disturb ***********\n");
             break;
         case CF11:
-            scroll_screen(1);
+            tty->echo(tty, 013);
             break;
         case CF12:
-            scroll_screen(0);
+            tty->echo(tty, 013);
             break;
         /* CF7、CF8和CF9扫描码将引起对sigchar的调用，发送信号不同 */
         case CF7:

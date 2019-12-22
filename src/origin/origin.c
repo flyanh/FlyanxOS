@@ -14,6 +14,7 @@
 
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
 #include <stdio.h>
 #include <sys/wait.h>
 #include <limits.h>
@@ -26,7 +27,6 @@ static void shabby_shell(const char * tty_name);
  *                            起源程序主函数             *
  *===========================================================================*/
 void origin_main(void){
-#define FOREVER -1
 
     /* 打开标准输入/输出流（文件描述符） */
     int stdin_fd = open("/dev_tty0", O_RDWR);
@@ -51,9 +51,9 @@ void origin_main(void){
     /* 创建新线程为每个控制台运行Shell */
     int pid, ppid, i;
     for(i = 0; i < sizeof(tty_list) / sizeof(tty_list[0]); i++){
-        if((pid = fork()) != 0){   /* 父进程应该执行的代码 */
+        if((pid = fork()) != 0){    /* 父进程应该执行的代码 */
             printf("{ORIGIN}-> [parent is running, child pid: %d]\n", pid);
-        } else {        /* 子进程应该执行的代码 */
+        } else {                    /* 子进程应该执行的代码 */
             pid = getpid();
             ppid = getppid();
             printf("{ORIGIN}-> [fork child is running, pid: %d, parent pid: %d]\n", pid, ppid);
@@ -70,8 +70,6 @@ void origin_main(void){
         printf("child (%d) exited with status: %d.\n", pid, status);
     }
 
-    /* 现在还没啥事做，先永久堵塞自己 */
-    sleep(FOREVER);
 }
 
 /*===========================================================================*
@@ -89,7 +87,7 @@ static void shabby_shell(const char * tty_name)
     char rdbuf[128];
 
     while (1) {
-        printf("root@chenu $ ");
+        printf("root@chenu # ");
         int r = read(0, rdbuf, 128);
         rdbuf[r - 1] = 0;       /* 长度-1：回车键会产生一个换行符，我们不需要这个换行符！ */
         int argc = 0;
@@ -113,6 +111,14 @@ static void shabby_shell(const char * tty_name)
         } while(ch);
         argv[argc] = 0;
 
+        /* 内键命令：exit，退出当前shell */
+        if(strcmp(rdbuf, "exit") == 0){
+            printf("bye~\n");
+            close(fd_stdout);
+            close(fd_stdin);
+            exit(0);
+        }
+
         int fd = open(argv[0], O_RDWR);
         if (fd == -1) {
             if (rdbuf[0]) {
@@ -131,9 +137,6 @@ static void shabby_shell(const char * tty_name)
             }
         }
     }
-
-    close(fd_stdout);
-    close(fd_stdin);
 }
 
 

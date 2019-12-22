@@ -702,18 +702,25 @@ PRIVATE void dev_ioctl(TTY *tty){
     /* 可以对终端设备进行io控制（设置设备的io速率等等）
      * 当用TCSADRAIN或TCSAFLUSH选项调用dev_ioctl时，它都支持执行tcdrain函数和tcsetattr函数。
      */
-    printf("tty device ioctl...\n");
-//    phys_bytes user_phys;
-//
-//    /* 输出处理未完成，不能对设备的io进行控制 */
-//    if(tty->out_left > 0) return;
-//
-//    if(tty->ioc_request != TCDRAIN){
-//        /* tcsetattr（TCSETSF请求）在TCSAFLUSH选项下调用终端的tty_input_cancel例程取消输入 */
-////        if(tty->ioc_request == TCSETSF) tty_input_cancel(tty);
-//        /*  */
-////        user_phys = proc_vir2phys()
-//    }
+    phys_bytes user_phys;
+
+    /* 输出处理未完成，不能对设备进行控制 */
+    if(tty->out_left > 0) return;
+
+    if(tty->ioc_request != TCDRAIN){
+        /* tcsetattr（TCSETSF请求）在TCSAFLUSH选项下调用终端的tty_input_cancel例程取消输入 */
+        if(tty->ioc_request == TCSETSF) tty_input_cancel(tty);
+        /* 得到调用程序的termios结构所在的物理地址 */
+        user_phys = proc_vir2phys(proc_addr(tty->ioc_proc), tty->ioc_vir_addr);
+        /* 拷贝其到该设备的termios中 */
+        phys_copy(user_phys, vir2phys(&tty->termios), (phys_bytes) sizeof(tty->termios));
+        set_attr(tty);  /* 配置生效 */
+    }
+    /* 为tcdrain服务的唯一动作：重置tp->ioc_request域并向FS发送回答消息
+     * 当然，tcsetattr服务也需要这一步动作。
+     */
+    tty->ioc_request = 0;
+    tty_reply(REVIVE, tty->ioc_caller, tty->ioc_proc, OK);  /* 回复调用者 */
 }
 
 /*===========================================================================*
@@ -1052,7 +1059,7 @@ PRIVATE void tty_input_cancel(register TTY *tty){
 
 /*===========================================================================*
  *				set_attr					     *
- *			应用新的中断属性
+ *			应用新的终端属性
  *===========================================================================*/
 PRIVATE void set_attr(TTY *tty){
     /* 这些属性例如：标准模式/原始模式，传输速度等等... */
@@ -1076,9 +1083,32 @@ PRIVATE void set_attr(TTY *tty){
     }
 
     /* 检测MIN和TIME值 */
-    interrupt_lock();
-    interrupt_unlock();
+    set_alarm(tty, FALSE);  /* 先将该终端设备的闹钟关闭 */
 
+    if(tty->termios.cflag & ICANON){
+        /* 规范模式下，没有这两个值，所以tty->min总是1 */
+        tty->min = 1;
+    } else {
+        /* 非规范模式：两个值的组合允许四种不同的操作，需要判断 */
+
+        /* 首先tty->min置为传过来的值 */
+        tty->min = tty->termios.c_cc[VMIN];
+        /* 然后，如果min为0且传过来的time值大于0，那么min置为1 */
+        if(tty->min == 0 && tty->termios.c_cc[VTIME] > 0){
+            tty->min = 1;
+        }
+    }
+
+    if(!(tty->termios.cflag & IXON)){
+        /* 如果关闭了开始/停止输入控制，输出就不停止 */
+        tty->status_inhibited = RUNNING;
+        tty->events = EVENTS_ALL;
+    }
+
+    /* 如果输出速度被设置为0，发送一个SIGUP信号给使用该终端的所有人@TODO */
+
+    /* 执行一个由tty->ioctl指向的设备指定例程的间接调用，来完成只能在设备层完成的工作。 */
+    tty->ioctl(tty);
 }
 
 /*==========================================================================*

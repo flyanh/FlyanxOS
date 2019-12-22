@@ -917,6 +917,7 @@ $(tfly)/misc.o: $(sfly)/misc.c
 # ============ ORIGIN起源进程 ============
 $(tog)/origin.o: $i/fcntl.h
 $(tog)/origin.o: $i/unistd.h
+$(tog)/origin.o: $i/string.h
 $(tog)/origin.o: $i/stdio.h
 $(tog)/origin.o: $s/wait.h
 $(tog)/origin.o: $i/limits.h

@@ -396,6 +396,8 @@ LAB_PM_START:	; 程序开始
     shl eax, 4
     add eax, KERNEL_OFFSET
     mov [BOOT_PARAM_ADDR + 8], eax  ; 内核所在的物理地址
+    mov eax, [0xAffff]
+    mov [BOOT_PARAM_ADDR + 12], eax  ; 视频卡类型（附加的ROM-BIOS和视频内存）
 
     ;*********************************************************************************
 	; 正式进入内核，Loader将CPU控制权转交给内核，至此，Loader的使命也结束了！比Boot厉害吧！
