@@ -39,12 +39,12 @@ PUBLIC int do_exec(void){
     /* 执行execve(name, argv, envp)调用
      * 用户调用时，用户库会构建一个完整的堆栈映像，包括指针，参数指针，环境变量指针等等，
      * 我们应该拿到堆栈将其复制到MM的缓冲区中，然后再复制到新的核心映像中。
+     * 这个调用执行的很好，花了我好长时间 : (
      */
 
     register MMProcess *proc;
     int rs;
     vir_bytes src, dest, tds_bytes, stk_bytes;
-    phys_bytes tot_bytes;           /* 程序的总空间，包括中间的间隙 */
     Stat f_state;                   /* 文件状态信息 */
 
     /* 有效性检查 */
@@ -68,8 +68,8 @@ PUBLIC int do_exec(void){
                   MM_PROC_NR, DATA, (phys_bytes)dest,
                   (phys_bytes)stk_bytes);
     if(rs != OK) return EACCES;     /* 无法获取堆栈，可能是因为错误的虚拟地址导致的 */
-    printf("exec new stack on: %ld\n", src);
-    printf("exec new stack size: %d\n", stk_bytes);
+//    printf("exec new stack on: %ld\n", src);
+//    printf("exec new stack size: %d\n", stk_bytes);
 
     /* 获取文件信息，主要是需要知道文件的大小 */
     if(stat(name_buf, &f_state) != 0){
@@ -83,9 +83,7 @@ PUBLIC int do_exec(void){
         return EFBIG;
     }
 
-    /* 先打开该文件，注意要以O_NONBLOCK模式打开，这样就算用户给了一个设备特殊文件，
-     * 那么也能保证MM不会因此而堵塞，MM被用户一个调用给堵塞了，荒唐！
-     */
+    /* 先打开该文件 */
     int fd = open(name_buf, O_RDWR);
     if(fd < 0){
         printf("exec file open failed. {fd: %d}\n", fd);
@@ -94,6 +92,7 @@ PUBLIC int do_exec(void){
 
     /* 然后读取该文件的可执行ELF32文件头 */
     Elf32_Ehdr *ehdr = read_elf32_header(fd, f_state.size);
+    close(fd);  /* 文件使用完别忘了关闭文件，后面用不到了 */
     /* 文件是一个可执行文件吗？该文件不是一个特殊文件且文件大小不为空同时ELF32
      * 头也存在，那么它就是一个可执行文件。
      */
@@ -110,14 +109,15 @@ PUBLIC int do_exec(void){
          */
         Elf32_Phdr *prog_hdr = (Elf32_Phdr*)(mm_buffer + ehdr->e_phoff + (i * ehdr->e_phentsize));
         if(prog_hdr->p_type == PT_LOAD){        /* 它是一个可加载程序段 */
-            if(prog_hdr->p_vaddr + prog_hdr->p_memsz >= proc->map.size){
+            tds_bytes = prog_hdr->p_vaddr + prog_hdr->p_memsz;  /* 计算程序这个段的总大小 */
+            if(tds_bytes >= proc->map.size){
                 /* 加载前先判断当前进程能否装得下这个新程序，不能我们也到此为止 */
                 printf("exec file too big, {file: %s}\n", name_buf);
                 return EFBIG;
             }
             /* 好的，一切顺利，我们现在可以拷贝它到内存中了。 */
-            sys_copy(MM_PROC_NR, DATA, (phys_bytes) (mm_buffer + prog_hdr->p_offset), /* 从文本段的硬盘偏移 */
-                     mm_who, TEXT, (phys_bytes)prog_hdr->p_vaddr,  /* 拷贝到程序的硬盘虚拟地址 */
+            sys_copy(MM_PROC_NR, ABSOLUTE, (phys_bytes) (mm_buffer + prog_hdr->p_offset), /* 从MM高速缓冲区中存放的程序偏移 */
+                     mm_who, TEXT, (phys_bytes)prog_hdr->p_vaddr,  /* 拷贝到内存中程序的虚拟地址 */
                      (phys_bytes)prog_hdr->p_filesz);              /* 拷贝大小 */
         }
     }
@@ -141,7 +141,9 @@ PUBLIC int do_exec(void){
                   (phys_bytes)stk_bytes);
     if(rs != OK) mm_panic("new stack apply failed", (int)new_stack);
 
-    /* 好的，现在通知内核，设置新程序的运行框架 */
+    /* 好的，现在通知内核，设置新程序的运行框架，暂时不支持环境变量的指定，
+     * 给个0就好。
+     */
     sys_set_prog_frame(mm_who, argc, (u32_t)&new_stack, 0);
 
     /* 万事俱备，现在通知内核，一个程序已经加载进内存，
@@ -149,7 +151,7 @@ PUBLIC int do_exec(void){
      */
     sys_exec(mm_who, new_stack, name_buf, ehdr->e_entry);
 
-    return 0;
+    return ERROR_NO_MESSAGE;        /* 不需要回复，新程序已经覆盖旧程序的内存，默默运行就号了。 */
 }
 
 /*===========================================================================*
@@ -159,16 +161,13 @@ PUBLIC int do_exec(void){
 PRIVATE Elf32_Ehdr *read_elf32_header(int fd, unsigned file_size){
     /* 读取该文件到高速缓冲区中 */
     read(fd, mm_buffer, file_size);
-    close(fd);  /* 文件使用完别忘了关闭文件 */
     Elf32_Ehdr *ehdr = (Elf32_Ehdr*)mm_buffer;
     /* 判断该文件头存在否 */
     if(ehdr->e_ident[EI_MAG0] != ELFMAG0 || ehdr->e_ident[EI_MAG1] != ELFMAG1 ||
             ehdr->e_ident[EI_MAG2] != ELFMAG2 || ehdr->e_ident[EI_MAG3] != ELFMAG3){
         /* 魔数匹配不上，这是个坏的ELF32文件头，我们返回空表示文件头是坏的 */
         ehdr = (Elf32_Ehdr*)0;
-        printf("bad elf\n");
     }
-    printf("good elf\n");
 
     return ehdr;    /* 返回得到的FLF32头 */
 }

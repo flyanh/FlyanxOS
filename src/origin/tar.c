@@ -16,7 +16,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/dev.h>
-#include <sys/stat.h>
 
 /* A tar archive consists of 512-byte blocks.
    Each file in the archive has a header block followed by 0+ data blocks.
@@ -68,7 +67,7 @@
  * 顾名思义，这个文件结构来自于POSIX标准，我们直接用就可以了。
  */
 typedef struct posix_tar_header{
-    /* 字节偏移量 */
+                        /* 字节偏移量 */
     char name[100];		/*   0 */
     char mode[8];		/* 100 */
     char uid[8];		/* 108 */
@@ -109,7 +108,6 @@ int untar(
     }
     printf("[extract `%s'\n", filename);
 
-    Stat fstat;
     int chunk = sizeof(buf);        /* 一块 = 8KB，用于读写 */
     int i = 0;
     int bytes = 0;

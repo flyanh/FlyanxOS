@@ -669,7 +669,7 @@ PRIVATE void in_transfer(TTY *tty){
         tty->input_count--;
 
         /* 检测到换行符 */
-        if(ch & IN_EOF){
+        if(ch & IN_EOT){
             tty->eot_count--;       /* 字符行数 - 1 */
             /* 判断当前是否是否是规范模式，是的话，inleft直接归零，退出循环，一次传输结束。 */
             if(tty->termios.lflag & ICANON) tty->in_left = 0;

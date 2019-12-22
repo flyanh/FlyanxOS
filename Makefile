@@ -370,7 +370,6 @@ $(tk)/misc.o: $(ka)
 $(tk)/misc.o: $(sk)/assert.h
 $(tk)/misc.o: $i/stdlib.h
 $(tk)/misc.o: $h/common.h
-$(tk)/misc.o: $i/elf.h
 $(tk)/misc.o: $(sk)/misc.c
 	$(CC) $(CFlags) -o $@ $<
 
@@ -725,7 +724,6 @@ $(tmm)/misc.o: $(smm)/misc.c
 $(tmm)/exec.o: $(mma)
 $(tmm)/exec.o: $s/stat.h
 $(tmm)/exec.o: $h/callnr.h
-$(tmm)/exec.o: $i/elf.h
 $(tmm)/exec.o: $i/signal.h
 $(tmm)/exec.o: $i/string.h
 $(tmm)/exec.o: $(smm)/mmproc.h
@@ -921,8 +919,7 @@ $(tog)/origin.o: $i/fcntl.h
 $(tog)/origin.o: $i/unistd.h
 $(tog)/origin.o: $i/stdio.h
 $(tog)/origin.o: $s/wait.h
-$(tog)/origin.o: $i/string.h
-$(tog)/origin.o: $s/stat.h
+$(tog)/origin.o: $i/limits.h
 $(tog)/origin.o: $(sog)/origin.c
 	$(CC) $(CFlags) -o $@ $<
 
