@@ -50,7 +50,9 @@
 #	define REAL_TIME        1	/* 时钟任务的回复代码，用于告诉请求者：这是一个真实时间 */
 #	define CLOCK_INT   HARD_INT /* 此代码仅由同步闹钟任务发送，用来请求一个同步闹钟 */
 
-#define CONTROLLER(n)       (-3 - (n))  /* 控制器任务 */
+#define CONTROLLER(n)       (-4 - (n))  /* 控制器任务 */
+
+#define TEST_TASK           -4  /* 测试任务 */
 
 #define IDLE_TASK           -3  /* 闲置任务的进程插槽号 */
 

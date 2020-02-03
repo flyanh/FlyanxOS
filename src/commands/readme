@@ -1,4 +1,4 @@
 
-commands包含公用程序（如cat，cp，date，ls等等）的源代码。
+commands包含公用程序（如cat，cp，date，ls等等）的源代码，它们不属于内核，它们将会在系统第一次启动时会被安装到文件系统中以供用户使用。
 The source code for the utilities (such as cat, cp, date, ls, etc.).
 

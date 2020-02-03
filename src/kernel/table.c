@@ -85,6 +85,9 @@ PUBLIC TaskTab tasktab[] = {
 #if NR_CONTROLLERS >= 1
         { &nop_task,		CONTROLLER_STACK,	"(C0)"		},
 #endif
+        
+        /* 测试任务 */
+        { &test_task, SYS_TASK_STACK, "TEST_TASK" },
 
         /* 闲置任务 */
         { &idle_task, IDLE_TASK_STACK, "IDLE_TASK" },
@@ -102,7 +105,7 @@ PUBLIC TaskTab tasktab[] = {
         /* 飞彦扩展管理器 */
         { &fly_main, FLY_STACK, "FLY"		},
         /* 起源进程 */
-        { &origin_main, ORIGIN_STACK, "ORIGIN"		}
+        { &origin_main, ORIGIN_STACK, "ORIGIN"		},
 };
 
 /* 驱动任务定义 */
@@ -157,7 +160,7 @@ PUBLIC char *task_stack[TOT_TASK_STACK_SPACE / sizeof(char *)];
  * 简单解释：减去的是MM、FS、FLY和ORIGIN，这些都不属于系统任务
  */
 #define NKT (sizeof(tasktab) / sizeof(struct tasktab_s) - (ORIGIN_PROC_NR + 1))
-//#define NKT ( sizeof(tasktab) / sizeof(struct tasktab_s) - 1 )
+// #define NKT ( sizeof(tasktab) / sizeof(struct tasktab_s) )
 
 extern int dummy_tasktab_check[NR_TASKS == NKT ? 1 : -1];
 

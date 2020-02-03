@@ -314,8 +314,8 @@ Message *message_ptr;   /* 消息地址 */
 
         /* flyan的话：
          * 上面的两个if判断可以合二为一，变为以下的方式
-         * if (function == SEND || n != OK)
-		 *      return(n);
+         * if (function == SEND || rs != OK)
+		 *      return rs;
          * 我不这么做的原因是这样可读性太差了，不信你可以试着去理解一下上面
          * 合二为一的代码...我希望写一些通俗易懂的代码，即使他们不够优雅...
          */

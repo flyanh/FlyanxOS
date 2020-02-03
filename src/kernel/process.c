@@ -147,7 +147,7 @@ PRIVATE void hunter(){
     /* 就绪任务进程队列使我们狩猎的第一个目标 */
     if( (prey = ready_head[TASK_QUEUE]) != NIL_PROC){
         curr_proc = prey;
-//        if(!first) printf("%s process was caught by the hunter.\n", prey->name);
+        // if(!first) printf("%s process was caught by the hunter.nr = %d\n", prey->name, prey->nr);
         return;
     }
 

@@ -30,7 +30,7 @@ typedef struct tty_s {
                      * 分为读、写和io控制三种，其标志在本文件下面有说明。 */
 
     /* 输入队列，输入的字符将存在这里，直接被程序获取使用 */
-    u32_t input_buffer[TTY_INPUT_BYTES];    /* 输入缓冲区 */
+    u32_t input_buffer[256];    /* 输入缓冲区 */
     u32_t *input_free;          /* 指向输入队列的下一个空闲点 */
     u32_t *input_handle;        /* 指向应该被处理并返回给终端的扫描码 */
     int input_count;   /* 队列中字符的计数 */

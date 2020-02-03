@@ -51,7 +51,7 @@ LIB             = $(tl)/flyanxlib.a
 
 # ===============================================
 # 生成的所有命令行程序
-SIMPLE          = pwd
+SIMPLE          = pwd echo
 
 
 COMMANDS        = $(SIMPLE)
@@ -99,6 +99,12 @@ simple/pwd.o: simple/pwd.c
 pwd: simple/pwd.o start.o $(LIB)
 	$(LD) $(LDFLAGS) -o $@ $?
 
+simple/echo.o: $i/stdio.h
+simple/echo.o: simple/echo.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+echo: simple/echo.o start.o $(LIB)
+	$(LD) $(LDFLAGS) -o $@ $?
 
 
 

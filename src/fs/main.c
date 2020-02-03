@@ -212,7 +212,7 @@ PRIVATE void mkfs_flyanx(void){
     /* ====== 其次，设置索引节点映射 ======= */
     /* ================================== */
     memset(fs_buffer, 0, SECTOR_SIZE);  /* 清空一个扇区的缓冲区大小 */
-    /* dev_tty0, dev_tty1. dev_tty2 */
+    /* free, /, dev_tty0, dev_tty1,  dev_tty2, cmd.tar */
     for(i = 0; i < NR_CONSOLES + 3; i++){
         fs_buffer[0] |= 1 << i;
     }

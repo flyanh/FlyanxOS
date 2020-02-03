@@ -68,7 +68,6 @@ PUBLIC void flyanx_main(void){
     /* 初始化多进程支持
      * 为系统任务和服务设置进程表，内核任务的堆栈被初始化为数据空间中的数组。
 	 */
-
     TaskTab*    p_task;         /* 系统任务表的头指针 */
     reg_t       k_task_stack_base = (reg_t)task_stack;  /* 任务总栈 */
     u8_t		privilege;		/* CPU权限 */
@@ -177,7 +176,7 @@ PUBLIC void flyanx_main(void){
          * IDLE是一个空循环,在系统中无其他进程就绪时就运行它。
          * HARDWARE进程用于计费-它记录中断服务所用的时间。
          */
-        if (!is_idle_hardware(t)) lock_ready(proc);	    /* 闲置任务, 硬件任务从不就绪，除非没有任何进程可以运行才会就绪闲置任务 */
+        if (!is_idle_hardware(t) && t != TEST_TASK) lock_ready(proc);	    /* 闲置任务, 硬件任务从不就绪，除非没有任何进程可以运行才会就绪闲置任务 */
         proc->flags = 0;            /* 进程刚初始化，处于可运行状态，所以标志值的每位都是0 */
     }
 
@@ -196,7 +195,7 @@ PUBLIC void flyanx_main(void){
      * restart作用是引发一个上下文切换,这样curr_proc所指向的进程将运行。
      * 当restart执行了第一次时,我们可以说Flyanx正在运行-它在执行一个进程。
      * restart被反复地执行,每当系统任务、服务器进程或用户进程放弃运行机会挂
-     * 起时都要执行restart,无论挂起原因是等待输入还是在轮到其他进程运行时将控制器转交给它们。
+     * 起时都要执行restart,无论挂起原因是等待输入还是在轮到其他进程运行时将控制权转交给它们。
      */
     restart();
 }
@@ -263,6 +262,23 @@ PUBLIC void ok_print(char* msg, char* ok){
         printf(" ");
     }
     printf("[ %s ]", ok);
+}
+
+
+PUBLIC void taskA(){
+    int i = 0;
+    while(1){
+        for(i = 0; i < 100000; i++);
+        printf("A");
+    }
+}
+
+PUBLIC void taskB(){
+    int i = 0;
+    while(1){
+        for(i = 0; i < 100000; i++);
+        printf("B");
+    }
 }
 
 

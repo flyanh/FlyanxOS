@@ -20,6 +20,8 @@
 #include <limits.h>
 
 int untar(const char *filename, const char *parent_dir);
+char *login(int tty_index);
+void fly_shell(const char * tty_name, int tty_index);
 static void shabby_shell(const char * tty_name);
 
 /*===========================================================================*
@@ -37,14 +39,6 @@ void origin_main(void){
     /* 提取"cmd.tar"归档文件到根目录 */
     untar("/cmd.tar", "/");
 
-//    Stat fstat;
-//    stat("/pwd", &fstat);
-//    printf("/pwd file size: %lu\n", fstat.size);
-//    stat("/kernel.bin", &fstat);
-//    printf("/kernel.bin file size: %lu\n", fstat.size);
-//    stat("/hdldr.bin", &fstat);
-//    printf("/hdldr.bin file size: %lu\n", fstat.size);
-
     /* 所有的控制台文件（除了0号，0号作为系统启动日志输出的地方） */
     char *tty_list[] = {"/dev_tty1", "/dev_tty2"};
 
@@ -61,7 +55,8 @@ void origin_main(void){
             close(stdout_fd);
             close(stdin_fd);
 
-            shabby_shell(tty_list[i]);
+            /* 为该控制台终端打开fly_shell */
+            fly_shell(tty_list[i], i + 1);
         }
     }
 
@@ -69,7 +64,6 @@ void origin_main(void){
     while ((pid = wait(&status)) != -1){  /* 源进程等待所有shell退出 */
         printf("child (%d) exited with status: %d.\n", pid, status);
     }
-
 }
 
 /*===========================================================================*
@@ -98,7 +92,7 @@ static void shabby_shell(const char * tty_name)
         char ch;
         do {
             ch = *p;
-            if (*p != ' ' && *p != '\n' && *p != 0 && !word) {
+            if (*p != ' ' && *p != 0 && !word) {
                 s = p;
                 word = 1;
             }

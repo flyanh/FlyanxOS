@@ -210,8 +210,6 @@ PRIVATE void do_set_alarm(Message *m_ptr) {
     func = (WatchDog) m_ptr->FUNC_TO_CALL;  /* 要调用的函数(仅限于系统任务) ，
                                              * 如果是用户进程，调用函数可以取空指针，就算给了也会被无视 */
     proc = proc_addr(proc_nr);          /* 得到进程实例 */
-    /* 计算闹钟时间，并将其放入到即将回复的消息中| */
-    msg_in.SECONDS_LEFT = (proc->alarm == 0 ? 0 : (proc->alarm - ticks + (HZ - 1)) / HZ);
     /* 如果不是系统任务，无视func，以后用信号通知它 */
     if(!is_task_proc(proc)) func = 0;
     /* 公共的设置并启动闹钟例程：真正要去实现设置并启动闹钟的事务 */
@@ -249,6 +247,8 @@ PRIVATE void common_set_alarm(
     proc = proc_addr(proc_nr);
     /* 计算闹钟时间并放入到该进程中 */
     proc->alarm = (delta_ticks == 0 ? 0 : ticks + delta_ticks);
+    /* 计算闹钟时间，并将其放入到即将回复的消息中 */
+    msg_in.SECONDS_LEFT = (proc->alarm == 0 ? 0 : (proc->alarm - ticks + (HZ - 1)) / HZ);
     /* 将要执行的函数放入到看门狗数组中 */
     watch_dog[proc_nr + NR_TASKS] = func;
 

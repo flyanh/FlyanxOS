@@ -191,7 +191,7 @@ PUBLIC void wreboot(
 
     /* 通过跳转到reset地址（实模式）或强制处理器关闭（保护模式）来重置系统。
      */
-//    milli_delay(1500);  /* 重启之前，等待1500ms，好让用户有个准备。 */
+    milli_delay(1500);  /* 重启之前，等待1500ms，好让用户有个准备。 */
     level0(reset);
 
 }
@@ -256,7 +256,7 @@ PRIVATE void keyboard_read(TTY *tty){
     char buffer[3];		/* 局部缓冲区 */
     int scan_code;
     unsigned int ch;
-    /* 首先，拿到当前用户所使用的控制台，我们始终使用当前控制台 */
+    /* 首先，拿到当前用户所使用的控制台终端，我们始终使用当前控制台 */
     TTY *ctty = &tty_table[current_console_nr];
 
     /* 只有输入缓冲区中有字符，才能读 */
@@ -439,7 +439,7 @@ PRIVATE int function_key(int scan_code){
         /* 一个小彩蛋 */
         case ASF7:          /* ALT + SHIFT + F7 */
             printf("Congratulations, find an egg, I LOVE YOU!!!\n");
-            printf("************  **            ***        **\n");
+            printf("************  **             **        **\n");
             printf("************  **              **      ** \n");
             printf("**            **                **  **    \n");
             printf("**            **                  **      \n");

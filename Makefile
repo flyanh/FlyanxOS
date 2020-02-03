@@ -95,7 +95,7 @@ KernelObjs      = $(tk)/kernel.o $(tk)/start.o $(tk)/main.o $(tk)/protect.o \
                   $(tk)/message.o $(tk)/exception.o $(tk)/system.o \
                   $(tk)/clock.o $(tk)/tty.o $(tk)/keyboard.o \
                   $(tk)/console.o $(tk)/i8259.o  $(tk)/dmp.o \
-                  $(tk)/misc.o $(tk)/driver.o $(tk)/at_wind.o
+                  $(tk)/misc.o $(tk)/driver.o $(tk)/at_wind.o $(tk)/test.o
 
 # 运行在系统上的服务进程和起源进程，现在有：MM、FS、FLY、ORIGIN
 ProcObjs        = $(tmm)/main.o \
@@ -106,7 +106,7 @@ ProcObjs        = $(tmm)/main.o \
                   $(tfs)/path.o $(tfs)/read_write.o $(tfs)/link.o $(tfs)/statdir.o \
                   $(tfs)/pipe.o $(tfs)/misc.o \
                   $(tfly)/main.o $(tfly)/table.o $(tfly)/utils.o $(tfly)/misc.o \
-                  $(tog)/origin.o $(tog)/tar.o
+                  $(tog)/origin.o $(tog)/tar.o $(tog)/fly_shell.o
 
 # 内核之外所需要的库，有系统库，也有提供给用户使用的库，我按这样的顺序排下来：系统库->用户库->系统调用库
 LibObjs         = $(tl)/i386/message.o \
@@ -392,6 +392,13 @@ $(tk)/at_wind.o: $(s)/dev.h
 $(tk)/at_wind.o: $(sk)/hd.h
 $(tk)/at_wind.o: $(sk)/assert.h
 $(tk)/at_wind.o: $(sk)/at_wind.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tk)/test.o: $(a)
+$(tk)/test.o: $i/unistd.h
+$(tk)/test.o: $h/callnr.h
+$(tk)/test.o: $h/common.h
+$(tk)/test.o: $(sk)/test.c
 	$(CC) $(CFlags) -o $@ $<
 
 # ============ 系统库 ============
@@ -930,6 +937,15 @@ $(tog)/tar.o: $i/unistd.h
 $(tog)/tar.o: $i/string.h
 $(tog)/tar.o: $s/dev.h
 $(tog)/tar.o: $(sog)/tar.c
+	$(CC) $(CFlags) -o $@ $<
+
+$(tog)/fly_shell.o: $i/fcntl.h
+$(tog)/fly_shell.o: $i/unistd.h
+$(tog)/fly_shell.o: $i/string.h
+$(tog)/fly_shell.o: $i/stdio.h
+$(tog)/fly_shell.o: $s/wait.h
+$(tog)/fly_shell.o: $i/limits.h
+$(tog)/fly_shell.o: $(sog)/fly_shell.c
 	$(CC) $(CFlags) -o $@ $<
 
 # ===============================================

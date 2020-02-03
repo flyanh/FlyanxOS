@@ -182,11 +182,8 @@ PUBLIC void blue_screen(void){
     /* 切换到第一个控制台 */
     switch_to(0);
     /* 设置蓝屏属性 */
-    console->attr = MAKE_COLOR(BLUE, WHITE) | BRIGHT;
-    /* 清空整个控制台的内存（改变属性） */
-    blank_color = console->attr;
+    console->attr = blank_color = MAKE_COLOR(BLUE, WHITE) | BRIGHT;
     memory2video_copy(BLANK_MEM, curr_console->origin, curr_console->limit);
-    blank_color = BLANK_COLOR;
     console->row = console->column = 0;
     flush(curr_console);
 }
@@ -791,7 +788,7 @@ PUBLIC void console_stop(void){
 
 /*===========================================================================*
  *				k_putk					     *
- *			输出一个字符到当前控制台
+ *			输出一个字符到0号控制台
  *===========================================================================*/
 PUBLIC void k_putk(int ch)
 {

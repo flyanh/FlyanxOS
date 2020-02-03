@@ -46,12 +46,8 @@ PRIVATE Exception ex_data[] = {
 /*==========================================================================*
  *				exception_handler				    *
  *				异常处理
- *
  * unsigned vec_nr;         异常向量
  * int errno;              异常代码
- * int eip;               发生异常后的eip
- * int cs;                cs，同上
- * int eflags;             eflags，同上
  *==========================================================================*/
 PUBLIC void exception_handler(int vec_nr, int err_no)
 {

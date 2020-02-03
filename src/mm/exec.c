@@ -133,8 +133,9 @@ PUBLIC int do_exec(void){
             *q += delta;
         }
     }
+    printf("argc = %d\n", argc);
     /* 将高速缓冲里的新堆栈数据拷贝到新堆栈地址上 */
-    src = (vir_bytes)mm_buffer;
+    src = (vir_bytes)stack_buf;
     dest = (vir_bytes)new_stack;
     rs = sys_copy(MM_PROC_NR, DATA, (phys_bytes)src,
                   mm_who, DATA, (phys_bytes)dest,
@@ -144,7 +145,7 @@ PUBLIC int do_exec(void){
     /* 好的，现在通知内核，设置新程序的运行框架，暂时不支持环境变量的指定，
      * 给个0就好。
      */
-    sys_set_prog_frame(mm_who, argc, (u32_t)&new_stack, 0);
+    sys_set_prog_frame(mm_who, argc, (u32_t)new_stack, 0);
 
     /* 万事俱备，现在通知内核，一个程序已经加载进内存，
      * 请设置它的一些信息让它跑起来。

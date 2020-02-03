@@ -68,22 +68,28 @@ PRIVATE void tty_test(void){
 
     /* 测试终端读取数据 */
     msg_in.type = DEVICE_READ;
+    char read_buf[6];
+    msg_in.ADDRESS = read_buf;
+    msg_in.COUNT = 5;
     status = send_receive(TTY_TASK, &msg_in);
     if(status == OK){
-        printf("device read success: %d\n", msg_in.type);
+        printf("device read success: %d, buffer = \"%s\"\n", msg_in.type, read_buf);
     } else {
         printf("device read failed.\n");
     }
 
     /* 测试终端写入数据 */
     msg_in.type = DEVICE_WRITE;
+    char write_buf[6] = "hello";
+    msg_in.ADDRESS = write_buf;
+    msg_in.COUNT = 5;
+    printf("write a string \"hello\"...\n");
     status = send_receive(TTY_TASK, &msg_in);
     if(status == OK){
-        printf("device write success: %d\n", msg_in.type);
+        printf("\ndevice write success: %d\n", msg_in.type);
     } else {
         printf("device write failed.\n");
     }
-
 
     /* 测试终端io控制 */
     msg_in.type = DEVICE_IOCTL;
@@ -126,6 +132,7 @@ PRIVATE void clock_test(void){
     /* 测试延迟函数好不好使
      * 期望：延迟3s
      */
+    printf("delay 3s...\n");
     milli_delay(second2ms(3));
     /* 测试得到时钟运行时间（滴答） */
     msg_in.type = GET_UPTIME;
@@ -141,6 +148,7 @@ PRIVATE void clock_test(void){
      */
     msg_in.type = SET_TIME;
     msg_in.CLOCK_TIME = 5;
+    printf("set time value: %d\n", 5);
     status = send_receive(CLOCK_TASK, &msg_in);
     if(status == OK){
         printf("set time success\n");
@@ -154,7 +162,7 @@ PRIVATE void clock_test(void){
     msg_in.type = GET_TIME;
     status = send_receive(CLOCK_TASK, &msg_in);
     if(status == OK){
-        printf("get time success: %ld\n", msg_in.CLOCK_TIME);
+        printf("get time success: %lds\n", msg_in.CLOCK_TIME);
     } else {
         printf("get time failed.\n");
     }
@@ -166,6 +174,7 @@ PRIVATE void clock_test(void){
     msg_in.CLOCK_PROC_NR = TEST_TASK;
     msg_in.DELTA_TICKS = second2ms(3) / 10;
     msg_in.FUNC_TO_CALL = alarm_handler;
+    printf("set a alarm trigger after 3s...\n");
     status = send_receive(CLOCK_TASK, &msg_in);
     if(status == OK){
         printf("set alarm success: %ld\n", msg_in.SECONDS_LEFT);

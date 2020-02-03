@@ -98,7 +98,7 @@ PUBLIC void at_winchester_task(void) {
             case DEVICE_CLOSE:  rs = wini_do_close(msg_in.DEVICE);   break;
             case DEVICE_IOCTL:  rs = wini_do_ioctl(&msg_in);   break;
 
-            /* 而DEVICE_READ（读数据）、 DEV_WRITE（写数据）和剩下的两个操作
+            /* DEVICE_READ（读数据）、 DEV_WRITE（写数据）
              */
             case DEVICE_READ:
             case DEVICE_WRITE:  rs = wini_do_readwrite(&msg_in);    break;
@@ -134,16 +134,14 @@ PRIVATE int wini_do_readwrite(Message *msg){
     /* 我们仅允许从扇区边界进行读/写： */
     assert((pos & 0x1FF) == 0);
 
+    /* 通过读写位置计算读写的扇区号 */
     u32_t sect_nr = pos >> SECTOR_SIZE_SHIFT;  /* pos / SECTOR_SIZE */
     int logidx = (msg->DEVICE - MINOR_hd1a) % NR_SUB_PER_DRIVE;
     sect_nr += msg->DEVICE < MAX_PRIM ?
                hd_info[drive].primary[msg->DEVICE].base :
                hd_info[drive].logical[logidx].base;
 
-//    printf("%d want to %s %d by %d | pos -> %u\n",
-//           msg->PROC_NR, msg->type == DEVICE_READ ? "read" : "write", msg->COUNT, drive, pos);
-
-    /* 发出读/写命令，告诉驱动器开始读/写了。 */
+    /* 准备发出读/写命令，告诉驱动器开始读/写了。 */
     Command cmd;
     cmd.features	= 0;
     cmd.count	= (msg->COUNT + SECTOR_SIZE - 1) / SECTOR_SIZE;
@@ -307,10 +305,12 @@ PRIVATE int wini_identify(
     hd_info[drive].primary[0].size = ((int)hdinfo[61] << 16) + hdinfo[60];
 
     /* 现在可以启用中断了 */
-    put_irq_handler(AT_WINI_IRQ, wini_handler);
-    enable_irq(CASCADE_IRQ);
-    enable_irq(AT_WINI_IRQ);
-    intr_open = TRUE;
+    if(intr_open == FALSE){
+        put_irq_handler(AT_WINI_IRQ, wini_handler);
+        enable_irq(CASCADE_IRQ);
+        enable_irq(AT_WINI_IRQ);
+        intr_open = TRUE;
+    }
 }
 
 /*===========================================================================*
@@ -551,7 +551,7 @@ PRIVATE void partition(
             int dev_nr = i + 1;		  /* 1~4 */
             hdi->primary[dev_nr].base = part_tab[i].lowsec;
             hdi->primary[dev_nr].size = part_tab[i].size;
-//            printf("%d-{%d | %d}\n", dev_nr, hdi->primary[dev_nr].base, hdi->primary[dev_nr].size);
+           printf("primary --> device nr: %d-{base: %d | size: %d}\n", dev_nr, hdi->primary[dev_nr].base, hdi->primary[dev_nr].size);
 
             if (part_tab[i].sysind == EXT_PART){    /* 扩展分区？继续获取分区 */
                 partition(device + dev_nr, P_EXTENDED);
@@ -574,7 +574,7 @@ PRIVATE void partition(
             hdi->logical[dev_nr].size = part_tab[0].size;
 
             s = ext_start_sect + part_tab[1].lowsec;
-//            printf("%d-{%d | %d}\n", dev_nr, hdi->logical[dev_nr].base, hdi->logical[dev_nr].size);
+           printf("logical --> device nr: %d-{base: %d | size: %d}\n", dev_nr, hdi->logical[dev_nr].base, hdi->logical[dev_nr].size);
 
             /* 此扩展分区中不再有更多逻辑分区 */
             if (part_tab[1].sysind == NO_PART) break;

@@ -185,8 +185,8 @@ PRIVATE Inode *create_file(char *path, mode_t bits){
     Inode *new_ind = new_inode(dir_inode->device, inode_nr, free_sect_nr);
     /* 建立目录项 */
     new_dir_entry(dir_inode, new_ind->num, filename);
-    printf("creat a file '%s'\n", filename);
-    printf("inode:{num: %d, start_sect: %d, nr_sects: %d}\n", new_ind->num, new_ind->start_sect, new_ind->nr_sects);
+//    printf("creat a file '%s'\n", filename);
+//    printf("inode:{num: %d, start_sect: %d, nr_sects: %d}\n", new_ind->num, new_ind->start_sect, new_ind->nr_sects);
     return new_ind;
 }
 

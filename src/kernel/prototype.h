@@ -156,6 +156,9 @@ _PROTOTYPE( phys_bytes numap, (int proc_nr, vir_bytes vir_addr, vir_bytes bytes)
 /* table.c */
 /*================================================================================================*/
 _PROTOTYPE(  void map_drivers, (void) );
+_PROTOTYPE(  void taskA, (void) );
+_PROTOTYPE(  void taskB, (void) );
+_PROTOTYPE(  void test_task, (void) );
 
 /*================================================================================================*/
 /* driver.c */

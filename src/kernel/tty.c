@@ -84,6 +84,7 @@ FORWARD _PROTOTYPE( int echo, (TTY *tty, int ch) );
 FORWARD _PROTOTYPE( void tty_init, (TTY *tty) );
 FORWARD _PROTOTYPE( void reprint, (TTY *tty) );
 FORWARD _PROTOTYPE( void tty_input_cancel, (TTY *tty) );
+FORWARD _PROTOTYPE( void tty_output_cancel, (TTY *tty) );
 FORWARD _PROTOTYPE( void set_attr, (TTY *tty) );
 FORWARD _PROTOTYPE( void in_transfer, (TTY *tty) );
 FORWARD _PROTOTYPE( void set_alarm, (TTY *tty, int on) );
@@ -342,7 +343,8 @@ PRIVATE void do_write(TTY *tty, Message *msg){
  *				终端io控制
  *===========================================================================*/
 PRIVATE void do_ioctl(TTY *tty, Message *msg){
-    raw_echo(tty, 'i');
+    handle_ioctl(tty);
+    tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, OK);
 }
 
 /*===========================================================================*
@@ -355,19 +357,7 @@ PRIVATE void do_open(TTY *tty, Message *msg){
      */
 
     int rs = OK;
-    if(msg->TTY_LINE == LOG_MINOR) {
-        /* 日志设备是一个只写设备，所以如果师徒以读方式打开它，返回一个访问错误。 */
-        if(msg->FLAGS & R_BIT) rs = EACCES;
-    } else {
-        if(!(msg->FLAGS & O_NOCTTY)){
-            /* 如果O_NOCTTY标志未被置位，且不是日志设备，则该终端成为一个进程组的控制终端。
-		     * 这是通过把调用方的进程号放入到p_group域完成的。
-             */
-            tty->p_group = msg->PROC_NR;
-            rs = 1;
-        }
-        tty->open_count++;
-    }
+    tty->open_count++;
     /* 通知进程 */
     tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, rs);
 }
@@ -405,7 +395,9 @@ PRIVATE void do_close(TTY *tty, Message *msg){
  *			取消终端正在处理的任务
  *===========================================================================*/
 PRIVATE void do_cancel(TTY *tty, Message *msg){
-    raw_echo(tty, ';');
+    tty_input_cancel(tty);
+    tty_output_cancel(tty);
+    tty_reply(TASK_REPLY, msg->source, msg->PROC_NR, OK);
 }
 
 /*===========================================================================*
@@ -1053,8 +1045,21 @@ PRIVATE void tty_input_cancel(register TTY *tty){
     tty->input_count = tty->eot_count = 0;
     /* 队列的处理指针和空闲输入指针重合。 */
     tty->input_handle = tty->input_free;
-    /* 所有输出任务停止 */
+    /* 所有输入任务停止 */
     tty->input_cancel(tty);
+}
+
+/*==========================================================================*
+ *				tty_output_cancel				    *
+ *				取消设备的所有输出
+ *==========================================================================*/
+PRIVATE void tty_output_cancel(register TTY *tty){
+    /* 丢弃所有挂起的输出、终端缓冲区或设备。 */
+
+    /* 重置输出参数 */
+    tty->in_left = tty->in_cum = 0;
+    /* 所有输出任务停止 */
+    tty->output_cancel(tty);
 }
 
 /*===========================================================================*
